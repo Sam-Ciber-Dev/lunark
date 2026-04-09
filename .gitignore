@@ -1,33 +1,36 @@
-# ——— OS/Editor ———
+# ——— OS / Editor ———
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
 *.iml
+*.swp
+*.swo
 
-# ——— Temporary/Logs ———
+# ——— Logs / Temp ———
 *.log
 logs/
-log/
 tmp/
 temp/
 .cache/
 coverage/
 *.pid
 
-# ——— Secrets/Local config ———
+# ——— Secrets / Local config ———
 .env
 .env.*
 !.env.example
 *.key
 *.pem
 *.p12
+.secrets
 
 # ——— Dependencies ———
 node_modules/
 .pnp/
 .pnp.js
+package-lock.json
 
 # ——— Build outputs ———
 dist/
@@ -36,18 +39,23 @@ out/
 .next/
 .turbo/
 .vercel/
+*.tsbuildinfo
 
-# ——— Python (if any scripts) ———
+# ——— Python ———
 __pycache__/
 *.pyc
 .venv/
 venv/
 
-# ——— Uploads/generated at runtime ———
+# ——— Uploads / Runtime ———
 uploads/*
 !uploads/.gitkeep
 public/uploads/*
 !public/uploads/.gitkeep
 
-# ——— Fly.io ———
+# ——— Deploy ———
 fly.toml
+
+# ——— Test ———
+.nyc_output/
+.pytest_cache/
