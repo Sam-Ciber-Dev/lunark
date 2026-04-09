@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @lunark/shared build && pnpm --filter @lunark/frontend build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "frontend/.next",
+  "ignoreCommand": "npx turbo-ignore @lunark/frontend"
+}

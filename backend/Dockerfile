@@ -1,19 +1,45 @@
-FROM node:20-slim AS base
+# ——— Build stage ———
+FROM node:20-slim AS build
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-FROM base AS build
 WORKDIR /app
-COPY . .
+
+# Copy workspace root files needed for pnpm
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy all packages (shared + backend) for workspace resolution
+COPY shared/ ./shared/
+COPY backend/ ./backend/
+
 RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @lunark/shared build
 RUN pnpm --filter @lunark/api build
 
-FROM base AS production
+# ——— Production stage ———
+FROM node:20-slim AS production
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
 WORKDIR /app
-COPY --from=build /app/backend/dist ./dist
-COPY --from=build /app/backend/package.json ./
-COPY --from=build /app/backend/node_modules ./node_modules
+
+# Copy workspace root for pnpm to resolve workspace deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy shared dist (workspace dependency)
+COPY --from=build /app/shared/package.json ./shared/package.json
+COPY --from=build /app/shared/dist/ ./shared/dist/
+
+# Copy backend dist + package.json
+COPY --from=build /app/backend/package.json ./backend/package.json
+COPY --from=build /app/backend/dist/ ./backend/dist/
+
+# Install production deps only
+RUN pnpm install --frozen-lockfile --prod --filter @lunark/api
+
+WORKDIR /app/backend
 
 ENV NODE_ENV=production
 ENV PORT=4000

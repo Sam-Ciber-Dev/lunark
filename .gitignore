@@ -54,7 +54,7 @@ public/uploads/*
 !public/uploads/.gitkeep
 
 # ——— Deploy ———
-fly.toml
+# fly.toml is tracked — no secrets inside (secrets go in fly secrets)
 
 # ——— Database (local dev) ———
 *.db
