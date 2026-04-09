@@ -1,0 +1,25 @@
+{
+  "name": "@lunark/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "lint": "eslint src/",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "hono": "^4",
+    "@hono/node-server": "^1"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "tsup": "^8",
+    "typescript": "^5",
+    "@types/node": "^20",
+    "eslint": "^8"
+  }
+}
