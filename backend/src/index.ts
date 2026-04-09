@@ -2,6 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { serve } from "@hono/node-server";
+import { db } from "./db";
+import * as schema from "./db/schema";
+import { count } from "drizzle-orm";
 
 const app = new Hono();
 
@@ -16,7 +19,12 @@ app.use(
 
 app.get("/", (c) => c.json({ name: "Lunark API", version: "0.1.0" }));
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+app.get("/health", async (c) => {
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(schema.users);
+  return c.json({ status: "ok", users: total });
+});
 
 const port = Number(process.env.PORT) || 4000;
 

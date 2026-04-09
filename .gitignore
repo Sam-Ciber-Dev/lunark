@@ -56,6 +56,10 @@ public/uploads/*
 # ——— Deploy ———
 fly.toml
 
+# ——— Database (local dev) ———
+*.db
+*.db-journal
+
 # ——— Test ———
 .nyc_output/
 .pytest_cache/
