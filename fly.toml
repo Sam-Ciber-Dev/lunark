@@ -1,6 +1,6 @@
 # ——— Lunark API — Fly.io ———
 app = "lunark-api"
-primary_region = "mad"
+primary_region = "dub"
 
 [build]
   dockerfile = "backend/Dockerfile"
