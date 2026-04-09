@@ -2,7 +2,9 @@
 const nextConfig = {
   output: "standalone",
   transpilePackages: ["@lunark/api"],
-  serverExternalPackages: ["@libsql/client"],
+  experimental: {
+    serverComponentsExternalPackages: ["@libsql/client"],
+  },
   images: {
     remotePatterns: [
       {
