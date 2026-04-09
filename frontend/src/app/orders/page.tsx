@@ -7,16 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Order } from "@/types/product";
 
-export const metadata: Metadata = { title: "Encomendas" };
+export const metadata: Metadata = { title: "Orders" };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pendente",
-  confirmed: "Confirmada",
-  shipped: "Enviada",
-  delivered: "Entregue",
-  cancelled: "Cancelada",
+  pending: "Pending",
+  confirmed: "Confirmed",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
 };
 
 export default async function OrdersPage() {
@@ -39,12 +39,9 @@ export default async function OrdersPage() {
     return (
       <section className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 py-20 text-center sm:px-6 lg:px-8">
         <Package className="h-16 w-16 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">Sem encomendas</h1>
-        <p className="text-muted-foreground">
-          Ainda não fizeste nenhuma encomenda.
-        </p>
+        <h1 className="text-2xl font-bold">No orders yet</h1>
         <Button asChild>
-          <Link href="/shop">Explorar loja</Link>
+          <Link href="/shop">Explore Shop</Link>
         </Button>
       </section>
     );
@@ -52,15 +49,15 @@ export default async function OrdersPage() {
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-3xl font-bold">As minhas encomendas</h1>
+      <h1 className="mb-8 text-3xl font-bold tracking-tight">My Orders</h1>
 
       <div className="space-y-4">
         {orders.map((order) => (
-          <div key={order.id} className="rounded-lg border p-4">
+          <div key={order.id} className="rounded-lg border border-border/40 bg-card p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(order.createdAt).toLocaleDateString("pt-PT")}
+                  {new Date(order.createdAt).toLocaleDateString("en-US")}
                 </p>
                 <p className="font-semibold">{order.total.toFixed(2)} €</p>
               </div>

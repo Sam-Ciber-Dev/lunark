@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 const adminLinks = [
   { href: "/admin", label: "Dashboard" },
-  { href: "/admin/products", label: "Produtos" },
-  { href: "/admin/categories", label: "Categorias" },
-  { href: "/admin/orders", label: "Encomendas" },
+  { href: "/admin/products", label: "Products" },
+  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/orders", label: "Orders" },
 ];
 
 export default async function AdminLayout({
@@ -24,7 +24,7 @@ export default async function AdminLayout({
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold">Painel de Administração</h1>
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
         <nav className="mt-4 flex gap-2 overflow-x-auto border-b pb-2">
           {adminLinks.map((link) => (
             <Link

@@ -24,10 +24,10 @@ async function getStats(userId: string): Promise<Stats> {
 }
 
 const statCards = [
-  { key: "products" as const, label: "Produtos", icon: ShoppingBag },
-  { key: "orders" as const, label: "Encomendas", icon: Package },
-  { key: "users" as const, label: "Utilizadores", icon: Users },
-  { key: "categories" as const, label: "Categorias", icon: Tag },
+  { key: "products" as const, label: "Products", icon: ShoppingBag },
+  { key: "orders" as const, label: "Orders", icon: Package },
+  { key: "users" as const, label: "Users", icon: Users },
+  { key: "categories" as const, label: "Categories", icon: Tag },
 ];
 
 export default async function AdminDashboard() {
@@ -36,7 +36,7 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold">Visão geral</h2>
+      <h2 className="mb-6 text-xl font-semibold">Overview</h2>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon;

@@ -3,10 +3,12 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
+import { useI18n } from "@/lib/i18n";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function ContactPage() {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -31,7 +33,6 @@ export default function ContactPage() {
     setLoading(true);
     setResult(null);
 
-    // In dev mode without Turnstile key, use a placeholder token
     const token = turnstileToken || "dev-token";
 
     try {
@@ -43,10 +44,10 @@ export default function ContactPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Erro ao enviar mensagem");
+        throw new Error(data?.error ?? t.common.error);
       }
 
-      setResult({ type: "success", text: "Mensagem enviada com sucesso!" });
+      setResult({ type: "success", text: t.contact.success });
       setName("");
       setEmail("");
       setSubject("");
@@ -55,7 +56,7 @@ export default function ContactPage() {
     } catch (err) {
       setResult({
         type: "error",
-        text: err instanceof Error ? err.message : "Erro ao enviar",
+        text: err instanceof Error ? err.message : t.common.error,
       });
     } finally {
       setLoading(false);
@@ -63,17 +64,15 @@ export default function ContactPage() {
   };
 
   return (
-    <section className="mx-auto max-w-xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="mb-6 text-3xl font-bold">Contacto</h1>
-      <p className="mb-8 text-muted-foreground">
-        Tem alguma questão? Envia-nos uma mensagem.
-      </p>
+    <section className="mx-auto max-w-xl px-4 py-16 sm:px-6 lg:px-8">
+      <h1 className="mb-4 text-3xl font-bold tracking-tight">{t.contact.title}</h1>
+      <p className="mb-8 text-muted-foreground">{t.contact.subtitle}</p>
 
       {result && (
         <p
           className={`mb-4 rounded-md px-4 py-2 text-sm ${
             result.type === "success"
-              ? "bg-green-50 text-green-700"
+              ? "bg-green-500/10 text-green-500"
               : "bg-destructive/10 text-destructive"
           }`}
         >
@@ -86,45 +85,45 @@ export default function ContactPage() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nome"
+          placeholder={t.contact.name}
           required
           minLength={2}
           maxLength={100}
-          className="rounded-md border bg-background px-4 py-2"
+          className="rounded-md border border-border/40 bg-card px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder={t.contact.email}
           required
-          className="rounded-md border bg-background px-4 py-2"
+          className="rounded-md border border-border/40 bg-card px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
         <input
           type="text"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="Assunto"
+          placeholder={t.contact.subject}
           required
           minLength={2}
           maxLength={200}
-          className="rounded-md border bg-background px-4 py-2"
+          className="rounded-md border border-border/40 bg-card px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           rows={5}
-          placeholder="Mensagem"
+          placeholder={t.contact.message}
           required
           minLength={10}
           maxLength={2000}
-          className="rounded-md border bg-background px-4 py-2"
+          className="rounded-md border border-border/40 bg-card px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
 
         <Turnstile onVerify={onVerify} onExpire={onExpire} />
 
         <Button type="submit" disabled={loading}>
-          {loading ? "A enviar…" : "Enviar mensagem"}
+          {loading ? t.contact.sending : t.contact.send}
         </Button>
       </form>
     </section>

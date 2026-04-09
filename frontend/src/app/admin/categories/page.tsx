@@ -77,7 +77,7 @@ export default function AdminCategoriesPage() {
 
   const deleteCategory = async (id: string) => {
     if (!session?.user) return;
-    if (!confirm("Apagar esta categoria?")) return;
+    if (!confirm("Delete this category?")) return;
 
     try {
       const res = await fetch(`${API_URL}/admin/categories/${id}`, {
@@ -108,20 +108,20 @@ export default function AdminCategoriesPage() {
 
       {/* Create form */}
       <div className="mb-6 rounded-lg border p-4">
-        <p className="mb-3 text-sm font-medium">Nova categoria</p>
+        <p className="mb-3 text-sm font-medium">New category</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nome"
+            placeholder="Name"
             className="flex-1 rounded-md border bg-background px-3 py-2"
           />
           <input
             type="text"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
-            placeholder="Descrição (opcional)"
+            placeholder="Description (optional)"
             className="flex-1 rounded-md border bg-background px-3 py-2"
           />
           <Button onClick={createCategory} disabled={creating || !newName.trim()}>
@@ -134,7 +134,7 @@ export default function AdminCategoriesPage() {
       {/* List */}
       {categories.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">
-          Nenhuma categoria.
+          No categories.
         </p>
       ) : (
         <div className="space-y-2">
@@ -155,7 +155,7 @@ export default function AdminCategoriesPage() {
                     type="text"
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="Descrição"
+                    placeholder="Description"
                     className="flex-1 rounded-md border bg-background px-3 py-1"
                   />
                   <button

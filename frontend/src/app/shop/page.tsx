@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import type { Product, Pagination, Category } from "@/types/product";
 
-export const metadata: Metadata = { title: "Loja" };
+export const metadata: Metadata = { title: "Shop" };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -65,13 +65,13 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <h1 className="mb-8 text-3xl font-bold">Loja</h1>
+      <h1 className="mb-8 text-3xl font-bold tracking-tight">Shop</h1>
 
       {/* Category filters */}
       <div className="mb-8 flex flex-wrap items-center gap-2">
         <Link href="/shop">
           <Button variant={!category ? "default" : "outline"} size="sm">
-            Tudo
+            All
           </Button>
         </Link>
         {categories.map((cat) => (
@@ -88,20 +88,20 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
       {search && (
         <p className="mb-6 text-sm text-muted-foreground">
-          Resultados para &quot;{search}&quot; ({pagination.total})
+          Results for &quot;{search}&quot; ({pagination.total})
         </p>
       )}
 
       {/* Products grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-6">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       ) : (
         <p className="py-12 text-center text-muted-foreground">
-          Nenhum produto encontrado.
+          No products found.
         </p>
       )}
 
@@ -117,12 +117,12 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               }).toString()}`}
             >
               <Button variant="outline" size="sm">
-                Anterior
+                Previous
               </Button>
             </Link>
           )}
           <span className="flex items-center px-3 text-sm text-muted-foreground">
-            Página {pagination.page} de {pagination.totalPages}
+            Page {pagination.page} of {pagination.totalPages}
           </span>
           {pagination.page < pagination.totalPages && (
             <Link
@@ -133,7 +133,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               }).toString()}`}
             >
               <Button variant="outline" size="sm">
-                Seguinte
+                Next
               </Button>
             </Link>
           )}

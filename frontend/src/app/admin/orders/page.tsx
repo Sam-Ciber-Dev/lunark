@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: "Pendente",
-  confirmed: "Confirmada",
-  shipped: "Enviada",
-  delivered: "Entregue",
-  cancelled: "Cancelada",
+  pending: "Pending",
+  confirmed: "Confirmed",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
 };
 
 const STATUS_OPTIONS = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
@@ -79,12 +79,12 @@ export default function AdminOrdersPage() {
   return (
     <div>
       <h2 className="mb-6 text-xl font-semibold">
-        Encomendas ({orders.length})
+        Orders ({orders.length})
       </h2>
 
       {orders.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">
-          Nenhuma encomenda.
+          No orders.
         </p>
       ) : (
         <div className="space-y-2">
@@ -96,7 +96,7 @@ export default function AdminOrdersPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-medium">
-                    {order.user?.name ?? "Utilizador"}{" "}
+                    {order.user?.name ?? "User"}{" "}
                     <span className="text-sm text-muted-foreground">
                       ({order.user?.email})
                     </span>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 import type { ProductVariant } from "@/types/product";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ interface AddToCartProps {
 export function AddToCart({ productId, variants }: AddToCartProps) {
   const { data: session } = useSession();
   const router = useRouter();
+  const { t } = useI18n();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -46,14 +48,14 @@ export function AddToCart({ productId, variants }: AddToCartProps) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Erro ao adicionar");
+        throw new Error(data?.error ?? t.common.error);
       }
 
-      setMessage({ type: "success", text: "Adicionado ao carrinho!" });
+      setMessage({ type: "success", text: t.product.added });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "Erro",
+        text: err instanceof Error ? err.message : t.common.error,
       });
     } finally {
       setLoading(false);
@@ -63,7 +65,9 @@ export function AddToCart({ productId, variants }: AddToCartProps) {
   return (
     <div className="space-y-4">
       <div>
-        <span className="mb-2 block text-sm font-medium">Tamanho</span>
+        <span className="mb-2 block text-sm font-medium uppercase tracking-wider">
+          {t.product.size}
+        </span>
         <div className="flex flex-wrap gap-2">
           {variants.map((v) => (
             <button
@@ -73,13 +77,13 @@ export function AddToCart({ productId, variants }: AddToCartProps) {
               className={cn(
                 "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                 selectedSize === v.size
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border hover:border-foreground",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:border-primary",
                 v.stock === 0 && "cursor-not-allowed opacity-40"
               )}
             >
               {v.size}
-              {v.stock === 0 && " — Esgotado"}
+              {v.stock === 0 && ` — ${t.product.soldOut}`}
             </button>
           ))}
         </div>
@@ -91,14 +95,14 @@ export function AddToCart({ productId, variants }: AddToCartProps) {
         className="w-full"
         size="lg"
       >
-        {loading ? "A adicionar…" : "Adicionar ao carrinho"}
+        {loading ? t.product.adding : t.product.addToCart}
       </Button>
 
       {message && (
         <p
           className={cn(
             "text-sm",
-            message.type === "success" ? "text-green-600" : "text-destructive"
+            message.type === "success" ? "text-green-500" : "text-destructive"
           )}
         >
           {message.text}

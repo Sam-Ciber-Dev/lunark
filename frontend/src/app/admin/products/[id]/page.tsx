@@ -129,12 +129,12 @@ export default function EditProductPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Erro ao atualizar produto");
+        throw new Error(data?.error ?? "Error updating product");
       }
 
       router.push("/admin/products");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro");
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export default function EditProductPage() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold">Editar produto</h2>
+      <h2 className="mb-6 text-xl font-semibold">Edit product</h2>
 
       {error && (
         <p className="mb-4 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
@@ -162,7 +162,7 @@ export default function EditProductPage() {
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         <div>
-          <label className="mb-1 block text-sm font-medium">Nome *</label>
+          <label className="mb-1 block text-sm font-medium">Name *</label>
           <input
             type="text"
             value={name}
@@ -173,7 +173,7 @@ export default function EditProductPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Descrição</label>
+          <label className="mb-1 block text-sm font-medium">Description</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -184,7 +184,7 @@ export default function EditProductPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Preço (€) *</label>
+            <label className="mb-1 block text-sm font-medium">Price (€) *</label>
             <input
               type="number"
               step="0.01"
@@ -197,7 +197,7 @@ export default function EditProductPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">
-              Preço anterior (€)
+              Compare at price (€)
             </label>
             <input
               type="number"
@@ -211,13 +211,13 @@ export default function EditProductPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Categoria</label>
+          <label className="mb-1 block text-sm font-medium">Category</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="w-full rounded-md border bg-background px-4 py-2"
           >
-            <option value="">Sem categoria</option>
+            <option value="">No category</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
@@ -233,7 +233,7 @@ export default function EditProductPage() {
               checked={active}
               onChange={(e) => setActive(e.target.checked)}
             />
-            Ativo
+            Active
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -241,21 +241,21 @@ export default function EditProductPage() {
               checked={featured}
               onChange={(e) => setFeatured(e.target.checked)}
             />
-            Destaque
+            Featured
           </label>
         </div>
 
         {/* Variants */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium">Variantes (tamanhos)</label>
+            <label className="text-sm font-medium">Variants (sizes)</label>
             <button
               type="button"
               onClick={addVariant}
               className="text-sm text-primary hover:underline"
             >
               <Plus className="mr-1 inline h-3 w-3" />
-              Adicionar
+              Add
             </button>
           </div>
           <div className="space-y-2">
@@ -303,14 +303,14 @@ export default function EditProductPage() {
         {/* Images */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium">Imagens (URL)</label>
+            <label className="text-sm font-medium">Images (URL)</label>
             <button
               type="button"
               onClick={addImage}
               className="text-sm text-primary hover:underline"
             >
               <Plus className="mr-1 inline h-3 w-3" />
-              Adicionar
+              Add
             </button>
           </div>
           <div className="space-y-2">
@@ -351,7 +351,7 @@ export default function EditProductPage() {
         </div>
 
         <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "A guardar…" : "Guardar alterações"}
+          {loading ? "Saving…" : "Save changes"}
         </Button>
       </form>
     </div>

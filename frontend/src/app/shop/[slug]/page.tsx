@@ -23,7 +23,7 @@ async function getProduct(slug: string): Promise<Product | null> {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const product = await getProduct(params.slug);
-  if (!product) return { title: "Produto não encontrado" };
+  if (!product) return { title: "Product not found" };
   return {
     title: product.name,
     description: product.description ?? `${product.name} — Lunark`,
@@ -43,7 +43,7 @@ export default async function ProductPage({ params }: PageProps) {
             product.images.map((img) => (
               <div
                 key={img.id}
-                className="aspect-[3/4] overflow-hidden rounded-lg bg-muted"
+                className="aspect-[3/4] overflow-hidden rounded-lg bg-card"
               >
                 <img
                   src={img.url}
@@ -53,8 +53,8 @@ export default async function ProductPage({ params }: PageProps) {
               </div>
             ))
           ) : (
-            <div className="flex aspect-[3/4] items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              Sem imagem
+            <div className="flex aspect-[3/4] items-center justify-center rounded-lg bg-card text-muted-foreground">
+              No image
             </div>
           )}
         </div>
