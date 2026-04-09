@@ -5,6 +5,7 @@ import { serve } from "@hono/node-server";
 import { db } from "./db";
 import * as schema from "./db/schema";
 import { count } from "drizzle-orm";
+import { auth } from "./routes/auth";
 
 const app = new Hono();
 
@@ -25,6 +26,8 @@ app.get("/health", async (c) => {
     .from(schema.users);
   return c.json({ status: "ok", users: total });
 });
+
+app.route("/auth", auth);
 
 const port = Number(process.env.PORT) || 4000;
 

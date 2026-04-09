@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import {
+  LogOut,
   Menu,
   Search,
   ShoppingBag,
@@ -28,6 +30,7 @@ const navLinks = [
 export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
@@ -71,12 +74,24 @@ export function Navbar() {
             </Link>
           </Button>
 
-          <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
-            <Link href="/login">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Conta</span>
-            </Link>
-          </Button>
+          {session?.user ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden sm:flex"
+              onClick={() => signOut()}
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only">Sair</span>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+              <Link href="/login">
+                <User className="h-5 w-5" />
+                <span className="sr-only">Conta</span>
+              </Link>
+            </Button>
+          )}
 
           {/* Mobile menu */}
           <Sheet open={open} onOpenChange={setOpen}>
@@ -107,13 +122,30 @@ export function Navbar() {
                   </Link>
                 ))}
                 <hr className="my-2" />
-                <Link
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                  className="text-lg font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Entrar
-                </Link>
+                {session?.user ? (
+                  <>
+                    <span className="text-sm text-muted-foreground">
+                      {session.user.name}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        signOut();
+                      }}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground text-left"
+                    >
+                      Sair
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setOpen(false)}
+                    className="text-lg font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Entrar
+                  </Link>
+                )}
                 <Link
                   href="/cart"
                   onClick={() => setOpen(false)}

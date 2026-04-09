@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { SessionProvider } from "@/components/SessionProvider";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import "./globals.css";
@@ -35,9 +36,11 @@ export default function RootLayout({
   return (
     <html lang="pt" className={cn("font-sans", inter.variable)}>
       <body className="antialiased">
-        <Navbar />
-        <main className="min-h-[calc(100vh-8rem)]">{children}</main>
-        <Footer />
+        <SessionProvider>
+          <Navbar />
+          <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+          <Footer />
+        </SessionProvider>
       </body>
     </html>
   );
