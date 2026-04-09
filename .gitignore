@@ -1,0 +1,53 @@
+# ——— OS/Editor ———
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.iml
+
+# ——— Temporary/Logs ———
+*.log
+logs/
+log/
+tmp/
+temp/
+.cache/
+coverage/
+*.pid
+
+# ——— Secrets/Local config ———
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+
+# ——— Dependencies ———
+node_modules/
+.pnp/
+.pnp.js
+
+# ——— Build outputs ———
+dist/
+build/
+out/
+.next/
+.turbo/
+.vercel/
+
+# ——— Python (if any scripts) ———
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ——— Uploads/generated at runtime ———
+uploads/*
+!uploads/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep
+
+# ——— Fly.io ———
+fly.toml
