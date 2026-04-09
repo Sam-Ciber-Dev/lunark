@@ -7,7 +7,9 @@ import {
   cartItems,
   products,
   productVariants,
+  users,
 } from "../db/schema";
+import { sendOrderConfirmation } from "../lib/email";
 
 const ordersRouter = new Hono();
 
@@ -149,6 +151,23 @@ ordersRouter.post("/", async (c) => {
 
   // Clear cart
   await db.delete(cartItems).where(eq(cartItems.userId, userId));
+
+  // Send order confirmation email (non-blocking)
+  const user = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+
+  if (user?.email) {
+    sendOrderConfirmation({
+      orderId,
+      customerEmail: user.email,
+      customerName: user.name ?? "Cliente",
+      items: resolvedItems,
+      total: Math.round(total * 100) / 100,
+    }).catch((err) => console.error("[Email] Order confirmation failed:", err));
+  }
 
   return c.json({ id: orderId, total: Math.round(total * 100) / 100 }, 201);
 });

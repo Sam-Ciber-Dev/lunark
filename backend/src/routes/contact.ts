@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { contactSchema } from "@lunark/shared";
 import { rateLimit } from "../middleware/rate-limit";
+import { sendContactNotification } from "../lib/email";
 
 const contactRouter = new Hono();
 
@@ -50,6 +51,9 @@ contactRouter.post("/", async (c) => {
 
   // For now, just log the message (Brevo integration comes later)
   console.log("[Contact]", { name, email, subject, message: message.slice(0, 50) });
+
+  // Send email notification to admin
+  await sendContactNotification({ name, email, subject, message });
 
   return c.json({ success: true, message: "Mensagem enviada com sucesso" });
 });
