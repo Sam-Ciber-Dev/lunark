@@ -10,6 +10,7 @@ import { productsRouter } from "./routes/products";
 import { categoriesRouter } from "./routes/categories";
 import { cart } from "./routes/cart";
 import { ordersRouter } from "./routes/orders";
+import { adminRouter } from "./routes/admin";
 
 const app = new Hono();
 
@@ -36,6 +37,7 @@ app.route("/products", productsRouter);
 app.route("/categories", categoriesRouter);
 app.route("/cart", cart);
 app.route("/orders", ordersRouter);
+app.route("/admin", adminRouter);
 
 const port = Number(process.env.PORT) || 4000;
 

@@ -8,6 +8,7 @@ import {
   Menu,
   Package,
   Search,
+  Shield,
   ShoppingBag,
   User,
 } from "lucide-react";
@@ -77,6 +78,14 @@ export function Navbar() {
 
           {session?.user ? (
             <>
+              {(session.user as { role?: string }).role === "admin" && (
+                <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+                  <Link href="/admin">
+                    <Shield className="h-5 w-5" />
+                    <span className="sr-only">Admin</span>
+                  </Link>
+                </Button>
+              )}
               <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
                 <Link href="/orders">
                   <Package className="h-5 w-5" />
@@ -136,6 +145,15 @@ export function Navbar() {
                     <span className="text-sm text-muted-foreground">
                       {session.user.name}
                     </span>
+                    {(session.user as { role?: string }).role === "admin" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setOpen(false)}
+                        className="text-lg font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Administração
+                      </Link>
+                    )}
                     <Link
                       href="/orders"
                       onClick={() => setOpen(false)}
