@@ -6,6 +6,10 @@ import { db } from "./db";
 import * as schema from "./db/schema";
 import { count } from "drizzle-orm";
 import { auth } from "./routes/auth";
+import { productsRouter } from "./routes/products";
+import { categoriesRouter } from "./routes/categories";
+import { cart } from "./routes/cart";
+import { ordersRouter } from "./routes/orders";
 
 const app = new Hono();
 
@@ -28,6 +32,10 @@ app.get("/health", async (c) => {
 });
 
 app.route("/auth", auth);
+app.route("/products", productsRouter);
+app.route("/categories", categoriesRouter);
+app.route("/cart", cart);
+app.route("/orders", ordersRouter);
 
 const port = Number(process.env.PORT) || 4000;
 
