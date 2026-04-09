@@ -1,10 +1,12 @@
 # Lunark
 
-Modern e-commerce clothing platform rebuilt from a legacy PHP project — Next.js, Hono.js, Turso, Cloudflare, Brevo.
+Modern e-commerce clothing platform built with Next.js, Hono.js, Turso, Cloudflare, Brevo.
 
 ## Overview
 
-Lunark is a full-stack e-commerce platform for clothing, designed with a modern, secure architecture. The project started as a basic PHP store built during a professional course (PAP — Escola Profissional de Valongo, 2024), and has been completely reimagined using current technologies and best practices. The original codebase is preserved in the [`legacy/`](legacy/) folder to show the evolution.
+Lunark is a full-stack e-commerce platform for clothing, designed with a modern, secure architecture. The project started as a basic PHP store built during a professional course at [EPV](https://epvalongo.com)(Escola profissional de Valongo, 2024), and has been completely reimagined using current technologies and best practices.
+
+The original codebase is preserved in the [`legacy/`](legacy/) folder so you can give a closer look.
 
 ## Technology Stack
 
@@ -63,7 +65,7 @@ Lunark is a full-stack e-commerce platform for clothing, designed with a modern,
 
 ```
 lunark/
-├── assets/                  # Brand assets (logo)
+├── assets/                  # Brand assets (social preview)
 ├── legacy/                  # Original PHP project (PAP 2024)
 │   ├── website/             # PHP application
 │   ├── database/            # MySQL schema
