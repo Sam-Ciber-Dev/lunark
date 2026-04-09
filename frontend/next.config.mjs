@@ -3,7 +3,7 @@ const nextConfig = {
   output: "standalone",
   transpilePackages: ["@lunark/api"],
   experimental: {
-    serverComponentsExternalPackages: ["@libsql/client"],
+    serverComponentsExternalPackages: ["@libsql/client", "libsql"],
   },
   images: {
     remotePatterns: [
@@ -12,6 +12,15 @@ const nextConfig = {
         hostname: "**",
       },
     ],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push(
+        /^@libsql\/.*/,
+        "libsql"
+      );
+    }
+    return config;
   },
 };
 

@@ -57,6 +57,9 @@ importers:
 
   frontend:
     dependencies:
+      '@libsql/client':
+        specifier: ^0.17.2
+        version: 0.17.2
       '@lunark/api':
         specifier: workspace:*
         version: link:../backend
