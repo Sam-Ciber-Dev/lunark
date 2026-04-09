@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   LogOut,
   Menu,
+  Package,
   Search,
   ShoppingBag,
   User,
@@ -75,15 +76,23 @@ export function Navbar() {
           </Button>
 
           {session?.user ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden sm:flex"
-              onClick={() => signOut()}
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Sair</span>
-            </Button>
+            <>
+              <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
+                <Link href="/orders">
+                  <Package className="h-5 w-5" />
+                  <span className="sr-only">Encomendas</span>
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden sm:flex"
+                onClick={() => signOut()}
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Sair</span>
+              </Button>
+            </>
           ) : (
             <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
               <Link href="/login">
@@ -127,6 +136,13 @@ export function Navbar() {
                     <span className="text-sm text-muted-foreground">
                       {session.user.name}
                     </span>
+                    <Link
+                      href="/orders"
+                      onClick={() => setOpen(false)}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Encomendas
+                    </Link>
                     <button
                       onClick={() => {
                         setOpen(false);

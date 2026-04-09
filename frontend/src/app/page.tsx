@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductCard } from "@/components/ProductCard";
+import type { Product } from "@/types/product";
 
-export default function Home() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+async function getFeaturedProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch(`${API_URL}/products/featured`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function Home() {
+  const featured = await getFeaturedProducts();
+
   return (
     <>
       {/* Hero */}
@@ -21,17 +40,18 @@ export default function Home() {
         </Button>
       </section>
 
-      {/* Featured placeholder */}
+      {/* Featured */}
       <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
         <h2 className="mb-8 text-2xl font-semibold">Em destaque</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="aspect-[3/4] animate-pulse rounded-lg bg-muted"
-            />
-          ))}
-        </div>
+        {featured.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {featured.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">Novos produtos em breve.</p>
+        )}
       </section>
     </>
   );
