@@ -11,9 +11,12 @@ import { categoriesRouter } from "./routes/categories";
 import { cart } from "./routes/cart";
 import { ordersRouter } from "./routes/orders";
 import { adminRouter } from "./routes/admin";
+import { contactRouter } from "./routes/contact";
+import { securityHeaders } from "./middleware/security-headers";
 
 const app = new Hono();
 
+app.use("*", securityHeaders);
 app.use("*", logger());
 app.use(
   "*",
@@ -38,6 +41,7 @@ app.route("/categories", categoriesRouter);
 app.route("/cart", cart);
 app.route("/orders", ordersRouter);
 app.route("/admin", adminRouter);
+app.route("/contact", contactRouter);
 
 const port = Number(process.env.PORT) || 4000;
 

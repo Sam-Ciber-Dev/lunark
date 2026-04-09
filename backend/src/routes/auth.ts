@@ -4,8 +4,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { registerSchema, loginSchema } from "@lunark/shared";
+import { rateLimit } from "../middleware/rate-limit";
 
 const auth = new Hono();
+
+// Rate limit: 5 login attempts per 15 min, 3 register per 15 min
+auth.use("/login", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
+auth.use("/register", rateLimit({ limit: 3, windowMs: 15 * 60 * 1000 }));
 
 // POST /auth/register
 auth.post("/register", async (c) => {
