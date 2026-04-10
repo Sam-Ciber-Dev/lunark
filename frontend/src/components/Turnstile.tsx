@@ -43,7 +43,7 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
   }, []);
 
   useEffect(() => {
-    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
     if (!siteKey || !ref.current) return;
 
     // If turnstile is already loaded, render immediately
