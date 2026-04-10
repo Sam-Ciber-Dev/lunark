@@ -5,6 +5,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { I18nProvider } from "@/lib/i18n";
+import { CurrencyProvider } from "@/lib/currency";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -38,11 +39,13 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", inter.variable)}>
       <body className="antialiased">
         <I18nProvider>
-          <SessionProvider>
-            <Navbar />
-            <main className="min-h-[calc(100vh-8rem)]">{children}</main>
-            <Footer />
-          </SessionProvider>
+          <CurrencyProvider>
+            <SessionProvider>
+              <Navbar />
+              <main className="min-h-[calc(100vh-8rem)]">{children}</main>
+              <Footer />
+            </SessionProvider>
+          </CurrencyProvider>
         </I18nProvider>
       </body>
     </html>

@@ -3,6 +3,11 @@ export const en = {
   nav: {
     home: "Home",
     shop: "Shop",
+    newArrivals: "New In",
+    sale: "Sale",
+    women: "Women",
+    men: "Men",
+    children: "Children",
     about: "About",
     contact: "Contact",
     cart: "Cart",
@@ -11,15 +16,179 @@ export const en = {
     signOut: "Sign out",
     account: "Account",
     search: "Search",
+    searchPlaceholder: "Search for products...",
     menu: "Menu",
+    wishlist: "Wishlist",
+    support: "Customer Support",
+    currency: "Currency",
+    language: "Language",
+    profile: "My Profile",
+    myOrders: "My Orders",
+    myWishlist: "My Wishlist",
+    settings: "Settings",
+    viewAll: "View All",
+    boys: "Boys",
+    girls: "Girls",
+    allCategories: "All Categories",
+  },
+
+  // Gender sections
+  genders: {
+    women: "Women",
+    men: "Men",
+    boys: "Boys",
+    girls: "Girls",
+  },
+
+  // Age groups
+  ageGroups: {
+    "0-9months": "0–9 months",
+    "0-3years": "0–3 years",
+    "4-7years": "4–7 years",
+    "8-12years": "8–12 years",
+    "13-16years": "13–16 years",
+  },
+
+  // Subcategories
+  subcategories: {
+    blouses: "Blouses",
+    tops: "Tops",
+    "mini-dresses": "Mini Dresses",
+    "long-dresses": "Long Dresses",
+    jumpsuits: "Jumpsuits",
+    suits: "Suits",
+    beachwear: "Beachwear",
+    "hoodies-sweatshirts": "Hoodies & Sweatshirts",
+    wedding: "Wedding",
+    maternity: "Maternity",
+    party: "Party",
+    outerwear: "Outerwear",
+    jeans: "Jeans",
+    bottoms: "Bottoms",
+    sets: "Sets",
+    skirts: "Skirts",
+    knitwear: "Knitwear",
+    lingerie: "Lingerie",
+    sleepwear: "Sleepwear",
+    activewear: "Activewear",
+    "t-shirts": "T-Shirts",
+    "suits-blazers": "Suits & Blazers",
+    swimwear: "Swimwear",
+    "plus-size": "Plus Size",
+    underwear: "Underwear",
+    shirts: "Shirts",
+    dresses: "Dresses",
+    uniforms: "Uniforms",
+  },
+
+  // Sort
+  sort: {
+    label: "Sort by",
+    recommended: "Recommended",
+    popular: "Most Popular",
+    newest: "New Arrivals",
+    "price-asc": "Price: Low to High",
+    "price-desc": "Price: High to Low",
+  },
+
+  // Filters
+  filters: {
+    title: "Filters",
+    category: "Category",
+    size: "Size",
+    material: "Material",
+    designType: "Design Type",
+    style: "Style",
+    length: "Length",
+    sleeveLength: "Sleeve Length",
+    fit: "Fit",
+    composition: "Composition",
+    details: "Details",
+    color: "Color",
+    fabricElasticity: "Fabric Elasticity",
+    priceRange: "Price Range",
+    ageGroup: "Age Group",
+    clearAll: "Clear All",
+    apply: "Apply Filters",
+    showMore: "Show more",
+    showLess: "Show less",
+  },
+
+  // Filter values: Colors
+  colors: {
+    black: "Black", white: "White", red: "Red", blue: "Blue", navy: "Navy",
+    green: "Green", yellow: "Yellow", orange: "Orange", pink: "Pink",
+    purple: "Purple", brown: "Brown", beige: "Beige", grey: "Grey",
+    gold: "Gold", silver: "Silver", multicolor: "Multicolor", khaki: "Khaki",
+    burgundy: "Burgundy", coral: "Coral", teal: "Teal", mint: "Mint",
+    cream: "Cream", camel: "Camel", olive: "Olive", lavender: "Lavender",
+  },
+
+  // Filter values: Materials
+  materials: {
+    polyester: "Polyester", cotton: "Cotton", nylon: "Nylon", viscose: "Viscose",
+    acrylic: "Acrylic", velvet: "Velvet", wool: "Wool", silk: "Silk",
+    linen: "Linen", "pu-leather": "PU Leather", satin: "Satin", lace: "Lace",
+    chiffon: "Chiffon", denim: "Denim", knit: "Knit", mesh: "Mesh",
+    sequin: "Sequin", tweed: "Tweed", corduroy: "Corduroy", fleece: "Fleece",
+    spandex: "Spandex", rayon: "Rayon",
+  },
+
+  // Filter values: Design Types
+  designTypes: {
+    solid: "Solid", printed: "Printed", floral: "Floral", geometric: "Geometric",
+    striped: "Striped", plaid: "Plaid", "animal-print": "Animal Print",
+    "tie-dye": "Tie Dye", embroidered: "Embroidered", graphic: "Graphic",
+    abstract: "Abstract", "polka-dot": "Polka Dot", camo: "Camo",
+    paisley: "Paisley", colorblock: "Colorblock",
+  },
+
+  // Filter values: Styles
+  styles: {
+    casual: "Casual", elegant: "Elegant", boho: "Boho", sexy: "Sexy",
+    streetwear: "Streetwear", sporty: "Sporty", basic: "Basic", classic: "Classic",
+    vintage: "Vintage", minimalist: "Minimalist", romantic: "Romantic",
+    preppy: "Preppy", grunge: "Grunge", formal: "Formal", resort: "Resort",
+  },
+
+  // Filter values: Lengths
+  lengths: {
+    cropped: "Cropped", short: "Short", regular: "Regular", long: "Long",
+    mini: "Mini", midi: "Midi", maxi: "Maxi",
+  },
+
+  // Filter values: Sleeve Lengths
+  sleeveLengths: {
+    sleeveless: "Sleeveless", "short-sleeve": "Short Sleeve",
+    "3/4-sleeve": "3/4 Sleeve", "long-sleeve": "Long Sleeve",
+    "cap-sleeve": "Cap Sleeve", strapless: "Strapless",
+  },
+
+  // Filter values: Fit Types
+  fitTypes: {
+    slim: "Slim", regular: "Regular", loose: "Loose", oversized: "Oversized",
+    skinny: "Skinny", relaxed: "Relaxed", tailored: "Tailored", flared: "Flared",
+  },
+
+  // Filter values: Details
+  detailValues: {
+    pockets: "Pockets", buttons: "Buttons", zipper: "Zipper", belt: "Belt",
+    bow: "Bow", fringes: "Fringes", pleats: "Pleats", drawstring: "Drawstring",
+    "lace-up": "Lace-up", ruffle: "Ruffle", cutout: "Cutout", wrap: "Wrap",
+    slit: "Slit", hood: "Hood", collar: "Collar",
+  },
+
+  // Filter values: Fabric Elasticity
+  fabricElasticities: {
+    "no-stretch": "No Stretch", "slight-stretch": "Slight Stretch",
+    "medium-stretch": "Medium Stretch", "high-stretch": "High Stretch",
   },
 
   // Homepage
   hero: {
     badge: "New Collection",
     title: "Elevate Your Style",
-    subtitle:
-      "Discover curated collections of modern fashion — designed for those who dare to stand out.",
+    subtitle: "Discover curated collections of modern fashion — designed for those who dare to stand out.",
     cta: "Explore Collection",
   },
   featured: {
@@ -43,6 +212,7 @@ export const en = {
     prevPage: "Previous",
     nextPage: "Next",
     pageOf: "Page {page} of {total}",
+    productsFound: "{count} products found",
   },
 
   // Product detail
@@ -54,6 +224,15 @@ export const en = {
     addToCart: "Add to Cart",
     adding: "Adding…",
     added: "Added to cart!",
+    addToWishlist: "Add to Wishlist",
+    removeFromWishlist: "Remove from Wishlist",
+    inWishlist: "In Wishlist",
+    sizeGuide: "Size Guide",
+    description: "Description",
+    details: "Details",
+    material: "Material",
+    color: "Color",
+    loginToAdd: "Sign in to add items",
   },
 
   // Cart
@@ -72,6 +251,17 @@ export const en = {
     viewOrders: "View Orders",
   },
 
+  // Wishlist
+  wishlist: {
+    title: "Wishlist",
+    empty: "Your wishlist is empty.",
+    startBrowsing: "Start Browsing",
+    loginRequired: "Sign in to view your wishlist.",
+    remove: "Remove",
+    addToCart: "Add to Cart",
+    itemCount: "{count} items",
+  },
+
   // Orders
   orders: {
     title: "My Orders",
@@ -83,17 +273,14 @@ export const en = {
     items: "items",
   },
 
-  // About
+  // About (moved to footer, but kept for content)
   about: {
     title: "About Lunark",
-    description:
-      "Lunark was born with the mission of bringing modern, accessible fashion to everyone. Each piece is selected with quality, style, and comfort in mind.",
+    description: "Lunark was born with the mission of bringing modern, accessible fashion to everyone. Each piece is selected with quality, style, and comfort in mind.",
     mission: "Our Mission",
-    missionText:
-      "We believe that great style shouldn't come at an unreasonable price. Lunark bridges the gap between high-end aesthetics and everyday affordability.",
+    missionText: "We believe that great style shouldn't come at an unreasonable price. Lunark bridges the gap between high-end aesthetics and everyday affordability.",
     story: "Our Story",
-    storyText:
-      "Founded by fashion enthusiasts who were tired of choosing between style and budget, Lunark curates collections that make you feel confident without breaking the bank.",
+    storyText: "Founded by fashion enthusiasts who were tired of choosing between style and budget, Lunark curates collections that make you feel confident without breaking the bank.",
   },
 
   // Contact
@@ -122,12 +309,48 @@ export const en = {
     hasAccount: "Already have an account?",
     createAccount: "Create Account",
     signIn: "Sign In",
+    loginToContinue: "Please sign in to continue.",
   },
 
-  // Footer
+  // Footer (SHEIN-style sections)
   footer: {
     tagline: "Elevate your style.",
     rights: "All rights reserved.",
+    // Company info column
+    company: "Company",
+    aboutUs: "About Us",
+    careers: "Careers",
+    sustainability: "Sustainability",
+    press: "Press",
+    affiliates: "Affiliates",
+    // Help & Support column
+    help: "Help & Support",
+    shippingInfo: "Shipping Info",
+    returns: "Returns & Refunds",
+    howToOrder: "How to Order",
+    howToTrack: "How to Track",
+    sizeGuide: "Size Guide",
+    // Customer service column
+    customerService: "Customer Service",
+    contactUs: "Contact Us",
+    paymentMethods: "Payment Methods",
+    bonusPoints: "Bonus Points",
+    faq: "FAQ",
+    // Legal
+    legal: "Legal",
+    privacyPolicy: "Privacy Policy",
+    termsConditions: "Terms & Conditions",
+    cookiePolicy: "Cookie Policy",
+    // Social
+    followUs: "Follow Us",
+    // Newsletter
+    newsletter: "Newsletter",
+    newsletterTitle: "Stay Updated",
+    newsletterDesc: "Subscribe to get special offers, free giveaways, and new arrivals.",
+    emailPlaceholder: "Your email address",
+    subscribe: "Subscribe",
+    // Payments
+    weAccept: "We Accept",
   },
 
   // Admin
@@ -152,6 +375,9 @@ export const en = {
     edit: "Edit",
     create: "Create",
     back: "Back",
+    close: "Close",
+    seeAll: "See All",
+    noResults: "No results found",
   },
 } as const;
 

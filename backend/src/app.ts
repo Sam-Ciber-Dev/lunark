@@ -11,6 +11,7 @@ import { cart } from "./routes/cart";
 import { ordersRouter } from "./routes/orders";
 import { adminRouter } from "./routes/admin";
 import { contactRouter } from "./routes/contact";
+import { wishlistRouter } from "./routes/wishlist";
 import { securityHeaders } from "./middleware/security-headers";
 
 const app = new Hono();
@@ -41,5 +42,6 @@ app.route("/cart", cart);
 app.route("/orders", ordersRouter);
 app.route("/admin", adminRouter);
 app.route("/contact", contactRouter);
+app.route("/wishlist", wishlistRouter);
 
 export default app;

@@ -60,10 +60,15 @@ adminRouter.get("/products", async (c) => {
 // POST /admin/products — create product
 adminRouter.post("/products", async (c) => {
   const body = await c.req.json();
-  const { name, description, price, compareAtPrice, categoryId, active, featured, images, variants } = body;
+  const {
+    name, description, price, compareAtPrice, categoryId, active, featured,
+    gender, color, material, designType, style, length: garmentLength,
+    sleeveLength, fit, composition, details: detailsField, fabricElasticity,
+    ageGroup, images, variants,
+  } = body;
 
   if (!name || typeof price !== "number") {
-    return c.json({ error: "Nome e preço são obrigatórios" }, 400);
+    return c.json({ error: "Name and price are required" }, 400);
   }
 
   const slug = name
@@ -83,6 +88,18 @@ adminRouter.post("/products", async (c) => {
     price,
     compareAtPrice: compareAtPrice ?? null,
     categoryId: categoryId ?? null,
+    gender: gender ?? null,
+    color: color ?? null,
+    material: material ?? null,
+    designType: designType ?? null,
+    style: style ?? null,
+    length: garmentLength ?? null,
+    sleeveLength: sleeveLength ?? null,
+    fit: fit ?? null,
+    composition: composition ?? null,
+    details: detailsField ?? null,
+    fabricElasticity: fabricElasticity ?? null,
+    ageGroup: ageGroup ?? null,
     active: active ?? true,
     featured: featured ?? false,
   });
@@ -122,16 +139,20 @@ adminRouter.patch("/products/:id", async (c) => {
   const body = await c.req.json();
 
   const existing = await db.select().from(products).where(eq(products.id, id)).get();
-  if (!existing) return c.json({ error: "Produto não encontrado" }, 404);
+  if (!existing) return c.json({ error: "Product not found" }, 404);
 
   const updates: Record<string, unknown> = {};
-  if (body.name !== undefined) updates.name = body.name;
-  if (body.description !== undefined) updates.description = body.description;
-  if (body.price !== undefined) updates.price = body.price;
-  if (body.compareAtPrice !== undefined) updates.compareAtPrice = body.compareAtPrice;
-  if (body.categoryId !== undefined) updates.categoryId = body.categoryId;
-  if (body.active !== undefined) updates.active = body.active;
-  if (body.featured !== undefined) updates.featured = body.featured;
+  const fields = [
+    "name", "description", "price", "compareAtPrice", "categoryId",
+    "active", "featured", "gender", "color", "material", "designType",
+    "style", "sleeveLength", "fit", "composition", "details",
+    "fabricElasticity", "ageGroup",
+  ];
+  for (const field of fields) {
+    if (body[field] !== undefined) updates[field] = body[field];
+  }
+  // "length" is a reserved word in JS, handle separately
+  if (body.length !== undefined) updates.length = body.length;
 
   if (Object.keys(updates).length > 0) {
     await db.update(products).set(updates).where(eq(products.id, id));
@@ -173,7 +194,7 @@ adminRouter.patch("/products/:id", async (c) => {
 adminRouter.delete("/products/:id", async (c) => {
   const id = c.req.param("id");
   const existing = await db.select().from(products).where(eq(products.id, id)).get();
-  if (!existing) return c.json({ error: "Produto não encontrado" }, 404);
+  if (!existing) return c.json({ error: "Product not found" }, 404);
 
   await db.delete(products).where(eq(products.id, id));
   return c.json({ deleted: true });
@@ -183,9 +204,9 @@ adminRouter.delete("/products/:id", async (c) => {
 
 adminRouter.post("/categories", async (c) => {
   const body = await c.req.json();
-  const { name, description } = body;
+  const { name, description, parentId, gender, position } = body;
 
-  if (!name) return c.json({ error: "Nome obrigatório" }, 400);
+  if (!name) return c.json({ error: "Name required" }, 400);
 
   const slug = name
     .toLowerCase()
@@ -195,7 +216,15 @@ adminRouter.post("/categories", async (c) => {
     .replace(/(^-|-$)/g, "");
 
   const id = crypto.randomUUID();
-  await db.insert(categories).values({ id, name, slug, description: description ?? null });
+  await db.insert(categories).values({
+    id,
+    name,
+    slug: gender ? `${gender}-${slug}` : slug,
+    description: description ?? null,
+    parentId: parentId ?? null,
+    gender: gender ?? null,
+    position: position ?? 0,
+  });
   return c.json({ id, slug }, 201);
 });
 
@@ -204,11 +233,14 @@ adminRouter.patch("/categories/:id", async (c) => {
   const body = await c.req.json();
 
   const existing = await db.select().from(categories).where(eq(categories.id, id)).get();
-  if (!existing) return c.json({ error: "Categoria não encontrada" }, 404);
+  if (!existing) return c.json({ error: "Category not found" }, 404);
 
   const updates: Record<string, unknown> = {};
   if (body.name !== undefined) updates.name = body.name;
   if (body.description !== undefined) updates.description = body.description;
+  if (body.parentId !== undefined) updates.parentId = body.parentId;
+  if (body.gender !== undefined) updates.gender = body.gender;
+  if (body.position !== undefined) updates.position = body.position;
 
   if (Object.keys(updates).length > 0) {
     await db.update(categories).set(updates).where(eq(categories.id, id));
@@ -220,7 +252,7 @@ adminRouter.patch("/categories/:id", async (c) => {
 adminRouter.delete("/categories/:id", async (c) => {
   const id = c.req.param("id");
   const existing = await db.select().from(categories).where(eq(categories.id, id)).get();
-  if (!existing) return c.json({ error: "Categoria não encontrada" }, 404);
+  if (!existing) return c.json({ error: "Category not found" }, 404);
 
   await db.delete(categories).where(eq(categories.id, id));
   return c.json({ deleted: true });
@@ -255,11 +287,11 @@ adminRouter.patch("/orders/:id", async (c) => {
   const body = await c.req.json();
 
   const existing = await db.select().from(orders).where(eq(orders.id, id)).get();
-  if (!existing) return c.json({ error: "Encomenda não encontrada" }, 404);
+  if (!existing) return c.json({ error: "Order not found" }, 404);
 
   const validStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
   if (body.status && !validStatuses.includes(body.status)) {
-    return c.json({ error: "Estado inválido" }, 400);
+    return c.json({ error: "Invalid status" }, 400);
   }
 
   const updates: Record<string, unknown> = {};

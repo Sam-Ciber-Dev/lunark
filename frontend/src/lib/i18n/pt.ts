@@ -4,6 +4,11 @@ export const pt: Dictionary = {
   nav: {
     home: "Início",
     shop: "Loja",
+    newArrivals: "Novidades",
+    sale: "Saldos",
+    women: "Mulher",
+    men: "Homem",
+    children: "Crianças",
     about: "Sobre",
     contact: "Contacto",
     cart: "Carrinho",
@@ -12,14 +17,164 @@ export const pt: Dictionary = {
     signOut: "Sair",
     account: "Conta",
     search: "Pesquisar",
+    searchPlaceholder: "Pesquisar produtos...",
     menu: "Menu",
+    wishlist: "Lista de Desejos",
+    support: "Apoio ao Cliente",
+    currency: "Moeda",
+    language: "Idioma",
+    profile: "Meu Perfil",
+    myOrders: "Minhas Encomendas",
+    myWishlist: "Minha Lista de Desejos",
+    settings: "Definições",
+    viewAll: "Ver Tudo",
+    boys: "Meninos",
+    girls: "Meninas",
+    allCategories: "Todas as Categorias",
+  },
+
+  genders: {
+    women: "Mulher",
+    men: "Homem",
+    boys: "Meninos",
+    girls: "Meninas",
+  },
+
+  ageGroups: {
+    "0-9months": "0–9 meses",
+    "0-3years": "0–3 anos",
+    "4-7years": "4–7 anos",
+    "8-12years": "8–12 anos",
+    "13-16years": "13–16 anos",
+  },
+
+  subcategories: {
+    blouses: "Blusas",
+    tops: "Tops",
+    "mini-dresses": "Vestidos Mini",
+    "long-dresses": "Vestidos Longos",
+    jumpsuits: "Macacões",
+    suits: "Fatos",
+    beachwear: "Roupa de Praia",
+    "hoodies-sweatshirts": "Moletões",
+    wedding: "Casamento",
+    maternity: "Maternidade",
+    party: "Festa",
+    outerwear: "Outerwear",
+    jeans: "Ganga",
+    bottoms: "Partes Inferiores",
+    sets: "Conjuntos",
+    skirts: "Saias",
+    knitwear: "Malha",
+    lingerie: "Lingerie",
+    sleepwear: "Roupa de Dormir",
+    activewear: "Roupa Desportiva",
+    "t-shirts": "T-Shirts",
+    "suits-blazers": "Ternos e Blazers",
+    swimwear: "Fatos de Banho",
+    "plus-size": "Tamanhos Grandes",
+    underwear: "Roupa Interior",
+    shirts: "Camisas",
+    dresses: "Vestidos",
+    uniforms: "Uniformes",
+  },
+
+  sort: {
+    label: "Ordenar por",
+    recommended: "Recomendado",
+    popular: "Mais Popular",
+    newest: "Novidades",
+    "price-asc": "Preço: Baixo para Alto",
+    "price-desc": "Preço: Alto para Baixo",
+  },
+
+  filters: {
+    title: "Filtros",
+    category: "Categoria",
+    size: "Tamanho",
+    material: "Material",
+    designType: "Tipo de Desenho",
+    style: "Estilo",
+    length: "Comprimento",
+    sleeveLength: "Comprimento da Manga",
+    fit: "Tipo",
+    composition: "Composição",
+    details: "Detalhes",
+    color: "Cor",
+    fabricElasticity: "Elasticidade do Tecido",
+    priceRange: "Faixa de Preço",
+    ageGroup: "Faixa Etária",
+    clearAll: "Limpar Tudo",
+    apply: "Aplicar Filtros",
+    showMore: "Ver mais",
+    showLess: "Ver menos",
+  },
+
+  colors: {
+    black: "Preto", white: "Branco", red: "Vermelho", blue: "Azul", navy: "Azul Marinho",
+    green: "Verde", yellow: "Amarelo", orange: "Laranja", pink: "Rosa",
+    purple: "Roxo", brown: "Castanho", beige: "Bege", grey: "Cinzento",
+    gold: "Dourado", silver: "Prateado", multicolor: "Multicolor", khaki: "Caqui",
+    burgundy: "Borgonha", coral: "Coral", teal: "Verde-azulado", mint: "Menta",
+    cream: "Creme", camel: "Camel", olive: "Oliva", lavender: "Lavanda",
+  },
+
+  materials: {
+    polyester: "Poliéster", cotton: "Algodão", nylon: "Nylon", viscose: "Viscose",
+    acrylic: "Acrílico", velvet: "Veludo", wool: "Lã", silk: "Seda",
+    linen: "Linho", "pu-leather": "Couro PU", satin: "Cetim", lace: "Renda",
+    chiffon: "Chiffon", denim: "Ganga", knit: "Malha", mesh: "Malha",
+    sequin: "Lantejoulas", tweed: "Tweed", corduroy: "Bombazina", fleece: "Polar",
+    spandex: "Elastano", rayon: "Rayon",
+  },
+
+  designTypes: {
+    solid: "Liso", printed: "Estampado", floral: "Floral", geometric: "Geométrico",
+    striped: "Listrado", plaid: "Xadrez", "animal-print": "Animal Print",
+    "tie-dye": "Tie Dye", embroidered: "Bordado", graphic: "Gráfico",
+    abstract: "Abstrato", "polka-dot": "Bolinhas", camo: "Camuflagem",
+    paisley: "Paisley", colorblock: "Colorblock",
+  },
+
+  styles: {
+    casual: "Casual", elegant: "Elegante", boho: "Boho", sexy: "Sexy",
+    streetwear: "Streetwear", sporty: "Desportivo", basic: "Básico", classic: "Clássico",
+    vintage: "Vintage", minimalist: "Minimalista", romantic: "Romântico",
+    preppy: "Preppy", grunge: "Grunge", formal: "Formal", resort: "Resort",
+  },
+
+  lengths: {
+    cropped: "Cropped", short: "Curto", regular: "Regular", long: "Longo",
+    mini: "Mini", midi: "Midi", maxi: "Maxi",
+  },
+
+  sleeveLengths: {
+    sleeveless: "Sem Manga", "short-sleeve": "Manga Curta",
+    "3/4-sleeve": "Manga 3/4", "long-sleeve": "Manga Comprida",
+    "cap-sleeve": "Manga Curta", strapless: "Sem Alças",
+  },
+
+  fitTypes: {
+    slim: "Ajustado", regular: "Regular", loose: "Folgado", oversized: "Oversized",
+    skinny: "Skinny", relaxed: "Relaxado", tailored: "Alfaiataria", flared: "Flared",
+  },
+
+  detailValues: {
+    pockets: "Bolsos", buttons: "Botões", zipper: "Fecho", belt: "Cinto",
+    bow: "Laço", fringes: "Franjas", pleats: "Pregas", drawstring: "Cordão",
+    "lace-up": "Atacadores", ruffle: "Folhos", cutout: "Recortes", wrap: "Transpassado",
+    slit: "Fenda", hood: "Capuz", collar: "Colarinho",
+  },
+
+  fabricElasticities: {
+    "no-stretch": "Sem Elasticidade", "slight-stretch": "Ligeira Elasticidade",
+    "medium-stretch": "Média Elasticidade", "high-stretch": "Alta Elasticidade",
   },
 
   hero: {
     badge: "Nova Coleção",
     title: "Eleva o Teu Estilo",
-    subtitle:
-      "Descobre coleções curadas de moda moderna — desenhadas para quem ousa destacar-se.",
+    subtitle: "Descobre coleções curadas de moda moderna — desenhadas para quem ousa destacar-se.",
     cta: "Explorar Coleção",
   },
   featured: {
@@ -42,6 +197,7 @@ export const pt: Dictionary = {
     prevPage: "Anterior",
     nextPage: "Seguinte",
     pageOf: "Página {page} de {total}",
+    productsFound: "{count} produtos encontrados",
   },
 
   product: {
@@ -52,6 +208,15 @@ export const pt: Dictionary = {
     addToCart: "Adicionar ao Carrinho",
     adding: "A adicionar…",
     added: "Adicionado ao carrinho!",
+    addToWishlist: "Adicionar à Lista de Desejos",
+    removeFromWishlist: "Remover da Lista de Desejos",
+    inWishlist: "Na Lista de Desejos",
+    sizeGuide: "Guia de Tamanhos",
+    description: "Descrição",
+    details: "Detalhes",
+    material: "Material",
+    color: "Cor",
+    loginToAdd: "Entra para adicionar itens",
   },
 
   cart: {
@@ -69,6 +234,16 @@ export const pt: Dictionary = {
     viewOrders: "Ver Encomendas",
   },
 
+  wishlist: {
+    title: "Lista de Desejos",
+    empty: "A tua lista de desejos está vazia.",
+    startBrowsing: "Começar a Explorar",
+    loginRequired: "Entra na tua conta para ver a lista de desejos.",
+    remove: "Remover",
+    addToCart: "Adicionar ao Carrinho",
+    itemCount: "{count} artigos",
+  },
+
   orders: {
     title: "As Minhas Encomendas",
     empty: "Ainda sem encomendas.",
@@ -81,14 +256,11 @@ export const pt: Dictionary = {
 
   about: {
     title: "Sobre a Lunark",
-    description:
-      "A Lunark nasceu com a missão de trazer moda moderna e acessível a todos. Cada peça é selecionada com qualidade, estilo e conforto em mente.",
+    description: "A Lunark nasceu com a missão de trazer moda moderna e acessível a todos. Cada peça é selecionada com qualidade, estilo e conforto em mente.",
     mission: "A Nossa Missão",
-    missionText:
-      "Acreditamos que um grande estilo não deve ter um preço irracional. A Lunark faz a ponte entre a estética de alta gama e a acessibilidade do dia a dia.",
+    missionText: "Acreditamos que um grande estilo não deve ter um preço irracional. A Lunark faz a ponte entre a estética de alta gama e a acessibilidade do dia a dia.",
     story: "A Nossa História",
-    storyText:
-      "Fundada por entusiastas de moda que estavam fartos de escolher entre estilo e orçamento, a Lunark cura coleções que te fazem sentir confiante sem gastar uma fortuna.",
+    storyText: "Fundada por entusiastas de moda que estavam fartos de escolher entre estilo e orçamento, a Lunark cura coleções que te fazem sentir confiante sem gastar uma fortuna.",
   },
 
   contact: {
@@ -115,11 +287,40 @@ export const pt: Dictionary = {
     hasAccount: "Já tens conta?",
     createAccount: "Criar Conta",
     signIn: "Entrar",
+    loginToContinue: "Entra na tua conta para continuar.",
   },
 
   footer: {
     tagline: "Eleva o teu estilo.",
     rights: "Todos os direitos reservados.",
+    company: "Empresa",
+    aboutUs: "Sobre Nós",
+    careers: "Carreiras",
+    sustainability: "Sustentabilidade",
+    press: "Imprensa",
+    affiliates: "Afiliados",
+    help: "Ajuda e Suporte",
+    shippingInfo: "Informação de Envio",
+    returns: "Devoluções e Reembolsos",
+    howToOrder: "Como Encomendar",
+    howToTrack: "Como Rastrear",
+    sizeGuide: "Guia de Tamanhos",
+    customerService: "Atendimento ao Cliente",
+    contactUs: "Contacte-nos",
+    paymentMethods: "Métodos de Pagamento",
+    bonusPoints: "Pontos de Bónus",
+    faq: "Perguntas Frequentes",
+    legal: "Legal",
+    privacyPolicy: "Política de Privacidade",
+    termsConditions: "Termos e Condições",
+    cookiePolicy: "Política de Cookies",
+    followUs: "Siga-nos",
+    newsletter: "Newsletter",
+    newsletterTitle: "Mantém-te Atualizado",
+    newsletterDesc: "Subscreve para receber ofertas especiais, brindes e novidades.",
+    emailPlaceholder: "O teu endereço de email",
+    subscribe: "Subscrever",
+    weAccept: "Aceitamos",
   },
 
   admin: {
@@ -142,5 +343,8 @@ export const pt: Dictionary = {
     edit: "Editar",
     create: "Criar",
     back: "Voltar",
+    close: "Fechar",
+    seeAll: "Ver Tudo",
+    noResults: "Nenhum resultado encontrado",
   },
 };

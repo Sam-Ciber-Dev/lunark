@@ -60,14 +60,17 @@ export const sessions = sqliteTable("sessions", {
 });
 
 // ——————————————————————————————————————————————
-// Categories
+// Categories (hierarchical: gender → subcategory)
 // ——————————————————————————————————————————————
 
 export const categories = sqliteTable("categories", {
   id: text("id").primaryKey(),
-  name: text("name").notNull().unique(),
+  name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description"),
+  parentId: text("parent_id"),
+  gender: text("gender"), // "women", "men", "boys", "girls" or null for top-level
+  position: integer("position").notNull().default(0),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -87,6 +90,19 @@ export const products = sqliteTable("products", {
   categoryId: text("category_id").references(() => categories.id, {
     onDelete: "set null",
   }),
+  gender: text("gender"), // "women", "men", "boys", "girls"
+  color: text("color"),
+  material: text("material"),
+  designType: text("design_type"),
+  style: text("style"),
+  length: text("length"),
+  sleeveLength: text("sleeve_length"),
+  fit: text("fit"),
+  composition: text("composition"),
+  details: text("details"),
+  fabricElasticity: text("fabric_elasticity"),
+  ageGroup: text("age_group"), // for children products
+  salesCount: integer("sales_count").notNull().default(0),
   active: integer("active", { mode: "boolean" }).notNull().default(true),
   featured: integer("featured", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at")
@@ -120,7 +136,7 @@ export const productVariants = sqliteTable("product_variants", {
   productId: text("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
-  size: text("size", { enum: ["XS", "S", "M", "L", "XL", "XXL"] }).notNull(),
+  size: text("size").notNull(),
   stock: integer("stock").notNull().default(0),
 });
 
