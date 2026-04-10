@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
@@ -25,23 +25,35 @@ export async function loginAction(
   const password = formData.get("password") as string;
   const turnstileToken = formData.get("turnstileToken") as string;
 
-  const res = await fetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, turnstileToken }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, turnstileToken }),
+    });
 
-  const data = await res.json();
+    const text = await res.text();
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("loginAction: non-JSON response", res.status, text.slice(0, 500));
+      return { error: `Server error (${res.status})` };
+    }
 
-  if (!res.ok) {
-    return { error: data.error ?? "Incorrect email or password" };
+    if (!res.ok) {
+      return { error: (data.error as string) ?? "Incorrect email or password" };
+    }
+
+    if (data.requiresVerification) {
+      return { requiresVerification: true, email };
+    }
+
+    return { error: "Unexpected response" };
+  } catch (err) {
+    console.error("loginAction fetch failed:", err, "API_URL:", API_URL);
+    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
-
-  if (data.requiresVerification) {
-    return { requiresVerification: true, email };
-  }
-
-  return { error: "Unexpected response" };
 }
 
 // Step 1: Register — create account + send verification code
@@ -59,23 +71,35 @@ export async function registerAction(
     return { error: "Passwords do not match" };
   }
 
-  const res = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, turnstileToken }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password, turnstileToken }),
+    });
 
-  const data = await res.json();
+    const text = await res.text();
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("registerAction: non-JSON response", res.status, text.slice(0, 500));
+      return { error: `Server error (${res.status})` };
+    }
 
-  if (!res.ok) {
-    return { error: data.error ?? "Failed to create account" };
+    if (!res.ok) {
+      return { error: (data.error as string) ?? "Failed to create account" };
+    }
+
+    if (data.requiresVerification) {
+      return { requiresVerification: true, email };
+    }
+
+    return { error: "Unexpected response" };
+  } catch (err) {
+    console.error("registerAction fetch failed:", err, "API_URL:", API_URL);
+    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
-
-  if (data.requiresVerification) {
-    return { requiresVerification: true, email };
-  }
-
-  return { error: "Unexpected response" };
 }
 
 // Step 2: Verify code — complete sign-in
@@ -105,12 +129,16 @@ export async function verifyCodeAction(
 
 // Resend verification code
 export async function resendCodeAction(email: string, type: "login" | "register") {
-  const res = await fetch(`${API_URL}/auth/resend-code`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, type }),
-  });
-  return res.ok;
+  try {
+    const res = await fetch(`${API_URL}/auth/resend-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, type }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 // Google sign-in (for existing users only)
@@ -131,21 +159,33 @@ export async function googleSignInAction(credential: string) {
 
 // Google sign-up — get profile info for pre-filling form
 export async function googleGetProfileAction(credential: string) {
-  const res = await fetch(`${API_URL}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential, mode: "signup" }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential, mode: "signup" }),
+    });
 
-  const data = await res.json();
+    const text = await res.text();
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("googleGetProfileAction: non-JSON response", res.status, text.slice(0, 500));
+      return { error: `Server error (${res.status})` };
+    }
 
-  if (!res.ok) {
-    return { error: data.error ?? "Failed to get Google profile" };
+    if (!res.ok) {
+      return { error: (data.error as string) ?? "Failed to get Google profile" };
+    }
+
+    if (data.googleProfile) {
+      return { profile: data.googleProfile as { name: string; email: string; image: string | null } };
+    }
+
+    return { error: "Unexpected response" };
+  } catch (err) {
+    console.error("googleGetProfileAction fetch failed:", err, "API_URL:", API_URL);
+    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
-
-  if (data.googleProfile) {
-    return { profile: data.googleProfile as { name: string; email: string; image: string | null } };
-  }
-
-  return { error: "Unexpected response" };
 }

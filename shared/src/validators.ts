@@ -1,10 +1,11 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { LOCALES, PRODUCT_SIZES, ORDER_STATUS, GENDERS, COLORS, MATERIALS, DESIGN_TYPES, STYLES, LENGTHS, SLEEVE_LENGTHS, FIT_TYPES, DETAILS, FABRIC_ELASTICITY, AGE_GROUPS, SORT_OPTIONS } from "./constants";
 
-// ——— Auth ———
+// â€”â€”â€” Auth â€”â€”â€”
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
+  turnstileToken: z.string().optional(),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -12,10 +13,11 @@ export const registerSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(128),
+  turnstileToken: z.string().optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-// ——— Products ———
+// â€”â€”â€” Products â€”â€”â€”
 export const productFilterSchema = z.object({
   category: z.string().optional(),
   gender: z.enum(GENDERS).optional(),
@@ -40,7 +42,7 @@ export const productFilterSchema = z.object({
 });
 export type ProductFilter = z.infer<typeof productFilterSchema>;
 
-// ——— Cart ———
+// â€”â€”â€” Cart â€”â€”â€”
 export const addToCartSchema = z.object({
   productId: z.string().uuid(),
   size: z.string().min(1),
@@ -48,7 +50,7 @@ export const addToCartSchema = z.object({
 });
 export type AddToCartInput = z.infer<typeof addToCartSchema>;
 
-// ——— Contact ———
+// â€”â€”â€” Contact â€”â€”â€”
 export const contactSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
