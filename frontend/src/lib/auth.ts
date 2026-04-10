@@ -1,7 +1,17 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+function getApiUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  if (url.startsWith("/")) {
+    const host = process.env.VERCEL_URL ?? "localhost:3000";
+    const protocol = process.env.VERCEL ? "https" : "http";
+    return `${protocol}://${host}${url}`;
+  }
+  return url;
+}
+
+const API_URL = getApiUrl();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [

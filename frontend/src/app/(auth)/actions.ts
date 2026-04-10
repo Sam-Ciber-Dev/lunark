@@ -4,7 +4,17 @@ import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+function getApiUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  if (url.startsWith("/")) {
+    const host = process.env.VERCEL_URL ?? "localhost:3000";
+    const protocol = process.env.VERCEL ? "https" : "http";
+    return `${protocol}://${host}${url}`;
+  }
+  return url;
+}
+
+const API_URL = getApiUrl();
 
 // Step 1: Login — validate credentials + send verification code
 export async function loginAction(

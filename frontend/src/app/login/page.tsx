@@ -74,10 +74,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || verifyEmail) return;
 
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.onload = () => {
+    function initGoogle() {
       if (window.google && googleBtnRef.current) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -91,8 +88,18 @@ export default function LoginPage() {
           shape: "rectangular",
         });
       }
-    };
-    document.head.appendChild(script);
+    }
+
+    const existing = document.querySelector<HTMLScriptElement>('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      initGoogle();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.onload = () => initGoogle();
+      document.head.appendChild(script);
+    }
   }, [handleGoogleCallback, verifyEmail]);
 
   // Verification code screen
