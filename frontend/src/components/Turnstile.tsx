@@ -46,7 +46,8 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
         sitekey: key,
         callback: onVerify,
         "expired-callback": onExpire,
-      });
+        theme: "dark",
+      } as Parameters<typeof window.turnstile.render>[1]);
     }
   }, [onVerify, onExpire]);
 

@@ -63,3 +63,4 @@ public/uploads/*
 # ——— Test ———
 .nyc_output/
 .pytest_cache/
+.vercel

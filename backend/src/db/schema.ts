@@ -11,6 +11,9 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash"), // null for OAuth users
   image: text("image"),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .notNull()
+    .default(false),
   role: text("role", { enum: ["customer", "admin"] })
     .notNull()
     .default("customer"),
@@ -242,6 +245,22 @@ export const wishlistItems = sqliteTable("wishlist_items", {
   productId: text("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ——————————————————————————————————————————————
+// Verification Codes (email MFA)
+// ——————————————————————————————————————————————
+
+export const verificationCodes = sqliteTable("verification_codes", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  type: text("type", { enum: ["login", "register"] }).notNull(),
+  used: integer("used", { mode: "boolean" }).notNull().default(false),
+  expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

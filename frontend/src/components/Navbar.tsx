@@ -108,44 +108,6 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-background border-b border-border/40">
-      {/* Top bar */}
-      <div className="border-b border-border/20 bg-card/50">
-        <div className="mx-auto flex h-8 max-w-[1400px] items-center justify-between px-4 text-xs text-muted-foreground">
-          <span className="hidden sm:inline">{t.values.shipping.desc}</span>
-          <div className="flex items-center gap-4 ml-auto">
-            <button onClick={toggleLocale} className="flex items-center gap-1 hover:text-primary transition-colors">
-              <Globe className="h-3 w-3" />
-              {locale === "en" ? "PT" : "EN"}
-            </button>
-            <div className="relative" ref={currencyRef}>
-              <button onClick={() => setCurrencyOpen(!currencyOpen)} className="flex items-center gap-1 hover:text-primary transition-colors">
-                <Coins className="h-3 w-3" />
-                {currency}
-                <ChevronDown className="h-2.5 w-2.5" />
-              </button>
-              {currencyOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-56 max-h-72 overflow-y-auto rounded-md border border-border bg-card shadow-xl">
-                  {(Object.entries(CURRENCIES) as [CurrencyCode, typeof CURRENCIES[CurrencyCode]][]).map(([code, { name, symbol }]) => (
-                    <button
-                      key={code}
-                      onClick={() => { setCurrency(code); setCurrencyOpen(false); }}
-                      className={cn("flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-accent transition-colors", currency === code && "text-primary font-medium")}
-                    >
-                      <span>{name}</span>
-                      <span className="text-muted-foreground">{symbol} {code}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button onClick={() => requireAuth(() => router.push("/contact"))} className="flex items-center gap-1 hover:text-primary transition-colors">
-              <Headphones className="h-3 w-3" />
-              <span className="hidden md:inline">{t.nav.support}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Main navbar */}
       <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-4 px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -217,11 +179,16 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right icons */}
+        {/* Right icons: Language | MyAccount | Cart | Likes | Support | Currency */}
         <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-primary" onClick={() => setSearchOpen(!searchOpen)}>
             <Search className="h-4 w-4" />
           </Button>
+          {/* Language toggle */}
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
+            <Globe className="h-4 w-4" />
+          </Button>
+          {/* My Account */}
           <div className="relative" ref={profileRef}>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => setProfileOpen(!profileOpen)}>
               <User className="h-4 w-4" />
@@ -259,12 +226,38 @@ export function Navbar() {
               </div>
             )}
           </div>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hidden sm:flex" onClick={() => requireAuth(() => router.push("/wishlist"))}>
-            <Heart className="h-4 w-4" />
-          </Button>
+          {/* Cart */}
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => requireAuth(() => router.push("/cart"))}>
             <ShoppingBag className="h-4 w-4" />
           </Button>
+          {/* Wishlist / Likes */}
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hidden sm:flex" onClick={() => requireAuth(() => router.push("/wishlist"))}>
+            <Heart className="h-4 w-4" />
+          </Button>
+          {/* Customer Support */}
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hidden sm:flex" onClick={() => requireAuth(() => router.push("/contact"))}>
+            <Headphones className="h-4 w-4" />
+          </Button>
+          {/* Currency */}
+          <div className="relative" ref={currencyRef}>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => setCurrencyOpen(!currencyOpen)}>
+              <Coins className="h-4 w-4" />
+            </Button>
+            {currencyOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 w-56 max-h-72 overflow-y-auto rounded-md border border-border bg-card shadow-xl">
+                {(Object.entries(CURRENCIES) as [CurrencyCode, typeof CURRENCIES[CurrencyCode]][]).map(([code, { name, symbol }]) => (
+                  <button
+                    key={code}
+                    onClick={() => { setCurrency(code); setCurrencyOpen(false); }}
+                    className={cn("flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-accent transition-colors", currency === code && "text-primary font-medium")}
+                  >
+                    <span>{name}</span>
+                    <span className="text-muted-foreground">{symbol} {code}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
