@@ -17,42 +17,6 @@ auth.use("/verify-code", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }));
 
 // ——— Helpers ———
 
-// TEMPORARY: Diagnostic endpoint — remove after fixing email
-auth.get("/test-email", async (c) => {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL ?? "noreply@lunark.com";
-  
-  if (!apiKey) {
-    return c.json({ 
-      error: "BREVO_API_KEY is not set",
-      envKeys: Object.keys(process.env).filter(k => k.includes("BREVO")),
-    });
-  }
-
-  try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: { "accept": "application/json", "content-type": "application/json", "api-key": apiKey.trim() },
-      body: JSON.stringify({
-        sender: { name: "Lunark", email: senderEmail },
-        to: [{ email: "sam.oliveira.dev@gmail.com" }],
-        subject: "Lunark — Test Email",
-        htmlContent: "<h1>Test</h1><p>If you see this, Brevo email works!</p>",
-      }),
-    });
-    const body = await res.text();
-    return c.json({ 
-      status: res.status, 
-      ok: res.ok, 
-      body,
-      senderEmail,
-      apiKeyPrefix: apiKey.substring(0, 15) + "...",
-    });
-  } catch (err) {
-    return c.json({ error: String(err) });
-  }
-});
-
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
