@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { hash, compare } from "bcryptjs";
+import bcryptjs from "bcryptjs";
+const { hash, compare } = bcryptjs;
 import { eq, and, gt } from "drizzle-orm";
 import { db } from "../db";
 import { users, verificationCodes } from "../db/schema";
