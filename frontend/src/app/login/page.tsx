@@ -37,9 +37,12 @@ export default function LoginPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [localLoginError, setLocalLoginError] = useState<string | null>(null);
 
   // Forgot password state
-  const [forgotStep, setForgotStep] = useState<"email" | "code" | "newpass" | null>(null);
+  const [forgotStep, setForgotStep] = useState<"code" | "newpass" | null>(null);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotCode, setForgotCode] = useState("");
   const [forgotNewPass, setForgotNewPass] = useState("");
@@ -75,7 +78,16 @@ export default function LoginPage() {
   }
 
   // Determine if this is a "forgot password trigger" error
-  const showForgotLink = loginState?.error === "WRONG_CREDENTIALS";
+  const showForgotLink = localLoginError === "WRONG_CREDENTIALS";
+
+  // Sync loginState error → local error + reset Turnstile for retry
+  useEffect(() => {
+    if (loginState?.error) {
+      setLocalLoginError(loginState.error);
+      setTurnstileToken("");
+      setTurnstileResetKey(k => k + 1);
+    }
+  }, [loginState]);
 
   // Handle login state → redirect to verification
   useEffect(() => {
@@ -122,17 +134,17 @@ export default function LoginPage() {
     }
   };
 
-  // Forgot password: send code
-  const handleForgotSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Forgot password: send code directly (email already known from login form)
+  const handleForgotSendCode = async () => {
+    setLocalLoginError(null);
+    setForgotEmail(loginEmail);
     setForgotPending(true);
     setForgotError(null);
-    const result = await forgotPasswordAction(forgotEmail);
+    setForgotStep("code");
+    const result = await forgotPasswordAction(loginEmail);
     setForgotPending(false);
     if (result.error) {
       setForgotError(result.error);
-    } else {
-      setForgotStep("code");
     }
   };
 
@@ -170,6 +182,9 @@ export default function LoginPage() {
         setForgotCode("");
         setForgotNewPass("");
         setForgotConfirmPass("");
+        setLocalLoginError(null);
+        setTurnstileToken("");
+        setTurnstileResetKey(k => k + 1);
       }, 3000);
     }
   };
@@ -280,8 +295,7 @@ export default function LoginPage() {
         <button
           onClick={() => {
             if (forgotStep === "newpass") setForgotStep("code");
-            else if (forgotStep === "code") setForgotStep("email");
-            else { setForgotStep(null); setForgotError(null); }
+            else { setForgotStep(null); setForgotError(null); setTurnstileToken(""); setTurnstileResetKey(k => k + 1); }
           }}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors self-start"
         >
@@ -294,7 +308,6 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{t.auth.forgotPasswordTitle}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {forgotStep === "email" && t.auth.forgotPasswordDesc}
             {forgotStep === "code" && <>{t.auth.resetCodeSent} <span className="text-foreground font-medium">{forgotEmail}</span></>}
             {forgotStep === "newpass" && t.auth.newPassword}
           </p>
@@ -306,25 +319,6 @@ export default function LoginPage() {
 
         {forgotError && (
           <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{forgotError}</p>
-        )}
-
-        {forgotStep === "email" && (
-          <form onSubmit={handleForgotSendCode} className="flex flex-col gap-4">
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="email"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                placeholder={t.auth.email}
-                required
-                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-            <Button type="submit" disabled={forgotPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-              {forgotPending ? t.auth.sendingCode : t.auth.sendResetCode}
-            </Button>
-          </form>
         )}
 
         {forgotStep === "code" && (
@@ -406,6 +400,8 @@ export default function LoginPage() {
             type="email"
             placeholder={t.auth.email}
             required
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
             className="w-full rounded-md border border-border/40 bg-card pl-10 pr-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
         </div>
@@ -425,23 +421,23 @@ export default function LoginPage() {
         </div>
 
         {/* Error message + forgot password — above Turnstile */}
-        {(loginState?.error || googleError) && (
+        {(localLoginError || googleError) && (
           <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {translateError(loginState?.error ?? googleError ?? "")}
+            {translateError(localLoginError ?? googleError ?? "")}
           </p>
         )}
 
         {showForgotLink && (
           <p className="text-sm text-muted-foreground">
             {t.auth.forgotPassword}{" "}
-            <button type="button" onClick={() => setForgotStep("email")} className="text-primary underline font-medium">
+            <button type="button" onClick={handleForgotSendCode} className="text-primary underline font-medium">
               {t.auth.clickHere}
             </button>
           </p>
         )}
 
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
-        <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
+        <Turnstile key={turnstileResetKey} onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
 
         <LoginSubmitButton />
       </form>
