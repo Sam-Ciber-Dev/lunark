@@ -261,6 +261,8 @@ export const verificationCodes = sqliteTable("verification_codes", {
   type: text("type", { enum: ["login", "register"] }).notNull(),
   used: integer("used", { mode: "boolean" }).notNull().default(false),
   expiresAt: text("expires_at").notNull(),
+  pendingName: text("pending_name"),          // stored during register, used after verify
+  pendingPasswordHash: text("pending_password_hash"), // stored during register, used after verify
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

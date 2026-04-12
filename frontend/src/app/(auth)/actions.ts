@@ -2,7 +2,6 @@
 
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
-import { redirect } from "next/navigation";
 import honoApp from "@lunark/api/app";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
@@ -91,15 +90,14 @@ export async function verifyCodeAction(
       email,
       code,
       type,
-      redirect: false,
+      redirectTo: "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "Invalid or expired code" };
     }
-    throw error;
+    throw error; // re-throw NEXT_REDIRECT
   }
-  redirect("/");
 }
 
 // Resend verification code
@@ -117,15 +115,14 @@ export async function googleSignInAction(credential: string) {
   try {
     await signIn("google-verified", {
       credential,
-      redirect: false,
+      redirectTo: "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "No account found. Please create an account first." };
     }
-    throw error;
+    throw error; // re-throw NEXT_REDIRECT
   }
-  redirect("/");
 }
 
 // Google sign-up — get profile info for pre-filling form

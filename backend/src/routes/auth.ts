@@ -75,7 +75,7 @@ async function sendVerificationEmail(email: string, code: string, type: "login" 
   }
 }
 
-// POST /auth/register — Create account (unverified) + send code
+// POST /auth/register — Validate + send verification code (do NOT create user yet)
 auth.post("/register", async (c) => {
   const body = await c.req.json();
   const parsed = registerSchema.safeParse(body);
@@ -105,16 +105,8 @@ auth.post("/register", async (c) => {
     return c.json({ error: "This email is already registered" }, 409);
   }
 
+  // Hash password and store temporarily in verification code record
   const passwordHash = await hash(password, 12);
-  const id = crypto.randomUUID();
-
-  await db.insert(users).values({
-    id,
-    name,
-    email,
-    passwordHash,
-    emailVerified: false,
-  });
 
   // Generate and send verification code
   const code = generateCode();
@@ -125,11 +117,14 @@ auth.post("/register", async (c) => {
     code,
     type: "register",
     expiresAt,
+    // Store registration data temporarily so we can create user after verification
+    pendingName: name,
+    pendingPasswordHash: passwordHash,
   });
 
   const emailSent = await sendVerificationEmail(email, code, "register");
 
-  return c.json({ id, name, email, requiresVerification: true, emailSent }, 201);
+  return c.json({ email, requiresVerification: true, emailSent }, 200);
 });
 
 // POST /auth/login — Validate credentials + send code
@@ -220,13 +215,33 @@ auth.post("/verify-code", async (c) => {
     .set({ used: true })
     .where(eq(verificationCodes.id, record.id));
 
-  // Mark email as verified
+  if (type === "register") {
+    // Create user NOW (only after successful verification)
+    const id = crypto.randomUUID();
+    await db.insert(users).values({
+      id,
+      name: record.pendingName ?? "User",
+      email,
+      passwordHash: record.pendingPasswordHash,
+      emailVerified: true,
+    });
+
+    return c.json({
+      id,
+      name: record.pendingName ?? "User",
+      email,
+      role: "customer",
+      image: null,
+      verified: true,
+    });
+  }
+
+  // Login flow — mark email as verified and return user
   await db
     .update(users)
     .set({ emailVerified: true, updatedAt: now })
     .where(eq(users.email, email));
 
-  // Return user data for session creation
   const user = await db
     .select()
     .from(users)
