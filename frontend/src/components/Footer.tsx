@@ -265,7 +265,7 @@ export function Footer() {
           </div>
 
           {/* Newsletter */}
-          <div className="col-span-2 sm:col-span-3">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.newsletterTitle}</h3>
             <p className="mb-4 text-sm text-muted-foreground leading-relaxed">{t.footer.newsletterDesc}</p>
 
