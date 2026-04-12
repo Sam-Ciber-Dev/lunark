@@ -360,4 +360,26 @@ export const pt: Dictionary = {
     seeAll: "Ver Tudo",
     noResults: "Nenhum resultado encontrado",
   },
+
+  profile: {
+    title: "Meu Perfil",
+    info: "Informações",
+    name: "Nome",
+    email: "Email",
+    memberSince: "Membro desde",
+    editPhoto: "Editar Foto",
+    removePhoto: "Remover Foto",
+    uploadPhoto: "Carregar Foto",
+    photoHint: "JPG, PNG ou WEBP. Máx 2MB.",
+    saved: "Alterações guardadas!",
+    myOrders: "Minhas Encomendas",
+    myMessages: "Minhas Mensagens",
+    noOrders: "Ainda não tens encomendas.",
+    noMessages: "Sem mensagens ainda.",
+    tabs: {
+      profile: "Perfil",
+      orders: "Encomendas",
+      messages: "Mensagens",
+    },
+  },
 };

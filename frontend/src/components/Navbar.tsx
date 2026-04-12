@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   ChevronDown,
@@ -37,6 +37,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -181,18 +182,32 @@ export function Navbar() {
 
         {/* Right icons: Language | MyAccount | Cart | Likes | Support | Currency */}
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-primary" onClick={() => setSearchOpen(!searchOpen)}>
+          <button className="p-2 md:hidden text-muted-foreground hover:text-primary transition-colors" onClick={() => setSearchOpen(!searchOpen)}>
             <Search className="h-4 w-4" />
-          </Button>
+          </button>
           {/* Language toggle */}
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
+          <button className="p-2 text-muted-foreground hover:text-primary transition-colors" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
             <Globe className="h-4 w-4" />
-          </Button>
+          </button>
           {/* My Account */}
           <div className="relative" ref={profileRef}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => setProfileOpen(!profileOpen)}>
-              <User className="h-4 w-4" />
-            </Button>
+            <button
+              className={cn("p-2 transition-colors", pathname === "/profile" ? "text-primary" : "text-muted-foreground hover:text-primary")}
+              onClick={() => setProfileOpen(!profileOpen)}
+              onKeyDown={(e) => { if (e.key === "Enter" && session?.user) { e.preventDefault(); router.push("/profile"); setProfileOpen(false); } }}
+            >
+              {session?.user ? (
+                session.user.image ? (
+                  <img src={session.user.image} alt="" className="h-5 w-5 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground uppercase">
+                    {(session.user.name ?? session.user.email ?? "U").charAt(0)}
+                  </span>
+                )
+              ) : (
+                <User className="h-4 w-4" />
+              )}
+            </button>
             {profileOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-md border border-border bg-card shadow-xl py-1">
                 {session?.user ? (
@@ -201,48 +216,51 @@ export function Navbar() {
                       <p className="text-sm font-medium truncate">{session.user.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
                     </div>
-                    <Link href="/orders" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors">
+                    <Link href="/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/10 transition-colors">
+                      <User className="h-4 w-4" /> {t.nav.profile}
+                    </Link>
+                    <Link href="/orders" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/10 transition-colors">
                       <Package className="h-4 w-4" /> {t.nav.myOrders}
                     </Link>
-                    <Link href="/wishlist" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors">
+                    <Link href="/wishlist" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/10 transition-colors">
                       <Heart className="h-4 w-4" /> {t.nav.myWishlist}
                     </Link>
                     {isAdmin && (
-                      <Link href="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors">
+                      <Link href="/admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent/10 transition-colors">
                         <Shield className="h-4 w-4" /> {t.nav.admin}
                       </Link>
                     )}
                     <hr className="border-border my-1" />
-                    <button onClick={() => { setProfileOpen(false); signOut(); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors text-red-400">
+                    <button onClick={() => { setProfileOpen(false); signOut(); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent/10 transition-colors text-red-400">
                       <LogOut className="h-4 w-4" /> {t.nav.signOut}
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link href="/login" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent transition-colors">{t.auth.login}</Link>
-                    <Link href="/register" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent transition-colors">{t.auth.register}</Link>
+                    <Link href="/login" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent/10 transition-colors">{t.auth.login}</Link>
+                    <Link href="/register" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent/10 transition-colors">{t.auth.register}</Link>
                   </>
                 )}
               </div>
             )}
           </div>
           {/* Cart */}
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => requireAuth(() => router.push("/cart"))}>
+          <button className={cn("p-2 transition-colors", pathname === "/cart" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/cart"))}>
             <ShoppingBag className="h-4 w-4" />
-          </Button>
+          </button>
           {/* Wishlist / Likes */}
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hidden sm:flex" onClick={() => requireAuth(() => router.push("/wishlist"))}>
+          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/wishlist" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/wishlist"))}>
             <Heart className="h-4 w-4" />
-          </Button>
+          </button>
           {/* Customer Support */}
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hidden sm:flex" onClick={() => requireAuth(() => router.push("/contact"))}>
+          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/contact" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/contact"))}>
             <Headphones className="h-4 w-4" />
-          </Button>
+          </button>
           {/* Currency */}
           <div className="relative" ref={currencyRef}>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={() => setCurrencyOpen(!currencyOpen)}>
+            <button className="p-2 text-muted-foreground hover:text-primary transition-colors" onClick={() => setCurrencyOpen(!currencyOpen)}>
               <Coins className="h-4 w-4" />
-            </Button>
+            </button>
             {currencyOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 w-56 max-h-72 overflow-y-auto rounded-md border border-border bg-card shadow-xl">
                 {(Object.entries(CURRENCIES) as [CurrencyCode, typeof CURRENCIES[CurrencyCode]][]).map(([code, { name, symbol }]) => (

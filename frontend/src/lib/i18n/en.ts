@@ -392,6 +392,29 @@ export const en = {
     seeAll: "See All",
     noResults: "No results found",
   },
+
+  // Profile
+  profile: {
+    title: "My Profile",
+    info: "Information",
+    name: "Name",
+    email: "Email",
+    memberSince: "Member since",
+    editPhoto: "Edit Photo",
+    removePhoto: "Remove Photo",
+    uploadPhoto: "Upload Photo",
+    photoHint: "JPG, PNG or WEBP. Max 2MB.",
+    saved: "Changes saved!",
+    myOrders: "My Orders",
+    myMessages: "My Messages",
+    noOrders: "You have no orders yet.",
+    noMessages: "No messages yet.",
+    tabs: {
+      profile: "Profile",
+      orders: "Orders",
+      messages: "Messages",
+    },
+  },
 } as const;
 
 // Recursive type that widens string literals to string
