@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Cookie, Settings, BarChart3, Target, Shield } from "lucide-react";
+import { Settings, BarChart3, Target, Shield } from "lucide-react";
 
 export default function CookiePolicyPage() {
   return (

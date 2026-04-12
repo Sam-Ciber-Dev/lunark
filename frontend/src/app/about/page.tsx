@@ -1,10 +1,8 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
 import { Heart, Leaf, Globe, Award, Users, Sparkles } from "lucide-react";
 
 export default function AboutPage() {
-  const { t } = useI18n();
 
   const values = [
     { icon: Heart, title: "Quality First", desc: "Every piece is hand-selected and rigorously quality-checked before reaching you. We partner only with manufacturers who share our commitment to excellence." },

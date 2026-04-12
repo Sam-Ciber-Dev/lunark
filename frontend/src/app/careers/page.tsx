@@ -1,6 +1,5 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
 import { Briefcase, MapPin, Clock, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
@@ -14,8 +13,6 @@ const openPositions = [
 ];
 
 export default function CareersPage() {
-  const { t } = useI18n();
-
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">

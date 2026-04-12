@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { RotateCcw, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
 export default function ReturnsPage() {
@@ -36,7 +36,7 @@ export default function ReturnsPage() {
           <h2 className="text-xl font-bold mb-4">Return Policy</h2>
           <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
             <p>We accept returns within <strong className="text-foreground">30 days</strong> of the delivery date. Items must be in their original condition — unworn, unwashed, with all tags still attached.</p>
-            <p>Sale items and items marked as „Final Sale" are eligible for store credit or exchange only, not a cash refund.</p>
+            <p>Sale items and items marked as &ldquo;Final Sale&rdquo; are eligible for store credit or exchange only, not a cash refund.</p>
             <p>Gift cards, swimwear, underwear, earrings, and personalised items cannot be returned for hygiene reasons.</p>
           </div>
         </div>
@@ -47,7 +47,7 @@ export default function ReturnsPage() {
           <ol className="space-y-4 text-sm text-muted-foreground leading-relaxed">
             <li className="flex gap-3">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shrink-0">1</span>
-              <span><strong className="text-foreground">Log into your account</strong> and go to „My Orders". Select the order containing the item(s) you wish to return and click „Request Return".</span>
+              <span><strong className="text-foreground">Log into your account</strong> and go to &ldquo;My Orders&rdquo;. Select the order containing the item(s) you wish to return and click &ldquo;Request Return&rdquo;.</span>
             </li>
             <li className="flex gap-3">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shrink-0">2</span>
@@ -86,7 +86,7 @@ export default function ReturnsPage() {
                 <li>Earrings and pierced jewelry (hygiene reasons)</li>
                 <li>Personalised or customised items</li>
                 <li>Gift cards</li>
-                <li>Items marked as „Final Sale"</li>
+                <li>Items marked as &ldquo;Final Sale&rdquo;</li>
                 <li>Items returned after 30 days from delivery</li>
               </ul>
             </div>

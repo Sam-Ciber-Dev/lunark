@@ -20,7 +20,7 @@ export default function HowToOrderPage() {
             step: 1,
             icon: ShoppingBag,
             title: "Browse & Add to Cart",
-            desc: "Browse our shop or use the search to find what you love. Select your size and colour, then click „Add to Cart". You can continue shopping and add as many items as you like.",
+            desc: "Browse our shop or use the search to find what you love. Select your size and colour, then click 'Add to Cart'. You can continue shopping and add as many items as you like.",
             tips: [
               "Use filters to narrow by category, size, or price range",
               "Save items to your wishlist by clicking the heart icon",
@@ -31,7 +31,7 @@ export default function HowToOrderPage() {
             step: 2,
             icon: CreditCard,
             title: "Checkout & Payment",
-            desc: "When you're ready, go to your cart and click „Checkout". Enter your shipping address and choose a payment method. We accept all major credit and debit cards, PayPal, Apple Pay, Google Pay, and more.",
+            desc: "When you're ready, go to your cart and click 'Checkout'. Enter your shipping address and choose a payment method. We accept all major credit and debit cards, PayPal, Apple Pay, Google Pay, and more.",
             tips: [
               "Create an account to save your details for faster checkout next time",
               "Apply any discount codes in the promo field before paying",

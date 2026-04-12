@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, Search, MapPin, Bell, CheckCircle } from "lucide-react";
+import { Search, Bell } from "lucide-react";
 import Link from "next/link";
 
 export default function HowToTrackPage() {
@@ -83,7 +83,7 @@ export default function HowToTrackPage() {
             <p className="text-muted-foreground">Tracking updates can sometimes be delayed, especially during carrier sorting or customs processing for international orders. If there&apos;s no update after 5 business days, please contact our support team.</p>
           </div>
           <div>
-            <p className="font-semibold">It says „Delivered" but I haven&apos;t received it</p>
+            <p className="font-semibold">It says &ldquo;Delivered&rdquo; but I haven&apos;t received it</p>
             <p className="text-muted-foreground">Check with neighbours, your building reception, or safe places around your property. Carriers sometimes mark parcels as delivered slightly early. If you still can&apos;t find it after 24 hours, contact us and we&apos;ll investigate.</p>
           </div>
           <div>
