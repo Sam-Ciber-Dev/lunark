@@ -235,9 +235,9 @@ export function Footer() {
       <div className="mx-auto max-w-[1400px] px-6 py-14 lg:px-10">
         {/* Top: Link columns + Social + Newsletter */}
         <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-12">
-          {/* Link columns — each takes 2/12 */}
-          {columns.map((col) => (
-            <div key={col.title} className="lg:col-span-2">
+          {/* Link columns — first 3 take 2/12, Legal takes 1/12 */}
+          {columns.map((col, i) => (
+            <div key={col.title} className={i < 3 ? "lg:col-span-2" : "lg:col-span-1"}>
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
@@ -251,14 +251,14 @@ export function Footer() {
             </div>
           ))}
 
-          {/* Follow Us — 1/12 */}
-          <div className="lg:col-span-1">
+          {/* Follow Us — 2/12 */}
+          <div className="lg:col-span-2">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.followUs}</h3>
             <div className="flex flex-col gap-3">
               {socialLinks.map(({ icon: Icon, href, label }) => (
                 <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary" title={label}>
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{label}</span>
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
                 </a>
               ))}
             </div>
