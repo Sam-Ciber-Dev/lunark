@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 500" width="780" height="500">
+  <rect width="780" height="500" rx="40" fill="#fff"/>
+  <rect x="60" y="80" width="280" height="340" rx="20" fill="#0b7bc1"/>
+  <text x="200" y="210" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="#fff">J</text>
+  <text x="200" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="#fff">C</text>
+  <text x="200" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="#fff">B</text>
+  <rect x="400" y="80" width="320" height="155" rx="20" fill="#c41228"/>
+  <rect x="400" y="265" width="320" height="155" rx="20" fill="#007940"/>
+  <text x="560" y="180" text-anchor="middle" font-family="Arial,sans-serif" font-size="58" font-weight="bold" fill="#fff">JCB</text>
+  <text x="560" y="368" text-anchor="middle" font-family="Arial,sans-serif" font-size="38" font-weight="bold" fill="#fff">CARDS</text>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 500" width="780" height="500">
+  <rect width="780" height="500" rx="40" fill="#016fd0"/>
+  <path d="M0 0h780v500H0z" rx="40" fill="#016fd0"/>
+  <text x="390" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="68" font-weight="bold" fill="#fff" letter-spacing="4">AMERICAN</text>
+  <text x="390" y="280" text-anchor="middle" font-family="Arial,sans-serif" font-size="68" font-weight="bold" fill="#fff" letter-spacing="4">EXPRESS</text>
+  <line x1="100" y1="310" x2="680" y2="310" stroke="#fff" stroke-width="4"/>
+</svg>
