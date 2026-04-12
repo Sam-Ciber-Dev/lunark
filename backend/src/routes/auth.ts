@@ -50,19 +50,27 @@ async function sendVerificationEmail(email: string, code: string, type: "login" 
       <p style="text-align:center;color:#8a8a8a;font-size:12px;">This code expires in 10 minutes. Do not share it with anyone.</p>
     </div>`;
   try {
+    const senderEmail = process.env.BREVO_SENDER_EMAIL ?? "noreply@lunark.com";
+    console.log(`[Email] Sending ${type} code to ${email} from ${senderEmail}`);
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
-      headers: { "accept": "application/json", "content-type": "application/json", "api-key": apiKey },
+      headers: { "accept": "application/json", "content-type": "application/json", "api-key": apiKey.trim() },
       body: JSON.stringify({
-        sender: { name: "Lunark", email: process.env.BREVO_SENDER_EMAIL ?? "noreply@lunark.com" },
+        sender: { name: "Lunark", email: senderEmail },
         to: [{ email }],
         subject,
         htmlContent,
       }),
     });
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error(`[Email] Brevo error ${res.status}: ${errBody}`);
+    } else {
+      console.log(`[Email] Sent successfully to ${email}`);
+    }
     return res.ok;
-  } catch {
-    console.error("Failed to send email");
+  } catch (err) {
+    console.error("[Email] Failed to send:", err);
     return false;
   }
 }
