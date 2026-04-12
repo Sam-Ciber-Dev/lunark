@@ -26,6 +26,7 @@ coverage/
 *.p12
 .secrets
 0. Secrets.txt
+0.1 Comandos para iniciar projeto.txt
 
 # ——— Dependencies ———
 node_modules/
