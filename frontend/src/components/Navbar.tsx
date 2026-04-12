@@ -185,13 +185,13 @@ export function Navbar() {
             <Search className="h-4 w-4" />
           </button>
           {/* Language toggle */}
-          <button className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
+          <button className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50" onClick={toggleLocale} title={locale === "en" ? "Switch to Portuguese" : "Mudar para Inglês"}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={locale === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={locale === "en" ? "EN" : "PT"} className="h-4 w-5 object-cover rounded-[2px]" />
             <span className="hidden sm:inline text-xs font-medium uppercase">{locale === "en" ? "EN" : "PT"}</span>
           </button>
           {/* My Account */}
-          <div className="relative" ref={profileRef} onMouseEnter={() => setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
+          <div className="relative" ref={profileRef} onMouseEnter={() => session?.user && setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
             <button
               className={cn("p-2 transition-colors", pathname === "/profile" ? "text-primary" : "text-muted-foreground hover:text-primary")}
               onClick={() => { if (session?.user) { router.push("/profile"); setProfileOpen(false); } else { router.push("/login"); } }}
@@ -235,12 +235,7 @@ export function Navbar() {
                       <LogOut className="h-4 w-4" /> {t.nav.signOut}
                     </button>
                   </>
-                ) : (
-                  <>
-                    <Link href="/login" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent/10 transition-colors">{t.auth.login}</Link>
-                    <Link href="/register" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm hover:bg-accent/10 transition-colors">{t.auth.register}</Link>
-                  </>
-                )}
+                ) : null}
               </div>
             )}
           </div>
