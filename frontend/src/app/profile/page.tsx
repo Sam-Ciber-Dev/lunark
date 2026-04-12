@@ -4,14 +4,14 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
-import { User, Camera, Trash2, Package, MessageSquare, LogOut, Pencil, Check, X } from "lucide-react";
+import { User, Trash2, Package, MessageSquare, LogOut, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
 export default function ProfilePage() {
-  const { data: session, update: updateSession } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"profile" | "orders" | "messages">("profile");
@@ -22,16 +22,28 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [orders, setOrders] = useState<Array<{ id: string; status: string; total: number; createdAt: string }>>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!session?.user) {
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
-    setName(session.user.name ?? "");
-    setImage(session.user.image ?? null);
-  }, [session, router]);
+    if (session?.user) {
+      setName(session.user.name ?? "");
+      setImage(session.user.image ?? null);
+    }
+  }, [session, status, router]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetch(`${API_URL}/profile/${session.user.id}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.createdAt) setCreatedAt(data.createdAt); })
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   const loadOrders = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -62,8 +74,9 @@ export default function ProfilePage() {
         body: JSON.stringify(updates),
       });
       if (res.ok) {
+        const updated = await res.json();
         setSaved(true);
-        await updateSession();
+        await updateSession({ name: updated.name, image: updated.image });
         setTimeout(() => setSaved(false), 2000);
       }
     } catch { /* ignore */ }
@@ -161,20 +174,30 @@ export default function ProfilePage() {
         <div className="space-y-8">
           {/* Avatar */}
           <div className="flex flex-col items-center gap-4">
-            <div className="relative group">
+            <div className="relative">
               {image ? (
-                <img src={image} alt="" className="h-24 w-24 rounded-full object-cover border-2 border-border" />
+                <img src={image} alt="" className="h-24 w-24 rounded-full object-cover border-2 border-primary/50" />
               ) : (
-                <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center border-2 border-border">
+                <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center border-2 border-primary/50">
                   <span className="text-2xl font-bold text-primary-foreground">{initials}</span>
                 </div>
               )}
+              {/* Edit button - top left */}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 rounded-full bg-card border border-border p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                className="absolute -top-1 -left-1 h-8 w-8 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors shadow-sm"
               >
-                <Camera className="h-4 w-4" />
+                <Pencil className="h-3.5 w-3.5" />
               </button>
+              {/* Delete button - top right */}
+              {image && (
+                <button
+                  onClick={handleRemovePhoto}
+                  className="absolute -top-1 -right-1 h-8 w-8 rounded-full bg-red-500 border border-red-400 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -183,17 +206,6 @@ export default function ProfilePage() {
                 className="hidden"
               />
             </div>
-            <div className="flex items-center gap-2">
-              {image && (
-                <button
-                  onClick={handleRemovePhoto}
-                  className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors"
-                >
-                  <Trash2 className="h-3 w-3" /> {t.profile.removePhoto}
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{t.profile.photoHint}</p>
           </div>
 
           {/* Info */}
@@ -236,7 +248,11 @@ export default function ProfilePage() {
             {/* Member since */}
             <div className="rounded-md border border-border bg-card px-4 py-3">
               <label className="text-xs text-muted-foreground">{t.profile.memberSince}</label>
-              <p className="text-sm mt-1">{session.user.email ? "—" : "—"}</p>
+              <p className="text-sm mt-1">
+                {createdAt
+                  ? new Date(createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })
+                  : "—"}
+              </p>
             </div>
           </div>
 

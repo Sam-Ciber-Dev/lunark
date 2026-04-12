@@ -190,11 +190,10 @@ export function Navbar() {
             <Globe className="h-4 w-4" />
           </button>
           {/* My Account */}
-          <div className="relative" ref={profileRef}>
+          <div className="relative" ref={profileRef} onMouseEnter={() => setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
             <button
               className={cn("p-2 transition-colors", pathname === "/profile" ? "text-primary" : "text-muted-foreground hover:text-primary")}
-              onClick={() => setProfileOpen(!profileOpen)}
-              onKeyDown={(e) => { if (e.key === "Enter" && session?.user) { e.preventDefault(); router.push("/profile"); setProfileOpen(false); } }}
+              onClick={() => { if (session?.user) { router.push("/profile"); setProfileOpen(false); } else { router.push("/login"); } }}
             >
               {session?.user ? (
                 session.user.image ? (
