@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import honoApp from "@lunark/api/app";
+import { authConfig } from "./auth.config";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
   return honoApp.fetch(
@@ -13,7 +14,7 @@ async function callApi(path: string, body: Record<string, unknown>): Promise<Res
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  basePath: "/api/nextauth",
+  ...authConfig,
   providers: [
     Credentials({
       id: "credentials",
@@ -30,7 +31,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!res.ok) return null;
 
         const data = await res.json();
-        // If requires verification, we don't authenticate yet
         if (data.requiresVerification) return null;
 
         return {
@@ -96,24 +96,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role ?? "customer";
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
-      }
-      return session;
-    },
-  },
-  session: { strategy: "jwt" },
 });
