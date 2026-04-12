@@ -9,15 +9,15 @@ import { useRouter } from "next/navigation";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowLeft, Check, X } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
-function RegisterSubmitButton() {
+function RegisterSubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   const { t } = useI18n();
   return (
-    <Button type="submit" disabled={pending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+    <Button type="submit" disabled={pending || disabled} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
       {pending ? t.auth.registering : t.auth.register}
     </Button>
   );
@@ -39,6 +39,26 @@ export default function RegisterPage() {
   const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const [passwordValue, setPasswordValue] = useState("");
+
+  // Password strength check
+  const passwordValid = passwordValue.length >= 8 && /[A-Z]/.test(passwordValue) && /[a-z]/.test(passwordValue) && /[0-9]/.test(passwordValue);
+
+  // Translate error codes from backend
+  function translateError(error: string): React.ReactNode {
+    switch (error) {
+      case "PASSWORDS_MISMATCH":
+        return t.auth.passwordsMismatch;
+      case "RATE_LIMITED":
+        return t.auth.tooManyRequests;
+      case "This email is already registered":
+        return t.auth.emailAlreadyRegistered;
+      case "Captcha verification failed":
+        return t.auth.captchaFailed;
+      default:
+        return error;
+    }
+  }
 
   // Handle register state → redirect to verification
   useEffect(() => {
@@ -201,12 +221,6 @@ export default function RegisterPage() {
         </div>
       )}
 
-      {(registerState?.error || googleError) && (
-        <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {registerState?.error ?? googleError}
-        </p>
-      )}
-
       <form action={registerFormAction} className="flex flex-col gap-4">
         <div className="relative">
           <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -241,12 +255,16 @@ export default function RegisterPage() {
             placeholder={t.auth.password}
             required
             minLength={8}
+            value={passwordValue}
+            onChange={(e) => setPasswordValue(e.target.value)}
             className="w-full rounded-md border border-border/40 bg-card pl-10 pr-10 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
           <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+        {/* Password strength indicators */}
+        {passwordValue.length > 0 && <PasswordStrength password={passwordValue} />}
         <div className="relative">
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -262,12 +280,19 @@ export default function RegisterPage() {
           </button>
         </div>
 
+        {/* Error messages — above Turnstile */}
+        {(registerState?.error || googleError) && (
+          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            {translateError(registerState?.error ?? googleError ?? "")}
+          </p>
+        )}
+
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
         {!googleProfile && (
           <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
         )}
 
-        <RegisterSubmitButton />
+        <RegisterSubmitButton disabled={!passwordValid} />
       </form>
 
       {/* Divider — only show if not in Google flow */}
@@ -296,5 +321,26 @@ export default function RegisterPage() {
         </Link>
       </p>
     </section>
+  );
+}
+
+/* ─── Password Strength Indicator ─── */
+function PasswordStrength({ password }: { password: string }) {
+  const { t } = useI18n();
+  const rules = [
+    { label: t.auth.minChars, met: password.length >= 8 },
+    { label: t.auth.oneUppercase, met: /[A-Z]/.test(password) },
+    { label: t.auth.oneLowercase, met: /[a-z]/.test(password) },
+    { label: t.auth.oneNumber, met: /[0-9]/.test(password) },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+      {rules.map(({ label, met }) => (
+        <div key={label} className="flex items-center gap-1.5 text-xs">
+          {met ? <Check className="h-3 w-3 text-green-500" /> : <X className="h-3 w-3 text-muted-foreground" />}
+          <span className={met ? "text-green-500" : "text-muted-foreground"}>{label}</span>
+        </div>
+      ))}
+    </div>
   );
 }

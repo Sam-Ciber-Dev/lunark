@@ -14,6 +14,8 @@ auth.use("/login", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
 auth.use("/register", rateLimit({ limit: 3, windowMs: 15 * 60 * 1000 }));
 auth.use("/send-code", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
 auth.use("/verify-code", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }));
+auth.use("/forgot-password", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
+auth.use("/reset-password", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
 
 // ——— Helpers ———
 
@@ -33,17 +35,18 @@ async function verifyTurnstileToken(token: string): Promise<boolean> {
   return data.success;
 }
 
-async function sendVerificationEmail(email: string, code: string, type: "login" | "register"): Promise<boolean> {
+async function sendVerificationEmail(email: string, code: string, type: "login" | "register" | "password_reset"): Promise<boolean> {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
     console.log(`[DEV] Verification code for ${email}: ${code}`);
     return true;
   }
-  const subject = type === "login" ? "Lunark — Your Login Code" : "Lunark — Verify Your Email";
+  const subject = type === "login" ? "Lunark — Your Login Code" : type === "password_reset" ? "Lunark — Password Reset Code" : "Lunark — Verify Your Email";
+  const description = type === "login" ? "Your login verification code" : type === "password_reset" ? "Your password reset code" : "Your email verification code";
   const htmlContent = `
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0a0a0a;color:#f5f5f5;border-radius:8px;">
       <h1 style="color:#c9a96e;font-size:24px;text-align:center;margin-bottom:8px;">LUNARK</h1>
-      <p style="text-align:center;color:#8a8a8a;font-size:14px;margin-bottom:24px;">${type === "login" ? "Your login verification code" : "Your email verification code"}</p>
+      <p style="text-align:center;color:#8a8a8a;font-size:14px;margin-bottom:24px;">${description}</p>
       <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
         <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c9a96e;">${code}</span>
       </div>
@@ -153,12 +156,12 @@ auth.post("/login", async (c) => {
     .get();
 
   if (!user || !user.passwordHash) {
-    return c.json({ error: "No account found. Please create an account first." }, 401);
+    return c.json({ error: "NO_ACCOUNT" }, 401);
   }
 
   const valid = await compare(password, user.passwordHash);
   if (!valid) {
-    return c.json({ error: "Incorrect email or password" }, 401);
+    return c.json({ error: "WRONG_CREDENTIALS" }, 401);
   }
 
   // Generate and send verification code
@@ -264,7 +267,7 @@ auth.post("/verify-code", async (c) => {
 
 // POST /auth/resend-code — Resend verification code
 auth.post("/resend-code", async (c) => {
-  const { email, type } = await c.req.json() as { email: string; type: "login" | "register" };
+  const { email, type } = await c.req.json() as { email: string; type: "login" | "register" | "password_reset" };
 
   if (!email || !type) {
     return c.json({ error: "Missing fields" }, 400);
@@ -282,6 +285,87 @@ auth.post("/resend-code", async (c) => {
 
   await sendVerificationEmail(email, code, type);
   return c.json({ sent: true });
+});
+
+// POST /auth/forgot-password — Send password reset code
+auth.post("/forgot-password", async (c) => {
+  const { email } = await c.req.json() as { email: string };
+
+  if (!email) {
+    return c.json({ error: "Missing email" }, 400);
+  }
+
+  const user = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .get();
+
+  if (!user) {
+    return c.json({ error: "NO_ACCOUNT" }, 404);
+  }
+
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  await db.insert(verificationCodes).values({
+    id: crypto.randomUUID(),
+    email,
+    code,
+    type: "password_reset",
+    expiresAt,
+  });
+
+  await sendVerificationEmail(email, code, "password_reset");
+  return c.json({ sent: true, email });
+});
+
+// POST /auth/reset-password — Verify code + update password
+auth.post("/reset-password", async (c) => {
+  const { email, code, newPassword } = await c.req.json() as {
+    email: string; code: string; newPassword: string;
+  };
+
+  if (!email || !code || !newPassword) {
+    return c.json({ error: "Missing fields" }, 400);
+  }
+
+  if (newPassword.length < 8) {
+    return c.json({ error: "Password must be at least 8 characters" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const record = await db
+    .select()
+    .from(verificationCodes)
+    .where(
+      and(
+        eq(verificationCodes.email, email),
+        eq(verificationCodes.code, code),
+        eq(verificationCodes.type, "password_reset"),
+        eq(verificationCodes.used, false),
+        gt(verificationCodes.expiresAt, now)
+      )
+    )
+    .get();
+
+  if (!record) {
+    return c.json({ error: "INVALID_CODE" }, 400);
+  }
+
+  // Mark code as used
+  await db
+    .update(verificationCodes)
+    .set({ used: true })
+    .where(eq(verificationCodes.id, record.id));
+
+  // Update password
+  const passwordHash = await hash(newPassword, 12);
+  await db
+    .update(users)
+    .set({ passwordHash, updatedAt: now })
+    .where(eq(users.email, email));
+
+  return c.json({ success: true });
 });
 
 // POST /auth/google — Handle Google Sign-In/Sign-Up

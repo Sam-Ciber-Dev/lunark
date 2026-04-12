@@ -258,7 +258,7 @@ export const verificationCodes = sqliteTable("verification_codes", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
   code: text("code").notNull(),
-  type: text("type", { enum: ["login", "register"] }).notNull(),
+  type: text("type", { enum: ["login", "register", "password_reset"] }).notNull(),
   used: integer("used", { mode: "boolean" }).notNull().default(false),
   expiresAt: text("expires_at").notNull(),
   pendingName: text("pending_name"),          // stored during register, used after verify

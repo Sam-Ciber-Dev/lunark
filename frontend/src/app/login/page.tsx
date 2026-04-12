@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, resendCodeAction, googleSignInAction } from "@/app/(auth)/actions";
+import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, Check, X } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
@@ -37,6 +37,45 @@ export default function LoginPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  // Forgot password state
+  const [forgotStep, setForgotStep] = useState<"email" | "code" | "newpass" | null>(null);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotNewPass, setForgotNewPass] = useState("");
+  const [forgotConfirmPass, setForgotConfirmPass] = useState("");
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotPending, setForgotPending] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [showForgotPass, setShowForgotPass] = useState(false);
+  const [showForgotConfirmPass, setShowForgotConfirmPass] = useState(false);
+
+  // Translate error codes from backend
+  function translateError(error: string): React.ReactNode {
+    switch (error) {
+      case "NO_ACCOUNT":
+        return (
+          <span>
+            {t.auth.noAccountClickHere}{" "}
+            <Link href="/register" className="text-primary underline font-medium">{t.auth.clickHere}</Link>{" "}
+            {t.auth.createOne}
+          </span>
+        );
+      case "WRONG_CREDENTIALS":
+        return t.auth.wrongCredentials;
+      case "RATE_LIMITED":
+        return t.auth.tooManyRequests;
+      case "INVALID_CODE":
+        return t.auth.invalidCode;
+      case "Captcha verification failed":
+        return t.auth.captchaFailed;
+      default:
+        return error;
+    }
+  }
+
+  // Determine if this is a "forgot password trigger" error
+  const showForgotLink = loginState?.error === "WRONG_CREDENTIALS";
 
   // Handle login state → redirect to verification
   useEffect(() => {
@@ -80,6 +119,58 @@ export default function LoginPage() {
     } catch {
       setVerifyError("Invalid or expired code");
       setVerifyPending(false);
+    }
+  };
+
+  // Forgot password: send code
+  const handleForgotSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPending(true);
+    setForgotError(null);
+    const result = await forgotPasswordAction(forgotEmail);
+    setForgotPending(false);
+    if (result.error) {
+      setForgotError(result.error);
+    } else {
+      setForgotStep("code");
+    }
+  };
+
+  // Forgot password: verify code
+  const handleForgotVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError(null);
+    // Move to new password step — actual code verification happens on submit
+    setForgotStep("newpass");
+  };
+
+  // Forgot password: reset password
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotNewPass !== forgotConfirmPass) {
+      setForgotError(t.auth.passwordsMismatch);
+      return;
+    }
+    if (forgotNewPass.length < 8 || !/[A-Z]/.test(forgotNewPass) || !/[a-z]/.test(forgotNewPass) || !/[0-9]/.test(forgotNewPass)) {
+      setForgotError(t.auth.minChars);
+      return;
+    }
+    setForgotPending(true);
+    setForgotError(null);
+    const result = await resetPasswordAction(forgotEmail, forgotCode, forgotNewPass);
+    setForgotPending(false);
+    if (result.error) {
+      setForgotError(result.error === "INVALID_CODE" ? t.auth.invalidCode : result.error);
+    } else {
+      setForgotSuccess(true);
+      setTimeout(() => {
+        setForgotStep(null);
+        setForgotSuccess(false);
+        setForgotEmail("");
+        setForgotCode("");
+        setForgotNewPass("");
+        setForgotConfirmPass("");
+      }, 3000);
     }
   };
 
@@ -182,6 +273,123 @@ export default function LoginPage() {
     );
   }
 
+  // Forgot password screens
+  if (forgotStep) {
+    return (
+      <section className="mx-auto flex max-w-[400px] flex-col gap-6 px-4 py-20 sm:px-6">
+        <button
+          onClick={() => {
+            if (forgotStep === "newpass") setForgotStep("code");
+            else if (forgotStep === "code") setForgotStep("email");
+            else { setForgotStep(null); setForgotError(null); }
+          }}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors self-start"
+        >
+          <ArrowLeft className="h-4 w-4" /> {t.common.back}
+        </button>
+
+        <div className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Lock className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">{t.auth.forgotPasswordTitle}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {forgotStep === "email" && t.auth.forgotPasswordDesc}
+            {forgotStep === "code" && <>{t.auth.resetCodeSent} <span className="text-foreground font-medium">{forgotEmail}</span></>}
+            {forgotStep === "newpass" && t.auth.newPassword}
+          </p>
+        </div>
+
+        {forgotSuccess && (
+          <p className="rounded-md bg-green-500/10 px-4 py-2 text-sm text-green-500">{t.auth.passwordChanged}</p>
+        )}
+
+        {forgotError && (
+          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{forgotError}</p>
+        )}
+
+        {forgotStep === "email" && (
+          <form onSubmit={handleForgotSendCode} className="flex flex-col gap-4">
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder={t.auth.email}
+                required
+                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+            <Button type="submit" disabled={forgotPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+              {forgotPending ? t.auth.sendingCode : t.auth.sendResetCode}
+            </Button>
+          </form>
+        )}
+
+        {forgotStep === "code" && (
+          <form onSubmit={handleForgotVerifyCode} className="flex flex-col gap-4">
+            <input
+              type="text"
+              value={forgotCode}
+              onChange={(e) => setForgotCode(e.target.value)}
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder={t.auth.codePlaceholder}
+              required
+              autoFocus
+              className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
+            />
+            <Button type="submit" className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+              {t.auth.verifyTitle}
+            </Button>
+          </form>
+        )}
+
+        {forgotStep === "newpass" && (
+          <form onSubmit={handleForgotResetPassword} className="flex flex-col gap-4">
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type={showForgotPass ? "text" : "password"}
+                value={forgotNewPass}
+                onChange={(e) => setForgotNewPass(e.target.value)}
+                placeholder={t.auth.newPassword}
+                required
+                minLength={8}
+                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-10 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <button type="button" onClick={() => setShowForgotPass(!showForgotPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showForgotPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {/* Password strength indicators */}
+            <PasswordStrength password={forgotNewPass} />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type={showForgotConfirmPass ? "text" : "password"}
+                value={forgotConfirmPass}
+                onChange={(e) => setForgotConfirmPass(e.target.value)}
+                placeholder={t.auth.confirmNewPassword}
+                required
+                minLength={8}
+                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-10 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <button type="button" onClick={() => setShowForgotConfirmPass(!showForgotConfirmPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showForgotConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <Button type="submit" disabled={forgotPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+              {forgotPending ? t.auth.changingPassword : t.auth.changePassword}
+            </Button>
+          </form>
+        )}
+      </section>
+    );
+  }
+
   // Login form
   return (
     <section className="mx-auto flex max-w-[400px] flex-col gap-6 px-4 py-20 sm:px-6">
@@ -189,12 +397,6 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t.auth.login}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{t.auth.loginSubtitle}</p>
       </div>
-
-      {(loginState?.error || googleError) && (
-        <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          {loginState?.error ?? googleError}
-        </p>
-      )}
 
       <form action={loginFormAction} className="flex flex-col gap-4">
         <div className="relative">
@@ -221,6 +423,22 @@ export default function LoginPage() {
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+
+        {/* Error message + forgot password — above Turnstile */}
+        {(loginState?.error || googleError) && (
+          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            {translateError(loginState?.error ?? googleError ?? "")}
+          </p>
+        )}
+
+        {showForgotLink && (
+          <p className="text-sm text-muted-foreground">
+            {t.auth.forgotPassword}{" "}
+            <button type="button" onClick={() => setForgotStep("email")} className="text-primary underline font-medium">
+              {t.auth.clickHere}
+            </button>
+          </p>
+        )}
 
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
         <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
@@ -250,6 +468,27 @@ export default function LoginPage() {
         </Link>
       </p>
     </section>
+  );
+}
+
+/* ─── Password Strength Indicator ─── */
+function PasswordStrength({ password }: { password: string }) {
+  const { t } = useI18n();
+  const rules = [
+    { label: t.auth.minChars, met: password.length >= 8 },
+    { label: t.auth.oneUppercase, met: /[A-Z]/.test(password) },
+    { label: t.auth.oneLowercase, met: /[a-z]/.test(password) },
+    { label: t.auth.oneNumber, met: /[0-9]/.test(password) },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+      {rules.map(({ label, met }) => (
+        <div key={label} className="flex items-center gap-1.5 text-xs">
+          {met ? <Check className="h-3 w-3 text-green-500" /> : <X className="h-3 w-3 text-muted-foreground" />}
+          <span className={met ? "text-green-500" : "text-muted-foreground"}>{label}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

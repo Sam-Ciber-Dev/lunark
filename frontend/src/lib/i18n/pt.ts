@@ -301,6 +301,31 @@ export const pt: Dictionary = {
     passwordsMismatch: "As palavras-passe não coincidem",
     noAccountFound: "Conta não encontrada. Cria uma conta primeiro.",
     invalidCode: "Código inválido ou expirado",
+    // Password strength
+    minChars: "Mínimo 8 caracteres",
+    oneUppercase: "Uma letra maiúscula",
+    oneLowercase: "Uma letra minúscula",
+    oneNumber: "Um número",
+    // Forgot password
+    forgotPassword: "Esqueceste a tua password?",
+    clickHere: "Clica aqui",
+    forgotPasswordTitle: "Repor Palavra-passe",
+    forgotPasswordDesc: "Introduz o teu email para receber um código de recuperação.",
+    sendResetCode: "Enviar Código",
+    sendingCode: "A enviar…",
+    resetCodeSent: "Enviámos um código de recuperação para",
+    newPassword: "Nova Palavra-passe",
+    confirmNewPassword: "Confirmar Nova Palavra-passe",
+    changePassword: "Alterar Palavra-passe",
+    changingPassword: "A alterar…",
+    passwordChanged: "Palavra-passe alterada com sucesso! Podes agora entrar.",
+    // Error messages
+    wrongCredentials: "Email ou palavra-passe incorretos.",
+    noAccountClickHere: "Este email não tem uma conta criada.",
+    createOne: "para criar uma.",
+    tooManyRequests: "Demasiados pedidos. Tenta novamente mais tarde.",
+    captchaFailed: "Verificação de captcha falhou.",
+    emailAlreadyRegistered: "Este email já está registado.",
   },
 
   footer: {

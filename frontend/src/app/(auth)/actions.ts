@@ -54,7 +54,7 @@ export async function registerAction(
   const turnstileToken = formData.get("turnstileToken") as string;
 
   if (password !== confirmPassword) {
-    return { error: "Passwords do not match" };
+    return { error: "PASSWORDS_MISMATCH" };
   }
 
   try {
@@ -142,6 +142,36 @@ export async function googleGetProfileAction(credential: string) {
     return { error: "Unexpected response" };
   } catch (err) {
     console.error("googleGetProfileAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
+  }
+}
+
+// Forgot password — send reset code
+export async function forgotPasswordAction(email: string) {
+  try {
+    const res = await callApi("/auth/forgot-password", { email });
+    const data = await res.json() as Record<string, unknown>;
+    if (!res.ok) {
+      return { error: (data.error as string) ?? "Failed to send reset code" };
+    }
+    return { sent: true, email };
+  } catch (err) {
+    console.error("forgotPasswordAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
+  }
+}
+
+// Reset password — verify code + update password
+export async function resetPasswordAction(email: string, code: string, newPassword: string) {
+  try {
+    const res = await callApi("/auth/reset-password", { email, code, newPassword });
+    const data = await res.json() as Record<string, unknown>;
+    if (!res.ok) {
+      return { error: (data.error as string) ?? "Failed to reset password" };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("resetPasswordAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }

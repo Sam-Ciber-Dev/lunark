@@ -39,7 +39,7 @@ export function rateLimit(opts: { limit: number; windowMs: number }) {
     if (entry.count > opts.limit) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
       c.header("Retry-After", String(retryAfter));
-      return c.json({ error: "Demasiados pedidos. Tenta novamente mais tarde." }, 429);
+      return c.json({ error: "RATE_LIMITED" }, 429);
     }
 
     c.header("X-RateLimit-Limit", String(opts.limit));

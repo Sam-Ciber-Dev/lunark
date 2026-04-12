@@ -323,6 +323,31 @@ export const en = {
     passwordsMismatch: "Passwords do not match",
     noAccountFound: "No account found. Please create an account first.",
     invalidCode: "Invalid or expired code",
+    // Password strength
+    minChars: "Minimum 8 characters",
+    oneUppercase: "One uppercase letter",
+    oneLowercase: "One lowercase letter",
+    oneNumber: "A number",
+    // Forgot password
+    forgotPassword: "Forgot your password?",
+    clickHere: "Click here",
+    forgotPasswordTitle: "Reset Password",
+    forgotPasswordDesc: "Enter your email to receive a password reset code.",
+    sendResetCode: "Send Reset Code",
+    sendingCode: "Sending…",
+    resetCodeSent: "We sent a password reset code to",
+    newPassword: "New Password",
+    confirmNewPassword: "Confirm New Password",
+    changePassword: "Change Password",
+    changingPassword: "Changing…",
+    passwordChanged: "Password changed successfully! You can now sign in.",
+    // Error messages
+    wrongCredentials: "Incorrect email or password.",
+    noAccountClickHere: "This email doesn't have an account.",
+    createOne: "to create one.",
+    tooManyRequests: "Too many requests. Please try again later.",
+    captchaFailed: "Captcha verification failed.",
+    emailAlreadyRegistered: "This email is already registered.",
   },
 
   // Footer (SHEIN-style sections)
