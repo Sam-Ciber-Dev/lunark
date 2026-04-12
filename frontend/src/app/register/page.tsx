@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { registerAction, verifyCodeAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
+import { registerAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -21,22 +23,16 @@ function RegisterSubmitButton() {
   );
 }
 
-function VerifySubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-      {pending ? "Verifying…" : "Verify Code"}
-    </Button>
-  );
-}
-
 export default function RegisterPage() {
   const [registerState, registerFormAction] = useFormState(registerAction, undefined);
-  const [verifyState, verifyFormAction] = useFormState(verifyCodeAction, undefined);
   const { t } = useI18n();
+  const router = useRouter();
+  const { update } = useSession();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyPending, setVerifyPending] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const [verifyType] = useState<"register">("register");
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -62,6 +58,31 @@ export default function RegisterPage() {
     if (!verifyEmail || resendCooldown > 0) return;
     await resendCodeAction(verifyEmail, verifyType);
     setResendCooldown(60);
+  };
+
+  const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setVerifyPending(true);
+    setVerifyError(null);
+    const form = new FormData(e.currentTarget);
+    try {
+      const result = await signIn("verification-code", {
+        email: form.get("email") as string,
+        code: form.get("code") as string,
+        type: form.get("type") as string,
+        redirect: false,
+      });
+      if (result?.error || !result?.ok) {
+        setVerifyError("Invalid or expired code");
+        setVerifyPending(false);
+      } else {
+        await update();
+        router.push("/");
+      }
+    } catch {
+      setVerifyError("Invalid or expired code");
+      setVerifyPending(false);
+    }
   };
 
   // Google Sign-Up — get profile and pre-fill form
@@ -127,11 +148,11 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {verifyState?.error && (
-          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{verifyState.error}</p>
+        {verifyError && (
+          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{verifyError}</p>
         )}
 
-        <form action={verifyFormAction} className="flex flex-col gap-4">
+        <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4">
           <input type="hidden" name="email" value={verifyEmail} />
           <input type="hidden" name="type" value={verifyType} />
           <input
@@ -145,7 +166,9 @@ export default function RegisterPage() {
             autoFocus
             className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
           />
-          <VerifySubmitButton />
+          <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+            {verifyPending ? "Verifying…" : "Verify Code"}
+          </Button>
         </form>
 
         <div className="text-center">
