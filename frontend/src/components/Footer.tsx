@@ -234,10 +234,10 @@ export function Footer() {
     <footer className="border-t border-border/40 bg-card/50">
       <div className="mx-auto max-w-[1400px] px-6 py-14 lg:px-10">
         {/* Top: Link columns + Social + Newsletter */}
-        <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-12">
-          {/* Link columns — first 3 take 2/12, Legal takes 1/12 */}
-          {columns.map((col, i) => (
-            <div key={col.title} className={i < 3 ? "lg:col-span-2" : "lg:col-span-1"}>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-[2fr_2fr_2fr_1.5fr_2fr_3fr]">
+          {/* Link columns */}
+          {columns.map((col) => (
+            <div key={col.title}>
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{col.title}</h3>
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
@@ -251,8 +251,8 @@ export function Footer() {
             </div>
           ))}
 
-          {/* Follow Us — 2/12 */}
-          <div className="lg:col-span-2">
+          {/* Follow Us */}
+          <div>
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.followUs}</h3>
             <div className="flex flex-col gap-3">
               {socialLinks.map(({ icon: Icon, href, label }) => (
@@ -264,8 +264,8 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Newsletter — 3/12 */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+          {/* Newsletter */}
+          <div className="col-span-2 sm:col-span-3">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.newsletterTitle}</h3>
             <p className="mb-4 text-sm text-muted-foreground leading-relaxed">{t.footer.newsletterDesc}</p>
 
