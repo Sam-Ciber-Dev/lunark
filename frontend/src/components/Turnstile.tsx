@@ -96,5 +96,5 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
     );
   }
 
-  return <div ref={ref} className="flex justify-center" />;
+  return <div ref={ref} className="w-full [&>div]:!w-full [&>iframe]:!w-full" />;
 }

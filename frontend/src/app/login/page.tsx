@@ -162,6 +162,8 @@ export default function LoginPage() {
             autoFocus
             className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
           />
+          <input type="hidden" name="turnstileToken" value={turnstileToken} />
+          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
           <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
             {verifyPending ? "Verifying…" : "Verify Code"}
           </Button>

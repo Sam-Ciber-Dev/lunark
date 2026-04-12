@@ -8,7 +8,7 @@ import { User, Trash2, Package, MessageSquare, LogOut, Pencil, Check, X } from "
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function ProfilePage() {
   const { data: session, status, update: updateSession } = useSession();

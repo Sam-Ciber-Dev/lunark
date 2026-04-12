@@ -5,7 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   ChevronDown,
-  Globe,
   Heart,
   Headphones,
   LogOut,
@@ -186,8 +185,9 @@ export function Navbar() {
             <Search className="h-4 w-4" />
           </button>
           {/* Language toggle */}
-          <button className="p-2 text-muted-foreground hover:text-primary transition-colors" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
-            <Globe className="h-4 w-4" />
+          <button className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
+            <span className="text-base leading-none">{locale === "en" ? "🇬🇧" : "🇵🇹"}</span>
+            <span className="hidden sm:inline text-xs font-medium uppercase">{locale === "en" ? "EN" : "PT"}</span>
           </button>
           {/* My Account */}
           <div className="relative" ref={profileRef} onMouseEnter={() => setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
