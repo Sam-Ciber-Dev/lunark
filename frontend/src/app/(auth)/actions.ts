@@ -3,18 +3,17 @@
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import honoApp from "@lunark/api/app";
 
-function getApiUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  if (url.startsWith("/")) {
-    const host = process.env.VERCEL_URL ?? "localhost:3000";
-    const protocol = process.env.VERCEL ? "https" : "http";
-    return `${protocol}://${host}${url}`;
-  }
-  return url;
+async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
+  return honoApp.fetch(
+    new Request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
 }
-
-const API_URL = getApiUrl();
 
 // Step 1: Login — validate credentials + send verification code
 export async function loginAction(
@@ -26,20 +25,8 @@ export async function loginAction(
   const turnstileToken = formData.get("turnstileToken") as string;
 
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, turnstileToken }),
-    });
-
-    const text = await res.text();
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error("loginAction: non-JSON response", res.status, text.slice(0, 500));
-      return { error: `Server error (${res.status})` };
-    }
+    const res = await callApi("/auth/login", { email, password, turnstileToken });
+    const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
       return { error: (data.error as string) ?? "Incorrect email or password" };
@@ -51,8 +38,8 @@ export async function loginAction(
 
     return { error: "Unexpected response" };
   } catch (err) {
-    console.error("loginAction fetch failed:", err, "API_URL:", API_URL);
-    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
+    console.error("loginAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
@@ -72,20 +59,8 @@ export async function registerAction(
   }
 
   try {
-    const res = await fetch(`${API_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, turnstileToken }),
-    });
-
-    const text = await res.text();
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error("registerAction: non-JSON response", res.status, text.slice(0, 500));
-      return { error: `Server error (${res.status})` };
-    }
+    const res = await callApi("/auth/register", { name, email, password, turnstileToken });
+    const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
       return { error: (data.error as string) ?? "Failed to create account" };
@@ -97,8 +72,8 @@ export async function registerAction(
 
     return { error: "Unexpected response" };
   } catch (err) {
-    console.error("registerAction fetch failed:", err, "API_URL:", API_URL);
-    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
+    console.error("registerAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
@@ -130,11 +105,7 @@ export async function verifyCodeAction(
 // Resend verification code
 export async function resendCodeAction(email: string, type: "login" | "register") {
   try {
-    const res = await fetch(`${API_URL}/auth/resend-code`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, type }),
-    });
+    const res = await callApi("/auth/resend-code", { email, type });
     return res.ok;
   } catch {
     return false;
@@ -160,20 +131,8 @@ export async function googleSignInAction(credential: string) {
 // Google sign-up — get profile info for pre-filling form
 export async function googleGetProfileAction(credential: string) {
   try {
-    const res = await fetch(`${API_URL}/auth/google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential, mode: "signup" }),
-    });
-
-    const text = await res.text();
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error("googleGetProfileAction: non-JSON response", res.status, text.slice(0, 500));
-      return { error: `Server error (${res.status})` };
-    }
+    const res = await callApi("/auth/google", { credential, mode: "signup" });
+    const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
       return { error: (data.error as string) ?? "Failed to get Google profile" };
@@ -185,7 +144,7 @@ export async function googleGetProfileAction(credential: string) {
 
     return { error: "Unexpected response" };
   } catch (err) {
-    console.error("googleGetProfileAction fetch failed:", err, "API_URL:", API_URL);
-    return { error: `Connection error: ${err instanceof Error ? err.message : "Unknown"}` };
+    console.error("googleGetProfileAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }

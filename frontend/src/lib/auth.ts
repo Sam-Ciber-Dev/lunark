@@ -1,17 +1,16 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import honoApp from "@lunark/api/app";
 
-function getApiUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-  if (url.startsWith("/")) {
-    const host = process.env.VERCEL_URL ?? "localhost:3000";
-    const protocol = process.env.VERCEL ? "https" : "http";
-    return `${protocol}://${host}${url}`;
-  }
-  return url;
+async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
+  return honoApp.fetch(
+    new Request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
 }
-
-const API_URL = getApiUrl();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   basePath: "/api/nextauth",
@@ -23,13 +22,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const res = await fetch(`${API_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials?.email,
-            password: credentials?.password,
-          }),
+        const res = await callApi("/auth/login", {
+          email: credentials?.email,
+          password: credentials?.password,
         });
 
         if (!res.ok) return null;
@@ -55,14 +50,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         type: { label: "Type", type: "text" },
       },
       async authorize(credentials) {
-        const res = await fetch(`${API_URL}/auth/verify-code`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials?.email,
-            code: credentials?.code,
-            type: credentials?.type,
-          }),
+        const res = await callApi("/auth/verify-code", {
+          email: credentials?.email,
+          code: credentials?.code,
+          type: credentials?.type,
         });
 
         if (!res.ok) return null;
@@ -85,13 +76,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         credential: { label: "Google Credential", type: "text" },
       },
       async authorize(credentials) {
-        const res = await fetch(`${API_URL}/auth/google`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            credential: credentials?.credential,
-            mode: "signin",
-          }),
+        const res = await callApi("/auth/google", {
+          credential: credentials?.credential,
+          mode: "signin",
         });
 
         if (!res.ok) return null;
