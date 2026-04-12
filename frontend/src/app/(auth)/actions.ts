@@ -2,6 +2,7 @@
 
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
 import honoApp from "@lunark/api/app";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
@@ -76,7 +77,7 @@ export async function registerAction(
   }
 }
 
-// Step 2: Verify code — form action for useFormState (NEXT_REDIRECT handled properly)
+// Step 2: Verify code — form action for useFormState
 export async function verifyCodeAction(
   _prevState: { error?: string } | undefined,
   formData: FormData
@@ -86,18 +87,23 @@ export async function verifyCodeAction(
   const type = formData.get("type") as string;
 
   try {
+    // redirect: false → Auth.js creates session but does NOT redirect/throw
     await signIn("verification-code", {
       email,
       code,
       type,
-      redirectTo: "/",
+      redirect: false,
     });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "INVALID_CODE" };
     }
-    throw error; // re-throw NEXT_REDIRECT
+    throw error;
   }
+
+  // Session created successfully — now redirect via Next.js's own redirect()
+  // which useFormState handles correctly
+  redirect("/");
 }
 
 // Resend verification code
@@ -115,14 +121,15 @@ export async function googleSignInAction(credential: string) {
   try {
     await signIn("google-verified", {
       credential,
-      redirectTo: "/",
+      redirect: false,
     });
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: "No account found. Please create an account first." };
     }
-    throw error; // re-throw NEXT_REDIRECT
+    throw error;
   }
+  redirect("/");
 }
 
 // Google sign-up — get profile info for pre-filling form
