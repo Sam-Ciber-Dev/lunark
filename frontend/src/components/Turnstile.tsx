@@ -7,7 +7,7 @@ declare global {
     turnstile?: {
       render: (
         el: HTMLElement,
-        opts: { sitekey: string; callback: (token: string) => void; "expired-callback"?: () => void; theme?: string }
+        opts: { sitekey: string; callback: (token: string) => void; "expired-callback"?: () => void; theme?: string; size?: string }
       ) => string;
       reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
@@ -39,6 +39,7 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
       callback: (token: string) => onVerifyRef.current(token),
       "expired-callback": () => onExpireRef.current?.(),
       theme: "dark",
+      size: "flexible",
     });
   }, []);
 

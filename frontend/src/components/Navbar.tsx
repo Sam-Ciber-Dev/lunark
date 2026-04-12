@@ -186,7 +186,8 @@ export function Navbar() {
           </button>
           {/* Language toggle */}
           <button className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50" onClick={toggleLocale} title={locale === "en" ? "Mudar para Português" : "Switch to English"}>
-            <span className="text-base leading-none">{locale === "en" ? "🇬🇧" : "🇵🇹"}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={locale === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={locale === "en" ? "EN" : "PT"} className="h-4 w-5 object-cover rounded-[2px]" />
             <span className="hidden sm:inline text-xs font-medium uppercase">{locale === "en" ? "EN" : "PT"}</span>
           </button>
           {/* My Account */}

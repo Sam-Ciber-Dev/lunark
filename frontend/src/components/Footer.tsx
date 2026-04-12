@@ -52,6 +52,19 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
+/* ─── Flag Image ─── */
+function FlagImg({ code, className }: { code: string; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+      alt={code}
+      className={className ?? "h-4 w-5 object-cover rounded-[2px]"}
+      loading="lazy"
+    />
+  );
+}
+
 /* ─── Country Code Selector ─── */
 function CountryCodeSelector({ selected, onSelect }: { selected: CountryCode; onSelect: (c: CountryCode) => void }) {
   const [open, setOpen] = useState(false);
@@ -82,7 +95,7 @@ function CountryCodeSelector({ selected, onSelect }: { selected: CountryCode; on
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 rounded-l-md border border-r-0 border-border bg-card px-2.5 py-2 text-sm hover:bg-card/80 transition-colors h-full"
       >
-        <span className="text-base leading-none">{selected.flag}</span>
+        <FlagImg code={selected.code} />
         <span className="text-muted-foreground">{selected.dial}</span>
         <ChevronDown className="h-3 w-3 text-muted-foreground" />
       </button>
@@ -107,7 +120,7 @@ function CountryCodeSelector({ selected, onSelect }: { selected: CountryCode; on
                 onClick={() => { onSelect(c); setOpen(false); setSearch(""); }}
                 className="flex w-full items-center gap-3 px-3 py-2 text-sm hover:bg-primary/10 transition-colors"
               >
-                <span className="text-base leading-none">{c.flag}</span>
+                <FlagImg code={c.code} />
                 <span className="flex-1 text-left text-foreground truncate">{c.name}</span>
                 <span className="text-muted-foreground">{c.dial}</span>
               </button>
@@ -122,35 +135,37 @@ function CountryCodeSelector({ selected, onSelect }: { selected: CountryCode; on
   );
 }
 
-/* ─── Payment Method Icons (SVG-based badges) ─── */
-function PaymentBadge({ label, bg, fg, text }: { label: string; bg: string; fg?: string; text?: string }) {
+/* ─── Payment Method Icons (real logos) ─── */
+function PaymentIcon({ src, label }: { src: string; label: string }) {
   return (
-    <div
-      className="flex h-8 w-[52px] items-center justify-center rounded text-[9px] font-bold tracking-tight shrink-0"
-      style={{ background: bg, color: fg ?? "#fff" }}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={label}
       title={label}
-    >
-      {text ?? label}
-    </div>
+      className="h-8 w-auto object-contain"
+      loading="lazy"
+    />
   );
 }
 
 function PaymentIcons() {
+  const icons = [
+    { label: "PayPal", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/paypal.svg" },
+    { label: "Visa", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/visa.svg" },
+    { label: "Mastercard", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/mastercard.svg" },
+    { label: "American Express", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/amex.svg" },
+    { label: "Apple Pay", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/applepay.svg" },
+    { label: "Google Pay", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/googlepay.svg" },
+    { label: "JCB", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/jcb.svg" },
+    { label: "UnionPay", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/unionpay.svg" },
+    { label: "Klarna", src: "https://cdn.jsdelivr.net/gh/nicepay-dev/payment-icon@master/klarna.svg" },
+  ];
   return (
-    <div className="flex flex-wrap gap-2">
-      <PaymentBadge label="PayPal" bg="#003087" text="PayPal" />
-      <PaymentBadge label="Visa" bg="#1A1F71" text="VISA" />
-      <PaymentBadge label="Mastercard" bg="#EB001B" text="MC" />
-      <PaymentBadge label="Maestro" bg="#0099DF" text="maestro" />
-      <PaymentBadge label="American Express" bg="#2E77BC" text="AMEX" />
-      <PaymentBadge label="JCB" bg="#0B7BC1" text="JCB" />
-      <PaymentBadge label="UnionPay" bg="#D81E27" text="UnionPay" />
-      <PaymentBadge label="MB WAY" bg="#fff" fg="#D0021B" text="MB WAY" />
-      <PaymentBadge label="Multibanco" bg="#21AFED" text="MB" />
-      <PaymentBadge label="Klarna" bg="#FFB3C7" fg="#0A0A0A" text="Klarna" />
-      <PaymentBadge label="Scalapay" bg="#7B61FF" text="Scalapay" />
-      <PaymentBadge label="Apple Pay" bg="#0A0A0A" text="Pay" />
-      <PaymentBadge label="Google Pay" bg="#fff" fg="#3C4043" text="G Pay" />
+    <div className="flex flex-wrap items-center gap-3">
+      {icons.map(({ label, src }) => (
+        <PaymentIcon key={label} label={label} src={src} />
+      ))}
     </div>
   );
 }
@@ -244,21 +259,21 @@ export function Footer() {
             </div>
           ))}
 
-          {/* Follow Us — 1/12 */}
-          <div className="lg:col-span-1">
+          {/* Follow Us — 2/12 */}
+          <div className="lg:col-span-2">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.followUs}</h3>
             <div className="flex flex-col gap-3">
               {socialLinks.map(({ icon: Icon, href, label }) => (
                 <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary" title={label}>
                   <Icon className="h-4 w-4" />
-                  <span className="hidden xl:inline">{label}</span>
+                  <span>{label}</span>
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Newsletter — 3/12 */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-3">
+          {/* Newsletter — 2/12 */}
+          <div className="col-span-2 sm:col-span-3 lg:col-span-2">
             <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">{t.footer.newsletterTitle}</h3>
             <p className="mb-4 text-sm text-muted-foreground leading-relaxed">{t.footer.newsletterDesc}</p>
 
@@ -280,30 +295,31 @@ export function Footer() {
               ))}
             </div>
 
-            <form onSubmit={handleSubscribe} className="flex gap-2">
+            <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
               {subscribeMode === "email" ? (
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t.footer.emailPlaceholder}
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary transition-colors"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary transition-colors"
                   required
                 />
               ) : (
-                <div className="flex flex-1">
+                <div className="flex w-full">
                   <CountryCodeSelector selected={selectedCountry} onSelect={setSelectedCountry} />
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder={subscribeMode === "whatsapp" ? "WhatsApp" : "Phone"}
+                    maxLength={selectedCountry.maxDigits}
                     className="flex-1 min-w-0 rounded-r-md border border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-primary transition-colors"
                     required
                   />
                 </div>
               )}
-              <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap">
+              <button type="submit" className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap">
                 {t.footer.subscribe}
               </button>
             </form>
@@ -317,11 +333,10 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-8 border-t border-border/40 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-8 border-t border-border/40 pt-6 flex items-center justify-center">
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} Lunark. {t.footer.rights}
           </p>
-          <p className="text-xs text-muted-foreground">{t.footer.tagline}</p>
         </div>
       </div>
     </footer>
