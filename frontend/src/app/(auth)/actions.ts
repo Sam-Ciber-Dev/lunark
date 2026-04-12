@@ -76,15 +76,8 @@ export async function registerAction(
   }
 }
 
-// Step 2: Verify code — complete sign-in
-export async function verifyCodeAction(
-  _prevState: { error?: string } | undefined,
-  formData: FormData
-) {
-  const email = formData.get("email") as string;
-  const code = formData.get("code") as string;
-  const type = formData.get("type") as string;
-
+// Step 2: Verify code — complete sign-in (server action, callable from client)
+export async function verifyAndSignIn(email: string, code: string, type: string) {
   try {
     await signIn("verification-code", {
       email,
@@ -94,7 +87,7 @@ export async function verifyCodeAction(
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid or expired code" };
+      return { error: "INVALID_CODE" };
     }
     throw error; // re-throw NEXT_REDIRECT
   }

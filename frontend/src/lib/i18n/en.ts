@@ -348,6 +348,8 @@ export const en = {
     tooManyRequests: "Too many requests. Please try again later.",
     captchaFailed: "Captcha verification failed.",
     emailAlreadyRegistered: "This email is already registered.",
+    verifyButton: "Verify Code",
+    verifying: "Verifying\u2026",
   },
 
   // Footer (SHEIN-style sections)

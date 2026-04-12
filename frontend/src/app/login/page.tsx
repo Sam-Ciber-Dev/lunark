@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction } from "@/app/(auth)/actions";
+import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction, verifyAndSignIn } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
-import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -26,8 +24,6 @@ function LoginSubmitButton() {
 export default function LoginPage() {
   const [loginState, loginFormAction] = useFormState(loginAction, undefined);
   const { t } = useI18n();
-  const router = useRouter();
-  const { update } = useSession();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -51,7 +47,6 @@ export default function LoginPage() {
   const [forgotPending, setForgotPending] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [showForgotPass, setShowForgotPass] = useState(false);
-  const [showForgotConfirmPass, setShowForgotConfirmPass] = useState(false);
 
   // Translate error codes from backend
   function translateError(error: string): React.ReactNode {
@@ -114,24 +109,18 @@ export default function LoginPage() {
     setVerifyPending(true);
     setVerifyError(null);
     const form = new FormData(e.currentTarget);
-    try {
-      const result = await signIn("verification-code", {
-        email: form.get("email") as string,
-        code: form.get("code") as string,
-        type: form.get("type") as string,
-        redirect: false,
-      });
-      if (result?.error || !result?.ok) {
-        setVerifyError("Invalid or expired code");
-        setVerifyPending(false);
-      } else {
-        await update();
-        router.push("/");
-      }
-    } catch {
-      setVerifyError("Invalid or expired code");
+    const result = await verifyAndSignIn(
+      form.get("email") as string,
+      form.get("code") as string,
+      form.get("type") as string
+    );
+    if (result?.error) {
+      setVerifyError(result.error === "INVALID_CODE" ? t.auth.invalidCode : result.error);
       setVerifyPending(false);
+      setTurnstileToken("");
+      setTurnstileResetKey(k => k + 1);
     }
+    // On success, the server action redirects automatically
   };
 
   // Forgot password: send code directly (email already known from login form)
@@ -269,9 +258,9 @@ export default function LoginPage() {
             className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
           />
           <input type="hidden" name="turnstileToken" value={turnstileToken} />
-          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
+          <Turnstile key={turnstileResetKey} onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
           <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-            {verifyPending ? "Verifying…" : "Verify Code"}
+            {verifyPending ? t.auth.verifying : t.auth.verifyButton}
           </Button>
         </form>
 
@@ -363,17 +352,14 @@ export default function LoginPage() {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
-                type={showForgotConfirmPass ? "text" : "password"}
+                type={showForgotPass ? "text" : "password"}
                 value={forgotConfirmPass}
                 onChange={(e) => setForgotConfirmPass(e.target.value)}
                 placeholder={t.auth.confirmNewPassword}
                 required
                 minLength={8}
-                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-10 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                className="w-full rounded-md border border-border/40 bg-card pl-10 pr-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
-              <button type="button" onClick={() => setShowForgotConfirmPass(!showForgotConfirmPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showForgotConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
             </div>
             <Button type="submit" disabled={forgotPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
               {forgotPending ? t.auth.changingPassword : t.auth.changePassword}

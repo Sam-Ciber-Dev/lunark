@@ -326,6 +326,8 @@ export const pt: Dictionary = {
     tooManyRequests: "Demasiados pedidos. Tenta novamente mais tarde.",
     captchaFailed: "Verificação de captcha falhou.",
     emailAlreadyRegistered: "Este email já está registado.",
+    verifyButton: "Verificar Código",
+    verifying: "A verificar\u2026",
   },
 
   footer: {
