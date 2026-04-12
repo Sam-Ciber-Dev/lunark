@@ -14,6 +14,7 @@ function getApiUrl(): string {
 const API_URL = getApiUrl();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  basePath: "/api/nextauth",
   providers: [
     Credentials({
       id: "credentials",

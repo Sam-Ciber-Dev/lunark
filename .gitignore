@@ -25,6 +25,7 @@ coverage/
 *.pem
 *.p12
 .secrets
+0. Secrets.txt
 
 # ——— Dependencies ———
 node_modules/
