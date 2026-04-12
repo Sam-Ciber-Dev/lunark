@@ -257,8 +257,8 @@ export function Footer() {
             <div className="flex flex-col gap-3">
               {socialLinks.map(({ icon: Icon, href, label }) => (
                 <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary" title={label}>
-                  <Icon className="h-5 w-5" />
-                  <span className="lg:hidden">{label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{label}</span>
                 </a>
               ))}
             </div>
