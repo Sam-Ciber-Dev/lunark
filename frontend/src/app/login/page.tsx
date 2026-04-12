@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction, verifyAndSignIn } from "@/app/(auth)/actions";
+import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction, verifyCodeAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
@@ -21,13 +21,22 @@ function LoginSubmitButton() {
   );
 }
 
+function VerifySubmitButton() {
+  const { pending } = useFormStatus();
+  const { t } = useI18n();
+  return (
+    <Button type="submit" disabled={pending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+      {pending ? t.auth.verifying : t.auth.verifyButton}
+    </Button>
+  );
+}
+
 export default function LoginPage() {
   const [loginState, loginFormAction] = useFormState(loginAction, undefined);
+  const [verifyState, verifyFormAction] = useFormState(verifyCodeAction, undefined);
   const { t } = useI18n();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [verifyPending, setVerifyPending] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const [verifyType] = useState<"login">("login");
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -91,6 +100,14 @@ export default function LoginPage() {
     }
   }, [loginState]);
 
+  // Reset Turnstile when verify code fails
+  useEffect(() => {
+    if (verifyState?.error) {
+      setTurnstileToken("");
+      setTurnstileResetKey(k => k + 1);
+    }
+  }, [verifyState]);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -102,25 +119,6 @@ export default function LoginPage() {
     if (!verifyEmail || resendCooldown > 0) return;
     await resendCodeAction(verifyEmail, verifyType);
     setResendCooldown(60);
-  };
-
-  const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setVerifyPending(true);
-    setVerifyError(null);
-    const form = new FormData(e.currentTarget);
-    const result = await verifyAndSignIn(
-      form.get("email") as string,
-      form.get("code") as string,
-      form.get("type") as string
-    );
-    if (result?.error) {
-      setVerifyError(result.error === "INVALID_CODE" ? t.auth.invalidCode : result.error);
-      setVerifyPending(false);
-      setTurnstileToken("");
-      setTurnstileResetKey(k => k + 1);
-    }
-    // On success, the server action redirects automatically
   };
 
   // Forgot password: send code directly (email already known from login form)
@@ -239,11 +237,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {verifyError && (
-          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{verifyError}</p>
+        {verifyState?.error && (
+          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            {verifyState.error === "INVALID_CODE" ? t.auth.invalidCode : verifyState.error}
+          </p>
         )}
 
-        <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4">
+        <form action={verifyFormAction} className="flex flex-col gap-4">
           <input type="hidden" name="email" value={verifyEmail} />
           <input type="hidden" name="type" value={verifyType} />
           <input
@@ -259,9 +259,7 @@ export default function LoginPage() {
           />
           <input type="hidden" name="turnstileToken" value={turnstileToken} />
           <Turnstile key={turnstileResetKey} onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
-          <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-            {verifyPending ? t.auth.verifying : t.auth.verifyButton}
-          </Button>
+          <VerifySubmitButton />
         </form>
 
         <div className="text-center">

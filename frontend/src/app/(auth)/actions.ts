@@ -76,8 +76,15 @@ export async function registerAction(
   }
 }
 
-// Step 2: Verify code — complete sign-in (server action, callable from client)
-export async function verifyAndSignIn(email: string, code: string, type: string) {
+// Step 2: Verify code — form action for useFormState (NEXT_REDIRECT handled properly)
+export async function verifyCodeAction(
+  _prevState: { error?: string } | undefined,
+  formData: FormData
+) {
+  const email = formData.get("email") as string;
+  const code = formData.get("code") as string;
+  const type = formData.get("type") as string;
+
   try {
     await signIn("verification-code", {
       email,
