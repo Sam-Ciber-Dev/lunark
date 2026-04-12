@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [orders, setOrders] = useState<Array<{ id: string; status: string; total: number; createdAt: string }>>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
