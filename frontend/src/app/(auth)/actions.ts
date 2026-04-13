@@ -68,7 +68,12 @@ export async function loginAction(
     const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
-      return { error: (data.error as string) ?? "Incorrect email or password" };
+      const errMsg = data.error as string ?? "Incorrect email or password";
+      const codes = data.codes as string[] | undefined;
+      if (codes?.length) {
+        return { error: `${errMsg} [${codes.join(", ")}]` };
+      }
+      return { error: errMsg };
     }
 
     const user = data as { id: string; name: string; email: string; role: string; image: string | null };

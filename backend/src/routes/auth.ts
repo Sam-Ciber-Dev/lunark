@@ -23,16 +23,26 @@ function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-async function verifyTurnstileToken(token: string): Promise<boolean> {
+async function verifyTurnstileToken(token: string): Promise<{ ok: boolean; codes?: string[] }> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // Skip in dev if not configured
-  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ secret, response: token }),
-  });
-  const data = (await res.json()) as { success: boolean };
-  return data.success;
+  if (!secret) {
+    console.log("[turnstile] TURNSTILE_SECRET_KEY not set — skipping verification");
+    return { ok: true };
+  }
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: token }),
+    });
+    const data = (await res.json()) as { success: boolean; "error-codes"?: string[] };
+    console.log("[turnstile] Cloudflare response:", JSON.stringify(data));
+    if (data.success) return { ok: true };
+    return { ok: false, codes: data["error-codes"] ?? ["unknown"] };
+  } catch (err) {
+    console.error("[turnstile] Fetch failed:", err);
+    return { ok: false, codes: ["fetch-error"] };
+  }
 }
 
 async function sendVerificationEmail(email: string, code: string, type: "login" | "register" | "password_reset"): Promise<boolean> {
@@ -93,8 +103,8 @@ auth.post("/register", async (c) => {
 
   // Verify Turnstile
   if (turnstileToken) {
-    const valid = await verifyTurnstileToken(turnstileToken);
-    if (!valid) return c.json({ error: "Captcha verification failed" }, 400);
+    const result = await verifyTurnstileToken(turnstileToken);
+    if (!result.ok) return c.json({ error: "Captcha verification failed", codes: result.codes }, 400);
   }
 
   // Check if email already exists
@@ -143,8 +153,8 @@ auth.post("/login", async (c) => {
 
   // Verify Turnstile
   if (turnstileToken) {
-    const valid = await verifyTurnstileToken(turnstileToken);
-    if (!valid) return c.json({ error: "Captcha verification failed" }, 400);
+    const result = await verifyTurnstileToken(turnstileToken);
+    if (!result.ok) return c.json({ error: "Captcha verification failed", codes: result.codes }, 400);
   }
 
   const user = await db
