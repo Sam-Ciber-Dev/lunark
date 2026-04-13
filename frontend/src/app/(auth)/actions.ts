@@ -1,8 +1,5 @@
 ﻿"use server";
 
-import { signIn } from "@/lib/auth";
-import { AuthError } from "next-auth";
-import { isRedirectError } from "next/dist/client/components/redirect";
 import honoApp from "@lunark/api/app";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
@@ -77,36 +74,6 @@ export async function registerAction(
   }
 }
 
-// Step 2: Verify code — form action for useFormState
-export async function verifyCodeAction(
-  _prevState: { error?: string; success?: boolean } | undefined,
-  formData: FormData
-) {
-  const email = formData.get("email") as string;
-  const code = formData.get("code") as string;
-  const type = formData.get("type") as string;
-
-  try {
-    await signIn("verification-code", {
-      email,
-      code,
-      type,
-      redirect: false,
-    });
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-    if (error instanceof AuthError) {
-      return { error: "INVALID_CODE" };
-    }
-    console.error("verifyCodeAction unexpected error:", error);
-    return { error: "VERIFICATION_FAILED" };
-  }
-
-  return { success: true };
-}
-
 // Resend verification code
 export async function resendCodeAction(email: string, type: "login" | "register") {
   try {
@@ -115,27 +82,6 @@ export async function resendCodeAction(email: string, type: "login" | "register"
   } catch {
     return false;
   }
-}
-
-// Google sign-in (for existing users only)
-export async function googleSignInAction(credential: string) {
-  try {
-    await signIn("google-verified", {
-      credential,
-      redirect: false,
-    });
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-    if (error instanceof AuthError) {
-      return { error: "No account found. Please create an account first." };
-    }
-    console.error("googleSignInAction unexpected error:", error);
-    return { error: "Sign-in failed. Please try again." };
-  }
-
-  return { success: true };
 }
 
 // Google sign-up — get profile info for pre-filling form

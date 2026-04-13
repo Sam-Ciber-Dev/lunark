@@ -9,7 +9,7 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user, trigger, session: updateData }) {
       if (user) {
-        token.id = user.id;
+        token.id = user.id!;
         token.role = (user as { role?: string }).role ?? "customer";
         token.name = user.name;
         token.picture = user.image;

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
-import { signIn as nextAuthSignIn } from "next-auth/react";
 import { registerAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
@@ -89,15 +88,15 @@ export default function RegisterPage() {
     setVerifyError(null);
 
     try {
-      const result = await nextAuthSignIn("verification-code", {
-        email: verifyEmail,
-        code,
-        type: verifyType,
-        redirect: false,
+      const res = await fetch("/api/auth/verify-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: verifyEmail, code, type: verifyType }),
       });
+      const data = await res.json();
 
-      if (result?.error) {
-        setVerifyError("INVALID_CODE");
+      if (!res.ok || !data.success) {
+        setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : "VERIFICATION_FAILED");
       } else {
         router.push("/");
         router.refresh();
