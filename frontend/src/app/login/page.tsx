@@ -123,14 +123,16 @@ export default function LoginPage() {
         body: JSON.stringify({ email: verifyEmail, code, type: verifyType }),
       });
       const data = await res.json();
+      console.log("[verify] Response:", res.status, data);
 
       if (!res.ok || !data.success) {
-        setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : "VERIFICATION_FAILED");
+        setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : (data.error ?? "VERIFICATION_FAILED"));
       } else {
         window.location.href = "/";
         return;
       }
-    } catch {
+    } catch (err) {
+      console.error("[verify] Fetch error:", err);
       setVerifyError("VERIFICATION_FAILED");
     } finally {
       setVerifyPending(false);
