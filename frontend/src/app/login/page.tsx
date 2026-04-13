@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, resendCodeAction, forgotPasswordAction, resetPasswordAction } from "@/app/(auth)/actions";
+import { loginAction, resendCodeAction, forgotPasswordAction, resetPasswordAction, verifyAndLoginAction, googleSignInSessionAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
@@ -106,7 +106,7 @@ export default function LoginPage() {
     setResendCooldown(60);
   };
 
-  // Verify code — calls custom API that bypasses NextAuth signIn
+  // Verify code — server action that bypasses NextAuth signIn
   const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -117,22 +117,16 @@ export default function LoginPage() {
     setVerifyError(null);
 
     try {
-      const res = await fetch("/api/auth/verify-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: verifyEmail, code, type: verifyType }),
-      });
-      const data = await res.json();
-      console.log("[verify] Response:", res.status, data);
+      const result = await verifyAndLoginAction(verifyEmail, code, verifyType);
 
-      if (!res.ok || !data.success) {
-        setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : (data.error ?? "VERIFICATION_FAILED"));
+      if (result.error) {
+        setVerifyError(result.error === "Invalid or expired code" ? "INVALID_CODE" : result.error);
       } else {
         window.location.href = "/";
         return;
       }
     } catch (err) {
-      console.error("[verify] Fetch error:", err);
+      console.error("[verify] Error:", err);
       setVerifyError("VERIFICATION_FAILED");
     } finally {
       setVerifyPending(false);
@@ -198,14 +192,9 @@ export default function LoginPage() {
   const handleGoogleCallback = useCallback(async (response: { credential: string }) => {
     setGoogleError(null);
     try {
-      const res = await fetch("/api/auth/verify-session-google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setGoogleError(data.error ?? "No account found. Please create an account first.");
+      const result = await googleSignInSessionAction(response.credential);
+      if (result.error) {
+        setGoogleError(result.error);
       } else {
         window.location.href = "/";
         return;

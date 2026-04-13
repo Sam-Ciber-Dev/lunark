@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { registerAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
+import { registerAction, resendCodeAction, googleGetProfileAction, verifyAndLoginAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
@@ -75,7 +75,7 @@ export default function RegisterPage() {
     setResendCooldown(60);
   };
 
-  // Verify code — uses client-side signIn (avoids server action hanging)
+  // Verify code — server action that bypasses NextAuth signIn
   const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -86,15 +86,10 @@ export default function RegisterPage() {
     setVerifyError(null);
 
     try {
-      const res = await fetch("/api/auth/verify-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: verifyEmail, code, type: verifyType }),
-      });
-      const data = await res.json();
+      const result = await verifyAndLoginAction(verifyEmail, code, verifyType);
 
-      if (!res.ok || !data.success) {
-        setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : "VERIFICATION_FAILED");
+      if (result.error) {
+        setVerifyError(result.error === "Invalid or expired code" ? "INVALID_CODE" : result.error);
       } else {
         window.location.href = "/";
         return;
