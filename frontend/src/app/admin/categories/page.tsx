@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Pencil, Plus, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 import type { Category } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function AdminCategoriesPage() {
   const { data: session } = useSession();
+  const { t } = useI18n();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -77,7 +79,7 @@ export default function AdminCategoriesPage() {
 
   const deleteCategory = async (id: string) => {
     if (!session?.user) return;
-    if (!confirm("Delete this category?")) return;
+    if (!confirm(t.adminCategories.confirmDelete)) return;
 
     try {
       const res = await fetch(`${API_URL}/admin/categories/${id}`, {
@@ -103,30 +105,30 @@ export default function AdminCategoriesPage() {
   return (
     <div className="max-w-2xl">
       <h2 className="mb-6 text-xl font-semibold">
-        Categorias ({categories.length})
+        {t.adminCategories.title} ({categories.length})
       </h2>
 
       {/* Create form */}
       <div className="mb-6 rounded-lg border p-4">
-        <p className="mb-3 text-sm font-medium">New category</p>
+        <p className="mb-3 text-sm font-medium">{t.adminCategories.newCategory}</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Name"
+            placeholder={t.adminCategories.nameLabel}
             className="flex-1 rounded-md border bg-background px-3 py-2"
           />
           <input
             type="text"
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder={t.adminCategories.descLabel}
             className="flex-1 rounded-md border bg-background px-3 py-2"
           />
           <Button onClick={createCategory} disabled={creating || !newName.trim()}>
             <Plus className="mr-1 h-4 w-4" />
-            Criar
+            {t.adminCategories.create}
           </Button>
         </div>
       </div>
@@ -134,7 +136,7 @@ export default function AdminCategoriesPage() {
       {/* List */}
       {categories.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">
-          No categories.
+          {t.adminCategories.noCategories}
         </p>
       ) : (
         <div className="space-y-2">

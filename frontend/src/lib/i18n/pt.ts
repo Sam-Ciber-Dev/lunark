@@ -1,6 +1,8 @@
 import type { Dictionary } from "./en";
+import { ptPages } from "./pages-pt";
 
 export const pt: Dictionary = {
+  ...ptPages,
   nav: {
     home: "Início",
     shop: "Loja",
@@ -300,6 +302,7 @@ export const pt: Dictionary = {
     googlePrefilled: "Informações do Google aplicadas. Define a tua palavra-passe abaixo.",
     passwordsMismatch: "As palavras-passe não coincidem",
     noAccountFound: "Conta não encontrada. Cria uma conta primeiro.",
+    verificationFailed: "Verificação falhou. Por favor tente novamente.",
     invalidCode: "Código inválido ou expirado",
     // Password strength
     minChars: "Mínimo 8 caracteres",
@@ -398,6 +401,8 @@ export const pt: Dictionary = {
     removePhoto: "Remover Foto",
     uploadPhoto: "Carregar Foto",
     photoHint: "JPG, PNG ou WEBP. Máx 2MB.",
+    fileTooLarge: "Ficheiro demasiado grande. Máx 2MB.",
+    invalidFileType: "Apenas JPG, PNG ou WEBP.",
     saved: "Alterações guardadas!",
     myOrders: "Minhas Encomendas",
     myMessages: "Minhas Mensagens",

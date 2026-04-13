@@ -3,131 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-
-const faqs = [
-  {
-    category: "Orders & Shipping",
-    questions: [
-      {
-        q: "How long does delivery take?",
-        a: "Standard delivery within the EU takes 3–5 business days. Express delivery is 1–2 business days. International orders (outside EU) take 7–14 business days. See our Shipping Info page for full details.",
-      },
-      {
-        q: "How much does shipping cost?",
-        a: "We offer free standard shipping on all EU orders over €50. For orders under €50, standard shipping is €4.95. Express shipping is €9.95. International rates vary by destination.",
-      },
-      {
-        q: "Can I track my order?",
-        a: "Yes! Once your order ships, you'll receive an email with a tracking link. You can also track orders from the 'My Orders' section of your account.",
-      },
-      {
-        q: "Can I change or cancel my order?",
-        a: "You can cancel or modify your order within 1 hour of placing it by contacting our support team. After that, orders enter processing and cannot be changed.",
-      },
-      {
-        q: "What if my order arrives damaged?",
-        a: "Contact us within 48 hours of delivery with photos of the damage. We'll send a replacement or issue a full refund — no need to return the damaged item.",
-      },
-    ],
-  },
-  {
-    category: "Returns & Refunds",
-    questions: [
-      {
-        q: "What is your return policy?",
-        a: "You can return any unworn item with tags attached within 30 days of delivery for a full refund. Sale items are eligible for store credit or exchange only.",
-      },
-      {
-        q: "How do I start a return?",
-        a: "Log into your account, go to 'My Orders', select the order, and click 'Request Return'. You'll receive a return label and instructions by email.",
-      },
-      {
-        q: "How long do refunds take?",
-        a: "Refunds are processed within 5–7 business days after we receive your return. Depending on your bank, it may take an additional 3–5 days to appear on your statement.",
-      },
-      {
-        q: "Do I have to pay for return shipping?",
-        a: "Returns within the EU come with a free prepaid label. For international returns, shipping costs are the customer's responsibility unless the return is due to our error.",
-      },
-    ],
-  },
-  {
-    category: "Account & Security",
-    questions: [
-      {
-        q: "How do I create an account?",
-        a: "Click 'Register' in the top navigation, fill in your details, and verify your email. You'll earn 50 welcome bonus points!",
-      },
-      {
-        q: "I forgot my password. How can I reset it?",
-        a: "Click 'Login', then 'Forgot Password'. We'll send a reset link to your registered email address.",
-      },
-      {
-        q: "Is my personal data secure?",
-        a: "Absolutely. We use 256-bit SSL encryption, never store full card details, and comply with GDPR. See our Privacy Policy for full details.",
-      },
-      {
-        q: "Can I delete my account?",
-        a: "Yes. Go to your profile settings and click 'Delete Account'. All your personal data will be permanently removed within 30 days.",
-      },
-    ],
-  },
-  {
-    category: "Payments",
-    questions: [
-      {
-        q: "What payment methods do you accept?",
-        a: "We accept Visa, Mastercard, American Express, PayPal, Apple Pay, Google Pay, MB WAY, Multibanco, Klarna, and more. See our Payment Methods page for the full list.",
-      },
-      {
-        q: "Are payments secure?",
-        a: "Yes. All transactions are processed with 256-bit SSL encryption and 3D Secure authentication. We are PCI DSS compliant and never store your full card details.",
-      },
-      {
-        q: "Can I pay in instalments?",
-        a: "Yes! We offer Klarna (3 interest-free payments) and Afterpay (4 instalments). These options appear at checkout if available in your region.",
-      },
-      {
-        q: "What currency do you charge in?",
-        a: "All prices are in Euros (€). If your card is in a different currency, your bank will convert at their exchange rate.",
-      },
-    ],
-  },
-  {
-    category: "Products & Sizing",
-    questions: [
-      {
-        q: "How do I find my size?",
-        a: "Check our Size Guide for detailed measurements and conversion charts for women's, men's, and children's clothing and shoes.",
-      },
-      {
-        q: "Are your products true to size?",
-        a: "Most of our items run true to size. Each product page includes specific sizing notes. When in doubt, we recommend sizing up.",
-      },
-      {
-        q: "How do I care for my clothes?",
-        a: "Each item comes with a care label. General tips: wash darks inside-out in cold water, avoid tumble-drying delicate fabrics, and store knitwear folded.",
-      },
-    ],
-  },
-  {
-    category: "Loyalty & Promotions",
-    questions: [
-      {
-        q: "How does the Bonus Points programme work?",
-        a: "Earn 1–3 points per €1 spent depending on your tier. Redeem points for discounts. See our Bonus Points page for tiers, earning rates, and rewards.",
-      },
-      {
-        q: "How do I use a discount code?",
-        a: "Enter your code in the 'Promo Code' field at checkout and click 'Apply'. The discount will be reflected in your order total immediately.",
-      },
-      {
-        q: "Can I combine discount codes?",
-        a: "Only one promotional code can be used per order. However, you can combine a code with points redemption.",
-      },
-    ],
-  },
-];
+import { useI18n } from "@/lib/i18n";
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -148,14 +24,43 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function FAQPage() {
+  const { t } = useI18n();
+
+  const faqs = [
+    { category: t.faq.cat1, questions: [
+      { q: t.faq.q1, a: t.faq.a1 }, { q: t.faq.q2, a: t.faq.a2 }, { q: t.faq.q3, a: t.faq.a3 },
+      { q: t.faq.q4, a: t.faq.a4 }, { q: t.faq.q5, a: t.faq.a5 },
+    ]},
+    { category: t.faq.cat2, questions: [
+      { q: t.faq.q6, a: t.faq.a6 }, { q: t.faq.q7, a: t.faq.a7 },
+      { q: t.faq.q8, a: t.faq.a8 }, { q: t.faq.q9, a: t.faq.a9 },
+    ]},
+    { category: t.faq.cat3, questions: [
+      { q: t.faq.q10, a: t.faq.a10 }, { q: t.faq.q11, a: t.faq.a11 },
+      { q: t.faq.q12, a: t.faq.a12 }, { q: t.faq.q13, a: t.faq.a13 },
+    ]},
+    { category: t.faq.cat4, questions: [
+      { q: t.faq.q14, a: t.faq.a14 }, { q: t.faq.q15, a: t.faq.a15 },
+      { q: t.faq.q16, a: t.faq.a16 }, { q: t.faq.q17, a: t.faq.a17 },
+    ]},
+    { category: t.faq.cat5, questions: [
+      { q: t.faq.q18, a: t.faq.a18 }, { q: t.faq.q19, a: t.faq.a19 },
+      { q: t.faq.q20, a: t.faq.a20 },
+    ]},
+    { category: t.faq.cat6, questions: [
+      { q: t.faq.q21, a: t.faq.a21 }, { q: t.faq.q22, a: t.faq.a22 },
+      { q: t.faq.q23, a: t.faq.a23 },
+    ]},
+  ];
+
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">Frequently Asked Questions</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.faq.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Got questions? We&apos;ve got answers. Browse our most common questions below, or{" "}
-          <Link href="/contact" className="text-primary hover:underline">contact us</Link>{" "}
-          if you need more help.
+          {t.faq.subtitle}{" "}
+          <Link href="/contact" className="text-primary hover:underline">{t.faq.contactLink}</Link>{" "}
+          {t.faq.subtitleEnd}
         </p>
       </div>
 
@@ -173,9 +78,9 @@ export default function FAQPage() {
       </div>
 
       <div className="mt-12 text-center">
-        <p className="text-sm text-muted-foreground mb-4">Didn&apos;t find what you were looking for?</p>
+        <p className="text-sm text-muted-foreground mb-4">{t.faq.notFound}</p>
         <Link href="/contact" className="inline-flex rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-          Contact Us
+          {t.faq.contactUs}
         </Link>
       </div>
     </section>

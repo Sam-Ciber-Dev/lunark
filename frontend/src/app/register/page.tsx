@@ -158,7 +158,7 @@ export default function RegisterPage() {
 
         {verifyState?.error && (
           <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {verifyState.error === "INVALID_CODE" ? t.auth.invalidCode : verifyState.error}
+            {verifyState.error === "INVALID_CODE" ? t.auth.invalidCode : verifyState.error === "VERIFICATION_FAILED" ? (t.auth.verificationFailed ?? "Verification failed. Please try again.") : verifyState.error}
           </p>
         )}
 

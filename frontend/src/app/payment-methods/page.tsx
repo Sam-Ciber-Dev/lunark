@@ -1,55 +1,58 @@
 "use client";
 
 import { CreditCard, Shield, Lock, CircleCheck } from "lucide-react";
-
-const methods = [
-  {
-    category: "Credit & Debit Cards",
-    icon: CreditCard,
-    items: [
-      { name: "Visa", desc: "Credit, debit, and prepaid cards accepted worldwide." },
-      { name: "Mastercard", desc: "Credit, debit, and prepaid cards accepted worldwide." },
-      { name: "American Express", desc: "Available in most countries. Some regions may have restrictions." },
-      { name: "Maestro", desc: "European debit card network. Supported for EU customers." },
-    ],
-  },
-  {
-    category: "Digital Wallets",
-    icon: Shield,
-    items: [
-      { name: "Apple Pay", desc: "Available on Safari (macOS/iOS). Authenticate with Face ID, Touch ID, or passcode." },
-      { name: "Google Pay", desc: "Available on Chrome and Android devices. Fast one-tap checkout." },
-      { name: "PayPal", desc: "Pay with your PayPal balance, linked bank account, or card. Buyer protection included." },
-    ],
-  },
-  {
-    category: "Bank Transfers",
-    icon: Lock,
-    items: [
-      { name: "MB WAY", desc: "Instant payment via your Portuguese bank app. Available for PT customers." },
-      { name: "Multibanco", desc: "Generate a reference and pay at an ATM or through your bank's app (Portugal only)." },
-      { name: "iDEAL", desc: "Direct bank transfer for Dutch customers. Supported by all major NL banks." },
-      { name: "Bancontact", desc: "Belgian debit card and mobile app payment. Instant confirmation." },
-      { name: "SEPA Direct Debit", desc: "Direct debit from any EU bank account. Available for subscriptions." },
-    ],
-  },
-  {
-    category: "Buy Now, Pay Later",
-    icon: CircleCheck,
-    items: [
-      { name: "Klarna", desc: "Split into 3 interest-free payments, or pay within 30 days. No extra fees." },
-      { name: "Afterpay", desc: "Pay in 4 interest-free instalments, every 2 weeks." },
-    ],
-  },
-];
+import { useI18n } from "@/lib/i18n";
 
 export default function PaymentMethodsPage() {
+  const { t } = useI18n();
+
+  const methods = [
+    {
+      category: t.paymentPage.cards,
+      icon: CreditCard,
+      items: [
+        { name: t.paymentPage.visa, desc: t.paymentPage.visaDesc },
+        { name: t.paymentPage.mastercard, desc: t.paymentPage.mastercardDesc },
+        { name: t.paymentPage.amex, desc: t.paymentPage.amexDesc },
+        { name: t.paymentPage.maestro, desc: t.paymentPage.maestroDesc },
+      ],
+    },
+    {
+      category: t.paymentPage.digitalWallets,
+      icon: Shield,
+      items: [
+        { name: t.paymentPage.applePay, desc: t.paymentPage.applePayDesc },
+        { name: t.paymentPage.googlePay, desc: t.paymentPage.googlePayDesc },
+        { name: t.paymentPage.paypal, desc: t.paymentPage.paypalDesc },
+      ],
+    },
+    {
+      category: t.paymentPage.bankTransfers,
+      icon: Lock,
+      items: [
+        { name: t.paymentPage.mbway, desc: t.paymentPage.mbwayDesc },
+        { name: t.paymentPage.multibanco, desc: t.paymentPage.multibancoDesc },
+        { name: t.paymentPage.ideal, desc: t.paymentPage.idealDesc },
+        { name: t.paymentPage.bancontact, desc: t.paymentPage.bancontactDesc },
+        { name: t.paymentPage.sepa, desc: t.paymentPage.sepaDesc },
+      ],
+    },
+    {
+      category: t.paymentPage.bnpl,
+      icon: CircleCheck,
+      items: [
+        { name: t.paymentPage.klarna, desc: t.paymentPage.klarnaDesc },
+        { name: t.paymentPage.afterpay, desc: t.paymentPage.afterpayDesc },
+      ],
+    },
+  ];
+
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">Payment Methods</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.paymentPage.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          We offer a wide range of secure payment options so you can shop with confidence. All transactions are protected with industry-standard encryption.
+          {t.paymentPage.subtitle}
         </p>
       </div>
 
@@ -76,43 +79,43 @@ export default function PaymentMethodsPage() {
 
       {/* Security */}
       <div className="mt-12 rounded-lg border border-border/40 bg-card/50 p-8">
-        <h2 className="text-xl font-bold mb-4">Payment Security</h2>
+        <h2 className="text-xl font-bold mb-4">{t.paymentPage.securityTitle}</h2>
         <div className="grid sm:grid-cols-2 gap-6 text-sm text-muted-foreground">
           <div className="flex items-start gap-3">
             <Lock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-foreground mb-1">256-Bit SSL Encryption</p>
-              <p>All payment data is encrypted in transit using TLS 1.3 — the same standard used by banks.</p>
+              <p className="font-semibold text-foreground mb-1">{t.paymentPage.ssl}</p>
+              <p>{t.paymentPage.sslDesc}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-foreground mb-1">PCI DSS Compliant</p>
-              <p>Our payment processing meets PCI Data Security Standards. We never store your full card details.</p>
+              <p className="font-semibold text-foreground mb-1">{t.paymentPage.pci}</p>
+              <p>{t.paymentPage.pciDesc}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <CircleCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-foreground mb-1">3D Secure Authentication</p>
-              <p>Supported for Visa, Mastercard, and Amex. Adds an extra verification step for your protection.</p>
+              <p className="font-semibold text-foreground mb-1">{t.paymentPage.threeDSecure}</p>
+              <p>{t.paymentPage.threeDSecureDesc}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <CreditCard className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-foreground mb-1">Fraud Protection</p>
-              <p>Our system automatically detects and blocks suspicious transactions to keep your account safe.</p>
+              <p className="font-semibold text-foreground mb-1">{t.paymentPage.fraud}</p>
+              <p>{t.paymentPage.fraudDesc}</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="mt-12 rounded-lg border border-border/40 bg-card/50 p-8">
-        <h2 className="text-xl font-bold mb-4">Currency</h2>
+        <h2 className="text-xl font-bold mb-4">{t.paymentPage.currencyNote}</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          All prices on our site are displayed in <strong className="text-foreground">Euros (€)</strong>. If you pay with a card in a different currency, your bank will convert the amount at their current exchange rate. Some banks may apply a small international transaction fee — check with your bank for details.
+          {t.paymentPage.currencyContent}
         </p>
       </div>
     </section>

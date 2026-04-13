@@ -20,6 +20,23 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   ),
+  keywords: [
+    "fashion",
+    "clothing",
+    "online store",
+    "modern fashion",
+    "sustainable fashion",
+    "Lunark",
+    "roupa",
+    "moda",
+  ],
+  authors: [{ name: "Lunark" }],
+  creator: "Lunark",
+  publisher: "Lunark",
+  formatDetection: {
+    email: false,
+    telephone: false,
+  },
   openGraph: {
     title: "Lunark — Elevate Your Style",
     description:
@@ -27,6 +44,26 @@ export const metadata: Metadata = {
     siteName: "Lunark",
     locale: "en",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Lunark — Elevate Your Style",
+    description:
+      "Modern fashion store — curated collections designed for those who dare to stand out.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.com",
   },
 };
 

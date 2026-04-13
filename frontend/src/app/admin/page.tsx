@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { Package, ShoppingBag, Tag, Users } from "lucide-react";
+import DashboardContent from "./DashboardContent";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -23,39 +23,9 @@ async function getStats(userId: string): Promise<Stats> {
   }
 }
 
-const statCards = [
-  { key: "products" as const, label: "Products", icon: ShoppingBag },
-  { key: "orders" as const, label: "Orders", icon: Package },
-  { key: "users" as const, label: "Users", icon: Users },
-  { key: "categories" as const, label: "Categories", icon: Tag },
-];
-
 export default async function AdminDashboard() {
   const session = await auth();
   const stats = await getStats(session!.user.id);
 
-  return (
-    <div>
-      <h2 className="mb-6 text-xl font-semibold">Overview</h2>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {statCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.key}
-              className="rounded-lg border p-6"
-            >
-              <div className="flex items-center gap-3">
-                <Icon className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {card.label}
-                </span>
-              </div>
-              <p className="mt-2 text-3xl font-bold">{stats[card.key]}</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return <DashboardContent stats={stats} />;
 }

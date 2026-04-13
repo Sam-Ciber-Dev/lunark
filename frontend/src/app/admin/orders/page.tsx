@@ -3,16 +3,9 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
 
 const STATUS_OPTIONS = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
@@ -28,6 +21,7 @@ interface AdminOrder {
 
 export default function AdminOrdersPage() {
   const { data: session } = useSession();
+  const { t } = useI18n();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -79,12 +73,12 @@ export default function AdminOrdersPage() {
   return (
     <div>
       <h2 className="mb-6 text-xl font-semibold">
-        Orders ({orders.length})
+        {t.adminOrders.title} ({orders.length})
       </h2>
 
       {orders.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">
-          No orders.
+          {t.adminOrders.noOrders}
         </p>
       ) : (
         <div className="space-y-2">
@@ -116,7 +110,7 @@ export default function AdminOrdersPage() {
                       order.status === "cancelled" ? "destructive" : "secondary"
                     }
                   >
-                    {STATUS_LABELS[order.status] ?? order.status}
+                    {(t.adminOrders as Record<string, string>)[order.status] ?? order.status}
                   </Badge>
                   <select
                     value={order.status}
@@ -126,7 +120,7 @@ export default function AdminOrdersPage() {
                   >
                     {STATUS_OPTIONS.map((s) => (
                       <option key={s} value={s}>
-                        {STATUS_LABELS[s]}
+                        {(t.adminOrders as Record<string, string>)[s]}
                       </option>
                     ))}
                   </select>

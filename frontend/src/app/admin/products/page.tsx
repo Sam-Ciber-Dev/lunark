@@ -6,12 +6,14 @@ import Link from "next/link";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/lib/i18n";
 import type { Product } from "@/types/product";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function AdminProductsPage() {
   const { data: session } = useSession();
+  const { t } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,7 @@ export default function AdminProductsPage() {
 
   const deleteProduct = async (id: string) => {
     if (!session?.user) return;
-    if (!confirm("Are you sure you want to delete this product?")) return;
+    if (!confirm(t.adminProducts.confirmDelete)) return;
 
     const res = await fetch(`${API_URL}/admin/products/${id}`, {
       method: "DELETE",
@@ -52,18 +54,18 @@ export default function AdminProductsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Products ({products.length})</h2>
+        <h2 className="text-xl font-semibold">{t.adminProducts.title} ({products.length})</h2>
         <Button asChild>
           <Link href="/admin/products/new">
             <Plus className="mr-2 h-4 w-4" />
-            New product
+            {t.adminProducts.newProduct}
           </Link>
         </Button>
       </div>
 
       {products.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">
-          No products created.
+          {t.adminProducts.noProducts}
         </p>
       ) : (
         <div className="space-y-2">
@@ -89,14 +91,14 @@ export default function AdminProductsPage() {
                 <div>
                   <p className="font-medium">{product.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {product.price.toFixed(2)} € · {product.variants?.length ?? 0} variantes
+                    {product.price.toFixed(2)} € · {product.variants?.length ?? 0} {t.adminProducts.variants}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {product.featured && <Badge variant="secondary">Featured</Badge>}
+                {product.featured && <Badge variant="secondary">{t.adminProducts.featured}</Badge>}
                 <Badge variant={product.active ? "default" : "destructive"}>
-                  {product.active ? "Active" : "Inactive"}
+                  {product.active ? t.adminProducts.active : t.adminProducts.inactive}
                 </Badge>
                 <Button variant="ghost" size="icon" asChild>
                   <Link href={`/admin/products/${product.id}`}>

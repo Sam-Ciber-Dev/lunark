@@ -74,6 +74,8 @@ export default function LoginPage() {
         return t.auth.tooManyRequests;
       case "INVALID_CODE":
         return t.auth.invalidCode;
+      case "VERIFICATION_FAILED":
+        return t.auth.verificationFailed ?? "Verification failed. Please try again.";
       case "Captcha verification failed":
         return t.auth.captchaFailed;
       default:
@@ -239,7 +241,7 @@ export default function LoginPage() {
 
         {verifyState?.error && (
           <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {verifyState.error === "INVALID_CODE" ? t.auth.invalidCode : verifyState.error}
+            {translateError(verifyState.error)}
           </p>
         )}
 

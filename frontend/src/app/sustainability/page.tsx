@@ -1,33 +1,35 @@
 "use client";
 
 import { Leaf, Recycle, Droplets, Wind, Package, Heart } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function SustainabilityPage() {
+  const { t } = useI18n();
+
   const pillars = [
-    { icon: Leaf, title: "Ethical Sourcing", desc: "We partner with factories that provide fair wages, safe working conditions, and respect workers' rights. Every supplier is audited annually against international labor standards." },
-    { icon: Recycle, title: "Circular Fashion", desc: "Our garment recycling program lets you return worn Lunark items. We repurpose, recycle, or upcycle them — keeping textiles out of landfills and giving materials a second life." },
-    { icon: Droplets, title: "Water Conservation", desc: "Our manufacturing partners use water-saving dyeing techniques that reduce water consumption by up to 50% compared to conventional methods." },
-    { icon: Wind, title: "Carbon Neutral Shipping", desc: "We offset 100% of our shipping emissions through verified carbon credit programs. We also optimize packaging to reduce waste and shipment weight." },
-    { icon: Package, title: "Eco-Friendly Packaging", desc: "All our packaging is made from recycled materials and is fully recyclable. We've eliminated single-use plastics from our entire supply chain." },
-    { icon: Heart, title: "Community Impact", desc: "1% of every purchase goes to environmental and social causes through our Lunark Gives Back program. We support reforestation, ocean cleanup, and education initiatives." },
+    { icon: Leaf, title: t.sustainPage.ethicalSourcing, desc: t.sustainPage.ethicalSourcingDesc },
+    { icon: Recycle, title: t.sustainPage.circularFashion, desc: t.sustainPage.circularFashionDesc },
+    { icon: Droplets, title: t.sustainPage.waterConservation, desc: t.sustainPage.waterConservationDesc },
+    { icon: Wind, title: t.sustainPage.carbonNeutral, desc: t.sustainPage.carbonNeutralDesc },
+    { icon: Package, title: t.sustainPage.ecoPackaging, desc: t.sustainPage.ecoPackagingDesc },
+    { icon: Heart, title: t.sustainPage.communityImpact, desc: t.sustainPage.communityImpactDesc },
   ];
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">Sustainability</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.sustainPage.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Fashion should look good and do good. We&apos;re committed to reducing our environmental impact at every step — from sourcing to shipping to the end of a garment&apos;s life.
+          {t.sustainPage.subtitle}
         </p>
       </div>
 
-      {/* Goals */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 rounded-lg border border-border/40 bg-card/50 p-8 mb-16">
         {[
-          { value: "50%", label: "Sustainable materials by 2027" },
-          { value: "100%", label: "Carbon neutral shipping" },
-          { value: "Zero", label: "Single-use plastic in packaging" },
-          { value: "1%", label: "Revenue to social causes" },
+          { value: t.sustainPage.stat1Value, label: t.sustainPage.stat1Label },
+          { value: t.sustainPage.stat2Value, label: t.sustainPage.stat2Label },
+          { value: t.sustainPage.stat3Value, label: t.sustainPage.stat3Label },
+          { value: t.sustainPage.stat4Value, label: t.sustainPage.stat4Label },
         ].map(({ value, label }) => (
           <div key={label} className="text-center">
             <p className="text-3xl font-bold text-primary">{value}</p>
@@ -36,8 +38,7 @@ export default function SustainabilityPage() {
         ))}
       </div>
 
-      {/* Pillars */}
-      <h2 className="text-2xl font-bold text-center mb-10">Our Sustainability Pillars</h2>
+      <h2 className="text-2xl font-bold text-center mb-10">{t.sustainPage.pillarsTitle}</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
         {pillars.map(({ icon: Icon, title, desc }) => (
           <div key={title} className="rounded-lg border border-border/40 bg-card/50 p-6 transition-colors hover:border-primary/30">
@@ -50,16 +51,15 @@ export default function SustainabilityPage() {
         ))}
       </div>
 
-      {/* Timeline */}
       <div className="rounded-lg border border-border/40 bg-card/50 p-8">
-        <h2 className="text-2xl font-bold mb-8 text-center">Our Roadmap</h2>
+        <h2 className="text-2xl font-bold mb-8 text-center">{t.sustainPage.roadmapTitle}</h2>
         <div className="space-y-6">
           {[
-            { year: "2024", milestone: "Launched eco-friendly packaging across all orders. Eliminated plastic poly bags." },
-            { year: "2025", milestone: "Achieved carbon-neutral shipping. Introduced garment recycling pilot program." },
-            { year: "2026", milestone: "30% of products made with sustainable or recycled materials. Expanded recycling program worldwide." },
-            { year: "2027", milestone: "Target: 50% sustainable materials. Full supply chain transparency report." },
-            { year: "2030", milestone: "Target: 80% sustainable materials. Net-zero operations across all facilities." },
+            { year: t.sustainPage.year2024, milestone: t.sustainPage.year2024Desc },
+            { year: t.sustainPage.year2025, milestone: t.sustainPage.year2025Desc },
+            { year: t.sustainPage.year2026, milestone: t.sustainPage.year2026Desc },
+            { year: t.sustainPage.year2027, milestone: t.sustainPage.year2027Desc },
+            { year: t.sustainPage.year2030, milestone: t.sustainPage.year2030Desc },
           ].map(({ year, milestone }) => (
             <div key={year} className="flex gap-4">
               <span className="text-primary font-bold text-sm w-12 shrink-0 pt-0.5">{year}</span>

@@ -2,64 +2,26 @@
 
 import { ShoppingBag, CreditCard, Truck, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 export default function HowToOrderPage() {
+  const { t } = useI18n();
+
   return (
     <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">How to Order</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.howToOrder.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Ordering from Lunark is quick and easy. Follow these simple steps to get your favourite pieces delivered right to your door.
+          {t.howToOrder.subtitle}
         </p>
       </div>
 
-      {/* Steps */}
       <div className="space-y-8">
         {[
-          {
-            step: 1,
-            icon: ShoppingBag,
-            title: "Browse & Add to Cart",
-            desc: "Browse our shop or use the search to find what you love. Select your size and colour, then click 'Add to Cart'. You can continue shopping and add as many items as you like.",
-            tips: [
-              "Use filters to narrow by category, size, or price range",
-              "Save items to your wishlist by clicking the heart icon",
-              "Check the size guide if you're unsure about sizing",
-            ],
-          },
-          {
-            step: 2,
-            icon: CreditCard,
-            title: "Checkout & Payment",
-            desc: "When you're ready, go to your cart and click 'Checkout'. Enter your shipping address and choose a payment method. We accept all major credit and debit cards, PayPal, Apple Pay, Google Pay, and more.",
-            tips: [
-              "Create an account to save your details for faster checkout next time",
-              "Apply any discount codes in the promo field before paying",
-              "All payments are processed securely with 256-bit encryption",
-            ],
-          },
-          {
-            step: 3,
-            icon: Truck,
-            title: "Shipping & Delivery",
-            desc: "After your order is confirmed, you'll receive an email with your order details. Once shipped, you'll get another email with a tracking link so you can follow your package every step of the way.",
-            tips: [
-              "Standard delivery: 3–5 business days (EU) / 7–14 days (international)",
-              "Express delivery available at checkout for faster shipping",
-              "Free shipping on orders over €50 within the EU",
-            ],
-          },
-          {
-            step: 4,
-            icon: CheckCircle,
-            title: "Receive & Enjoy",
-            desc: "Your order arrives in our signature packaging. Try everything on, and if something isn't right, you have 30 days to return it — no questions asked.",
-            tips: [
-              "Inspect your items upon delivery and report any issues immediately",
-              "Keep your receipt and tags attached if you might return an item",
-              "Leave a review to help other shoppers make great choices",
-            ],
-          },
+          { step: 1, icon: ShoppingBag, title: t.howToOrder.step1Title, desc: t.howToOrder.step1Desc, tips: t.howToOrder.step1Tips.split(";") },
+          { step: 2, icon: CreditCard, title: t.howToOrder.step2Title, desc: t.howToOrder.step2Desc, tips: t.howToOrder.step2Tips.split(";") },
+          { step: 3, icon: Truck, title: t.howToOrder.step3Title, desc: t.howToOrder.step3Desc, tips: t.howToOrder.step3Tips.split(";") },
+          { step: 4, icon: CheckCircle, title: t.howToOrder.step4Title, desc: t.howToOrder.step4Desc, tips: t.howToOrder.step4Tips.split(";") },
         ].map(({ step, icon: Icon, title, desc, tips }) => (
           <div key={step} className="rounded-lg border border-border/40 bg-card/50 p-8">
             <div className="flex items-start gap-4">
@@ -85,26 +47,19 @@ export default function HowToOrderPage() {
         ))}
       </div>
 
-      {/* Guest vs Account */}
       <div className="mt-12 rounded-lg border border-border/40 bg-card/50 p-8">
-        <h2 className="text-xl font-bold mb-4">Guest Checkout vs. Account</h2>
+        <h2 className="text-xl font-bold mb-4">{t.howToOrder.guestVsAccount}</h2>
         <div className="grid sm:grid-cols-2 gap-6 text-sm text-muted-foreground">
           <div>
-            <h3 className="font-semibold text-foreground mb-2">Guest Checkout</h3>
+            <h3 className="font-semibold text-foreground mb-2">{t.howToOrder.guestTitle}</h3>
             <ul className="space-y-1 list-disc list-inside">
-              <li>No account required</li>
-              <li>Enter your details at checkout</li>
-              <li>Tracking link sent by email</li>
+              {t.howToOrder.guestItems.split(";").map((item: string) => <li key={item}>{item}</li>)}
             </ul>
           </div>
           <div>
-            <h3 className="font-semibold text-foreground mb-2">With an Account</h3>
+            <h3 className="font-semibold text-foreground mb-2">{t.howToOrder.accountTitle}</h3>
             <ul className="space-y-1 list-disc list-inside">
-              <li>Save addresses & payment methods</li>
-              <li>View full order history</li>
-              <li>Track all orders from your dashboard</li>
-              <li>Earn bonus points on every order</li>
-              <li>Faster checkout next time</li>
+              {t.howToOrder.accountItems.split(";").map((item: string) => <li key={item}>{item}</li>)}
             </ul>
           </div>
         </div>
@@ -112,7 +67,7 @@ export default function HowToOrderPage() {
 
       <div className="mt-12 text-center">
         <Link href="/shop" className="inline-flex rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-          Start Shopping
+          {t.howToOrder.startShopping}
         </Link>
       </div>
     </section>

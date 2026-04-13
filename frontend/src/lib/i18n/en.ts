@@ -1,4 +1,7 @@
+import { enPages } from "./pages-en";
+
 export const en = {
+  ...enPages,
   // Navbar
   nav: {
     home: "Home",
@@ -323,6 +326,7 @@ export const en = {
     passwordsMismatch: "Passwords do not match",
     noAccountFound: "No account found. Please create an account first.",
     invalidCode: "Invalid or expired code",
+    verificationFailed: "Verification failed. Please try again.",
     // Password strength
     minChars: "Minimum 8 characters",
     oneUppercase: "One uppercase letter",
@@ -431,6 +435,8 @@ export const en = {
     removePhoto: "Remove Photo",
     uploadPhoto: "Upload Photo",
     photoHint: "JPG, PNG or WEBP. Max 2MB.",
+    fileTooLarge: "File too large. Max 2MB.",
+    invalidFileType: "Only JPG, PNG or WEBP.",
     saved: "Changes saved!",
     myOrders: "My Orders",
     myMessages: "My Messages",

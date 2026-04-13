@@ -1,63 +1,53 @@
 "use client";
 
 import { Heart, Leaf, Globe, Award, Users, Sparkles } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function AboutPage() {
+  const { t } = useI18n();
 
   const values = [
-    { icon: Heart, title: "Quality First", desc: "Every piece is hand-selected and rigorously quality-checked before reaching you. We partner only with manufacturers who share our commitment to excellence." },
-    { icon: Leaf, title: "Sustainable Fashion", desc: "We actively reduce our environmental footprint through eco-friendly packaging, carbon-neutral shipping options, and partnerships with ethical manufacturers." },
-    { icon: Globe, title: "Global Reach", desc: "From Lisbon to Tokyo, we deliver worldwide. Our diverse collections celebrate fashion from every corner of the globe, curated for every body and every style." },
-    { icon: Award, title: "Fair Pricing", desc: "We cut out the middlemen. By working directly with manufacturers, we offer premium fashion at honest prices — no inflated markups, no hidden costs." },
-    { icon: Users, title: "Community Driven", desc: "Our customers shape our collections. We listen to feedback, run community polls, and constantly evolve based on what you love." },
-    { icon: Sparkles, title: "Always Evolving", desc: "Fashion never stands still, and neither do we. New drops every week, trend forecasting, and seasonal collections that keep your wardrobe fresh." },
+    { icon: Heart, title: t.about.qualityFirst, desc: t.about.qualityFirstDesc },
+    { icon: Leaf, title: t.about.sustainableFashion, desc: t.about.sustainableFashionDesc },
+    { icon: Globe, title: t.about.globalReach, desc: t.about.globalReachDesc },
+    { icon: Award, title: t.about.fairPricing, desc: t.about.fairPricingDesc },
+    { icon: Users, title: t.about.communityDriven, desc: t.about.communityDrivenDesc },
+    { icon: Sparkles, title: t.about.alwaysEvolving, desc: t.about.alwaysEvolvingDesc },
   ];
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       {/* Hero */}
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">About Lunark</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.about.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          Born from a passion for accessible luxury, Lunark bridges the gap between high-end aesthetics and everyday affordability. We believe everyone deserves to feel confident in what they wear.
+          {t.about.subtitle}
         </p>
       </div>
 
       {/* Our Story */}
       <div className="grid md:grid-cols-2 gap-12 mb-20">
         <div>
-          <h2 className="text-2xl font-bold mb-4">Our Story</h2>
+          <h2 className="text-2xl font-bold mb-4">{t.about.ourStory}</h2>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
-            <p>
-              Founded in 2024 by a team of fashion enthusiasts who were tired of choosing between style and budget, Lunark started as a simple idea: what if premium fashion was truly accessible to everyone?
-            </p>
-            <p>
-              What began as a small curated collection has grown into a global fashion destination. We source from the world&apos;s finest manufacturers, negotiate directly to eliminate unnecessary markups, and pass those savings on to you.
-            </p>
-            <p>
-              Today, Lunark serves customers in over 50 countries, offering everything from everyday essentials to statement pieces — all with the quality and attention to detail you&apos;d expect from a luxury brand.
-            </p>
+            <p>{t.about.storyP1}</p>
+            <p>{t.about.storyP2}</p>
+            <p>{t.about.storyP3}</p>
           </div>
         </div>
         <div>
-          <h2 className="text-2xl font-bold mb-4">Our Mission</h2>
+          <h2 className="text-2xl font-bold mb-4">{t.about.ourMission}</h2>
           <div className="space-y-4 text-muted-foreground leading-relaxed">
-            <p>
-              At Lunark, our mission is straightforward: make great style accessible without compromise. We refuse to believe that quality fashion must come with an unreasonable price tag.
-            </p>
-            <p>
-              We&apos;re committed to ethical sourcing, sustainable practices, and transparent pricing. Every decision we make — from fabric selection to packaging — is guided by our responsibility to you and the planet.
-            </p>
-            <p>
-              Our team works tirelessly to stay ahead of trends, ensuring our collections are always fresh, relevant, and inclusive. We design for real people, real bodies, and real lives.
-            </p>
+            <p>{t.about.missionP1}</p>
+            <p>{t.about.missionP2}</p>
+            <p>{t.about.missionP3}</p>
           </div>
         </div>
       </div>
 
       {/* Our Values */}
       <div className="mb-20">
-        <h2 className="text-2xl font-bold text-center mb-10">Our Values</h2>
+        <h2 className="text-2xl font-bold text-center mb-10">{t.about.ourValues}</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {values.map(({ icon: Icon, title, desc }) => (
             <div key={title} className="rounded-lg border border-border/40 bg-card/50 p-6 transition-colors hover:border-primary/30">
@@ -74,10 +64,10 @@ export default function AboutPage() {
       {/* Numbers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 rounded-lg border border-border/40 bg-card/50 p-8">
         {[
-          { value: "50+", label: "Countries Served" },
-          { value: "100K+", label: "Happy Customers" },
-          { value: "5,000+", label: "Products" },
-          { value: "4.8★", label: "Average Rating" },
+          { value: "50+", label: t.about.countriesServed },
+          { value: "100K+", label: t.about.happyCustomers },
+          { value: "5,000+", label: t.about.productsLabel },
+          { value: "4.8★", label: t.about.avgRating },
         ].map(({ value, label }) => (
           <div key={label} className="text-center">
             <p className="text-3xl font-bold text-primary">{value}</p>

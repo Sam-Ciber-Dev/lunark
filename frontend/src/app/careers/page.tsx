@@ -2,33 +2,35 @@
 
 import { Briefcase, MapPin, Clock, ChevronRight } from "lucide-react";
 import Link from "next/link";
-
-const openPositions = [
-  { title: "Senior Frontend Developer", dept: "Engineering", location: "Remote / Lisbon", type: "Full-time", desc: "Build and optimize our Next.js storefront, design system, and customer-facing features." },
-  { title: "UX/UI Designer", dept: "Design", location: "Remote", type: "Full-time", desc: "Create intuitive, beautiful shopping experiences across web and mobile platforms." },
-  { title: "Fashion Buyer", dept: "Merchandising", location: "Lisbon, Portugal", type: "Full-time", desc: "Source and curate collections from global manufacturers, negotiate pricing, and manage vendor relationships." },
-  { title: "Digital Marketing Manager", dept: "Marketing", location: "Remote / Lisbon", type: "Full-time", desc: "Lead our growth strategy across social media, paid ads, SEO, and email campaigns." },
-  { title: "Customer Support Specialist", dept: "Support", location: "Remote", type: "Full-time / Part-time", desc: "Provide exceptional support via chat, email, and phone. Help resolve orders, returns, and product inquiries." },
-  { title: "Warehouse Operations Lead", dept: "Logistics", location: "Lisbon, Portugal", type: "Full-time", desc: "Oversee inventory management, order fulfillment, and shipping operations for our distribution center." },
-];
+import { useI18n } from "@/lib/i18n";
 
 export default function CareersPage() {
+  const { t } = useI18n();
+
+  const openPositions = [
+    { title: t.careersPage.seniorFrontend, dept: t.careersPage.engineering, location: t.careersPage.remoteLisbon, type: t.careersPage.fullTime, desc: t.careersPage.seniorFrontendDesc },
+    { title: t.careersPage.uxDesigner, dept: t.careersPage.design, location: t.careersPage.remote, type: t.careersPage.fullTime, desc: t.careersPage.uxDesignerDesc },
+    { title: t.careersPage.fashionBuyer, dept: t.careersPage.merchandising, location: t.careersPage.lisbon, type: t.careersPage.fullTime, desc: t.careersPage.fashionBuyerDesc },
+    { title: t.careersPage.marketingManager, dept: t.careersPage.marketing, location: t.careersPage.remoteLisbon, type: t.careersPage.fullTime, desc: t.careersPage.marketingManagerDesc },
+    { title: t.careersPage.customerSupport, dept: t.careersPage.support, location: t.careersPage.remote, type: t.careersPage.fullTimePartTime, desc: t.careersPage.customerSupportDesc },
+    { title: t.careersPage.warehouseLead, dept: t.careersPage.logistics, location: t.careersPage.lisbon, type: t.careersPage.fullTime, desc: t.careersPage.warehouseLeadDesc },
+  ];
+
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">Join Our Team</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.careersPage.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          We&apos;re building the future of accessible fashion. Join a passionate, diverse team where your work makes a real impact on how people dress and feel every day.
+          {t.careersPage.subtitle}
         </p>
       </div>
 
-      {/* Why Lunark */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
         {[
-          { title: "Remote-First", desc: "Work from anywhere. We have team members across 12 countries and counting." },
-          { title: "Growth Culture", desc: "Annual learning budget, mentorship programs, and clear career progression paths." },
-          { title: "Flexible Hours", desc: "We trust you to manage your time. Focus on results, not clock-watching." },
-          { title: "Great Benefits", desc: "Health insurance, generous PTO, employee discounts, and team retreats twice a year." },
+          { title: t.careersPage.remoteFirst, desc: t.careersPage.remoteFirstDesc },
+          { title: t.careersPage.growthCulture, desc: t.careersPage.growthCultureDesc },
+          { title: t.careersPage.flexibleHours, desc: t.careersPage.flexibleHoursDesc },
+          { title: t.careersPage.greatBenefits, desc: t.careersPage.greatBenefitsDesc },
         ].map(({ title, desc }) => (
           <div key={title} className="rounded-lg border border-border/40 bg-card/50 p-6">
             <h3 className="font-semibold mb-2">{title}</h3>
@@ -37,8 +39,7 @@ export default function CareersPage() {
         ))}
       </div>
 
-      {/* Open Positions */}
-      <h2 className="text-2xl font-bold mb-8">Open Positions</h2>
+      <h2 className="text-2xl font-bold mb-8">{t.careersPage.openPositions}</h2>
       <div className="space-y-4">
         {openPositions.map((pos) => (
           <div key={pos.title} className="group rounded-lg border border-border/40 bg-card/50 p-6 transition-colors hover:border-primary/30">
@@ -53,7 +54,7 @@ export default function CareersPage() {
                 </div>
               </div>
               <Link href="/contact" className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors whitespace-nowrap self-start">
-                Apply Now <ChevronRight className="h-4 w-4" />
+                {t.careersPage.applyNow} <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -61,10 +62,10 @@ export default function CareersPage() {
       </div>
 
       <div className="mt-12 rounded-lg border border-border/40 bg-card/50 p-8 text-center">
-        <h3 className="text-lg font-semibold mb-2">Don&apos;t see a role for you?</h3>
-        <p className="text-sm text-muted-foreground mb-4">We&apos;re always looking for exceptional talent. Send us your CV and tell us how you&apos;d contribute to Lunark.</p>
+        <h3 className="text-lg font-semibold mb-2">{t.careersPage.noRoleTitle}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t.careersPage.noRoleDesc}</p>
         <Link href="/contact" className="inline-flex items-center gap-1 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-          Get in Touch
+          {t.careersPage.getInTouch}
         </Link>
       </div>
     </section>

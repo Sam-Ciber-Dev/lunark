@@ -94,12 +94,12 @@ export default function ProfilePage() {
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE) {
-      alert("File too large. Max 2MB.");
+      alert(t.profile.fileTooLarge);
       return;
     }
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      alert("Only JPG, PNG or WEBP.");
+      alert(t.profile.invalidFileType);
       return;
     }
 

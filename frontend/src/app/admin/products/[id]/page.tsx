@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import type { Product, Category } from "@/types/product";
 import { PRODUCT_SIZES } from "@lunark/shared";
 
@@ -25,6 +26,7 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
+  const { t } = useI18n();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -129,12 +131,12 @@ export default function EditProductPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Error updating product");
+        throw new Error(data?.error ?? t.adminProducts.errorUpdating);
       }
 
       router.push("/admin/products");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      setError(err instanceof Error ? err.message : t.adminProducts.errorLabel);
     } finally {
       setLoading(false);
     }
@@ -152,7 +154,7 @@ export default function EditProductPage() {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-semibold">Edit product</h2>
+      <h2 className="mb-6 text-xl font-semibold">{t.adminProducts.editProduct}</h2>
 
       {error && (
         <p className="mb-4 rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
@@ -162,7 +164,7 @@ export default function EditProductPage() {
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         <div>
-          <label className="mb-1 block text-sm font-medium">Name *</label>
+          <label className="mb-1 block text-sm font-medium">{t.adminProducts.name} *</label>
           <input
             type="text"
             value={name}
@@ -173,7 +175,7 @@ export default function EditProductPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Description</label>
+          <label className="mb-1 block text-sm font-medium">{t.adminProducts.description}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -184,7 +186,7 @@ export default function EditProductPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium">Price (€) *</label>
+            <label className="mb-1 block text-sm font-medium">{t.adminProducts.price} *</label>
             <input
               type="number"
               step="0.01"
@@ -197,7 +199,7 @@ export default function EditProductPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">
-              Compare at price (€)
+              {t.adminProducts.comparePrice}
             </label>
             <input
               type="number"
@@ -211,13 +213,13 @@ export default function EditProductPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Category</label>
+          <label className="mb-1 block text-sm font-medium">{t.adminProducts.category}</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="w-full rounded-md border bg-background px-4 py-2"
           >
-            <option value="">No category</option>
+            <option value="">{t.adminProducts.noCategory}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
@@ -233,7 +235,7 @@ export default function EditProductPage() {
               checked={active}
               onChange={(e) => setActive(e.target.checked)}
             />
-            Active
+            {t.adminProducts.isActive}
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -241,21 +243,21 @@ export default function EditProductPage() {
               checked={featured}
               onChange={(e) => setFeatured(e.target.checked)}
             />
-            Featured
+            {t.adminProducts.isFeatured}
           </label>
         </div>
 
         {/* Variants */}
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-sm font-medium">Variants (sizes)</label>
+            <label className="text-sm font-medium">{t.adminProducts.variantsLabel}</label>
             <button
               type="button"
               onClick={addVariant}
               className="text-sm text-primary hover:underline"
             >
               <Plus className="mr-1 inline h-3 w-3" />
-              Add
+              {t.adminProducts.add}
             </button>
           </div>
           <div className="space-y-2">

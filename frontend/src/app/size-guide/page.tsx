@@ -1,6 +1,7 @@
 "use client";
 
 import { Ruler } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const womenSizes = [
   { size: "XS", eu: "32–34", uk: "4–6", us: "0–2", bust: "78–82", waist: "60–64", hips: "86–90" },
@@ -40,55 +41,55 @@ const shoeMen = [
 ];
 
 export default function SizeGuidePage() {
+  const { t } = useI18n();
+
   return (
     <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">Size Guide</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">{t.sizeGuide.title}</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Find your perfect fit. All measurements are in centimetres (cm). When in doubt, size up for a more relaxed fit.
+          {t.sizeGuide.subtitle}
         </p>
       </div>
 
-      {/* How to Measure */}
       <div className="rounded-lg border border-border/40 bg-card/50 p-8 mb-12">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
             <Ruler className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-bold mb-3">How to Measure</h2>
+            <h2 className="text-lg font-bold mb-3">{t.sizeGuide.howToMeasure}</h2>
             <div className="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
               <div>
-                <p><strong className="text-foreground">Bust / Chest:</strong> Measure around the fullest part, keeping the tape level and snug but not tight.</p>
+                <p><strong className="text-foreground">{t.sizeGuide.bustChest}:</strong> {t.sizeGuide.bustChestDesc}</p>
               </div>
               <div>
-                <p><strong className="text-foreground">Waist:</strong> Measure around the narrowest part of your natural waist, usually just above the belly button.</p>
+                <p><strong className="text-foreground">{t.sizeGuide.waist}:</strong> {t.sizeGuide.waistDesc}</p>
               </div>
               <div>
-                <p><strong className="text-foreground">Hips:</strong> Stand with feet together and measure around the widest part of your hips and buttocks.</p>
+                <p><strong className="text-foreground">{t.sizeGuide.hips}:</strong> {t.sizeGuide.hipsDesc}</p>
               </div>
               <div>
-                <p><strong className="text-foreground">Foot:</strong> Stand on a piece of paper, trace your foot, and measure from heel to longest toe.</p>
+                <p><strong className="text-foreground">{t.sizeGuide.foot}:</strong> {t.sizeGuide.footDesc}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Women's Clothing */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Women&apos;s Clothing</h2>
+        <h2 className="text-2xl font-bold mb-4">{t.sizeGuide.womenClothing}</h2>
         <div className="overflow-x-auto rounded-lg border border-border/40">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Size</th>
-                <th className="px-4 py-3 text-left font-semibold">EU</th>
-                <th className="px-4 py-3 text-left font-semibold">UK</th>
-                <th className="px-4 py-3 text-left font-semibold">US</th>
-                <th className="px-4 py-3 text-left font-semibold">Bust (cm)</th>
-                <th className="px-4 py-3 text-left font-semibold">Waist (cm)</th>
-                <th className="px-4 py-3 text-left font-semibold">Hips (cm)</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.size}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.eu}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.uk}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.us}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.bust}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.waistCm}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.hipsCm}</th>
               </tr>
             </thead>
             <tbody>
@@ -108,20 +109,19 @@ export default function SizeGuidePage() {
         </div>
       </div>
 
-      {/* Men's Clothing */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Men&apos;s Clothing</h2>
+        <h2 className="text-2xl font-bold mb-4">{t.sizeGuide.menClothing}</h2>
         <div className="overflow-x-auto rounded-lg border border-border/40">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Size</th>
-                <th className="px-4 py-3 text-left font-semibold">EU</th>
-                <th className="px-4 py-3 text-left font-semibold">UK</th>
-                <th className="px-4 py-3 text-left font-semibold">US</th>
-                <th className="px-4 py-3 text-left font-semibold">Chest (cm)</th>
-                <th className="px-4 py-3 text-left font-semibold">Waist (cm)</th>
-                <th className="px-4 py-3 text-left font-semibold">Hips (cm)</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.size}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.eu}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.uk}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.us}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.chest}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.waistCm}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.hipsCm}</th>
               </tr>
             </thead>
             <tbody>
@@ -141,17 +141,16 @@ export default function SizeGuidePage() {
         </div>
       </div>
 
-      {/* Women's Shoes */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Women&apos;s Shoes</h2>
+        <h2 className="text-2xl font-bold mb-4">{t.sizeGuide.womenShoes}</h2>
         <div className="overflow-x-auto rounded-lg border border-border/40">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">EU</th>
-                <th className="px-4 py-3 text-left font-semibold">UK</th>
-                <th className="px-4 py-3 text-left font-semibold">US</th>
-                <th className="px-4 py-3 text-left font-semibold">Foot Length (cm)</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.eu}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.uk}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.us}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.footLength}</th>
               </tr>
             </thead>
             <tbody>
@@ -168,17 +167,16 @@ export default function SizeGuidePage() {
         </div>
       </div>
 
-      {/* Men's Shoes */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-4">Men&apos;s Shoes</h2>
+        <h2 className="text-2xl font-bold mb-4">{t.sizeGuide.menShoes}</h2>
         <div className="overflow-x-auto rounded-lg border border-border/40">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">EU</th>
-                <th className="px-4 py-3 text-left font-semibold">UK</th>
-                <th className="px-4 py-3 text-left font-semibold">US</th>
-                <th className="px-4 py-3 text-left font-semibold">Foot Length (cm)</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.eu}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.uk}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.us}</th>
+                <th className="px-4 py-3 text-left font-semibold">{t.sizeGuide.footLength}</th>
               </tr>
             </thead>
             <tbody>
@@ -195,15 +193,13 @@ export default function SizeGuidePage() {
         </div>
       </div>
 
-      {/* Tips */}
       <div className="rounded-lg border border-border/40 bg-card/50 p-8">
-        <h2 className="text-xl font-bold mb-4">Sizing Tips</h2>
+        <h2 className="text-xl font-bold mb-4">{t.sizeGuide.sizingTips}</h2>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li>• If you&apos;re between sizes, we recommend sizing up for a more comfortable fit.</li>
-          <li>• Stretchy fabrics (jersey, knit) tend to be more forgiving — you can go with the smaller size.</li>
-          <li>• For outerwear, consider going one size up if you plan to layer underneath.</li>
-          <li>• Individual items may include specific sizing notes on the product page.</li>
-          <li>• Still unsure? <a href="/contact" className="text-primary hover:underline">Contact us</a> and we&apos;ll help you find the right fit.</li>
+          <li>• {t.sizeGuide.tipBetween}</li>
+          <li>• {t.sizeGuide.tipFabric}</li>
+          <li>• {t.sizeGuide.tipProduct}</li>
+          <li>• {t.sizeGuide.tipContact}</li>
         </ul>
       </div>
     </section>

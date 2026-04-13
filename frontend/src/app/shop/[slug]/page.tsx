@@ -24,9 +24,26 @@ async function getProduct(slug: string): Promise<Product | null> {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const product = await getProduct(params.slug);
   if (!product) return { title: "Product not found" };
+
+  const description =
+    product.description ?? `${product.name} — Shop at Lunark`;
+  const ogImage = product.images[0]?.url;
+
   return {
     title: product.name,
-    description: product.description ?? `${product.name} — Lunark`,
+    description,
+    openGraph: {
+      title: `${product.name} — Lunark`,
+      description,
+      type: "website",
+      ...(ogImage && { images: [{ url: ogImage, alt: product.name }] }),
+    },
+    twitter: {
+      card: ogImage ? "summary_large_image" : "summary",
+      title: `${product.name} — Lunark`,
+      description,
+      ...(ogImage && { images: [ogImage] }),
+    },
   };
 }
 
@@ -34,8 +51,35 @@ export default async function ProductPage({ params }: PageProps) {
   const product = await getProduct(params.slug);
   if (!product) notFound();
 
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.com";
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description ?? undefined,
+    image: product.images.map((img) => img.url),
+    url: `${siteUrl}/shop/${product.slug}`,
+    brand: { "@type": "Brand", name: "Lunark" },
+    offers: {
+      "@type": "Offer",
+      price: product.price.toFixed(2),
+      priceCurrency: "EUR",
+      availability: (product.variants ?? []).some((v) => v.stock > 0)
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      url: `${siteUrl}/shop/${product.slug}`,
+    },
+  };
+
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="grid gap-8 md:grid-cols-2">
         {/* Images */}
         <div className="space-y-4">
@@ -83,5 +127,6 @@ export default async function ProductPage({ params }: PageProps) {
         </div>
       </div>
     </section>
+    </>
   );
 }

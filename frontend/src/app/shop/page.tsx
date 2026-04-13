@@ -2,7 +2,16 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ShopContent } from "./ShopContent";
 
-export const metadata: Metadata = { title: "Shop" };
+export const metadata: Metadata = {
+  title: "Shop",
+  description:
+    "Browse the full Lunark collection — clothing, accessories, and more. Filter by category, size, colour, and price.",
+  openGraph: {
+    title: "Shop — Lunark",
+    description:
+      "Explore curated collections designed for those who dare to stand out.",
+  },
+};
 
 export default function ShopPage() {
   return (
