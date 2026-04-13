@@ -3,6 +3,7 @@
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { isRedirectError } from "next/dist/client/components/redirect";
+import { redirect } from "next/navigation";
 import honoApp from "@lunark/api/app";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
@@ -91,7 +92,7 @@ export async function verifyCodeAction(
       email,
       code,
       type,
-      redirectTo: "/",
+      redirect: false,
     });
   } catch (error) {
     if (isRedirectError(error)) {
@@ -103,6 +104,8 @@ export async function verifyCodeAction(
     console.error("verifyCodeAction unexpected error:", error);
     return { error: "VERIFICATION_FAILED" };
   }
+
+  redirect("/");
 }
 
 // Resend verification code
@@ -120,7 +123,7 @@ export async function googleSignInAction(credential: string) {
   try {
     await signIn("google-verified", {
       credential,
-      redirectTo: "/",
+      redirect: false,
     });
   } catch (error) {
     if (isRedirectError(error)) {
@@ -132,6 +135,8 @@ export async function googleSignInAction(credential: string) {
     console.error("googleSignInAction unexpected error:", error);
     return { error: "Sign-in failed. Please try again." };
   }
+
+  redirect("/");
 }
 
 // Google sign-up — get profile info for pre-filling form

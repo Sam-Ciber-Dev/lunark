@@ -32,11 +32,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: product.name,
     description,
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.com"}/shop/${params.slug}`,
+    },
     openGraph: {
       title: `${product.name} — Lunark`,
       description,
       type: "website",
-      ...(ogImage && { images: [{ url: ogImage, alt: product.name }] }),
+      url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.com"}/shop/${params.slug}`,
+      ...(ogImage && { images: [{ url: ogImage, width: 800, height: 1067, alt: product.name }] }),
     },
     twitter: {
       card: ogImage ? "summary_large_image" : "summary",
@@ -54,23 +58,67 @@ export default async function ProductPage({ params }: PageProps) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.com";
 
-  const jsonLd = {
-    "@context": "https://schema.org",
+  const variants = product.variants ?? [];
+  const hasMultipleVariants = variants.length > 1;
+
+  const productSchema: Record<string, unknown> = {
     "@type": "Product",
     name: product.name,
     description: product.description ?? undefined,
     image: product.images.map((img) => img.url),
     url: `${siteUrl}/shop/${product.slug}`,
+    sku: product.id,
     brand: { "@type": "Brand", name: "Lunark" },
-    offers: {
-      "@type": "Offer",
-      price: product.price.toFixed(2),
-      priceCurrency: "EUR",
-      availability: (product.variants ?? []).some((v) => v.stock > 0)
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-      url: `${siteUrl}/shop/${product.slug}`,
-    },
+    ...(product.color && { color: product.color }),
+    ...(product.material && { material: product.material }),
+    itemCondition: "https://schema.org/NewCondition",
+    offers: hasMultipleVariants
+      ? {
+          "@type": "AggregateOffer",
+          lowPrice: product.price.toFixed(2),
+          highPrice: (product.compareAtPrice ?? product.price).toFixed(2),
+          priceCurrency: "EUR",
+          offerCount: variants.length,
+          availability: variants.some((v) => v.stock > 0)
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+          offers: variants.map((v) => ({
+            "@type": "Offer",
+            sku: v.id,
+            name: `${product.name} — ${v.size}`,
+            price: product.price.toFixed(2),
+            priceCurrency: "EUR",
+            availability: v.stock > 0
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+            url: `${siteUrl}/shop/${product.slug}`,
+            itemCondition: "https://schema.org/NewCondition",
+          })),
+        }
+      : {
+          "@type": "Offer",
+          price: product.price.toFixed(2),
+          priceCurrency: "EUR",
+          availability: variants.some((v) => v.stock > 0)
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+          url: `${siteUrl}/shop/${product.slug}`,
+          itemCondition: "https://schema.org/NewCondition",
+        },
+  };
+
+  const breadcrumbSchema = {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      { "@type": "ListItem", position: 2, name: "Shop", item: `${siteUrl}/shop` },
+      { "@type": "ListItem", position: 3, name: product.name, item: `${siteUrl}/shop/${product.slug}` },
+    ],
+  };
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [productSchema, breadcrumbSchema],
   };
 
   return (

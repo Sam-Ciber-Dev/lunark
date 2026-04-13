@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Payment Methods",
   description: "Lunark accepted payment methods — credit cards, digital wallets, bank transfers, and buy now pay later options.",
+  alternates: { canonical: "/payment-methods" },
   openGraph: { title: "Payment Methods — Lunark", description: "Secure payment options including Visa, PayPal, Klarna, MB WAY, and more." },
 };
 

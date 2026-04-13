@@ -112,7 +112,7 @@ export function Navbar() {
       <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-4 px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden text-muted-foreground">
+            <Button variant="ghost" size="icon" className="lg:hidden text-muted-foreground" aria-label="Open menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -124,7 +124,7 @@ export function Navbar() {
           </SheetContent>
         </Sheet>
 
-        <Link href="/" className="flex-shrink-0">
+        <Link href="/" className="flex-shrink-0" aria-label="Lunark — Home">
           <span className="text-xl font-bold tracking-tight text-primary">LUNARK</span>
         </Link>
 
@@ -154,7 +154,7 @@ export function Navbar() {
         </nav>
 
         {/* Search bar */}
-        <div className="hidden md:flex flex-1 max-w-sm ml-auto" ref={searchRef}>
+        <div className="hidden md:flex flex-1 max-w-sm ml-auto" ref={searchRef} role="search">
           <div className="relative w-full">
             <div className="flex items-center w-full rounded-full border border-border bg-card/50 px-4 py-1.5 focus-within:border-primary transition-colors">
               <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
@@ -168,7 +168,7 @@ export function Navbar() {
                 className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
               {searchQuery && (
-                <button onClick={() => { setSearchQuery(""); setSearchResults(null); }}>
+                <button onClick={() => { setSearchQuery(""); setSearchResults(null); }} aria-label="Clear search">
                   <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                 </button>
               )}
@@ -181,7 +181,7 @@ export function Navbar() {
 
         {/* Right icons: Language | MyAccount | Cart | Likes | Support | Currency */}
         <div className="flex items-center gap-0.5">
-          <button className="p-2 md:hidden text-muted-foreground hover:text-primary transition-colors" onClick={() => setSearchOpen(!searchOpen)}>
+          <button className="p-2 md:hidden text-muted-foreground hover:text-primary transition-colors" onClick={() => setSearchOpen(!searchOpen)} aria-label="Search">
             <Search className="h-4 w-4" />
           </button>
           {/* Language toggle */}
@@ -195,6 +195,7 @@ export function Navbar() {
             <button
               className={cn("p-2 transition-colors", pathname === "/profile" ? "text-primary" : "text-muted-foreground hover:text-primary")}
               onClick={() => { if (session?.user) { router.push("/profile"); setProfileOpen(false); } else { router.push("/login"); } }}
+              aria-label="My account"
             >
               {session?.user ? (
                 session.user.image ? (
@@ -240,20 +241,20 @@ export function Navbar() {
             )}
           </div>
           {/* Cart */}
-          <button className={cn("p-2 transition-colors", pathname === "/cart" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/cart"))}>
+          <button className={cn("p-2 transition-colors", pathname === "/cart" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/cart"))} aria-label="Cart">
             <ShoppingBag className="h-4 w-4" />
           </button>
           {/* Wishlist / Likes */}
-          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/wishlist" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/wishlist"))}>
+          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/wishlist" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/wishlist"))} aria-label="Wishlist">
             <Heart className="h-4 w-4" />
           </button>
           {/* Customer Support */}
-          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/contact" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/contact"))}>
+          <button className={cn("hidden sm:block p-2 transition-colors", pathname === "/contact" ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => requireAuth(() => router.push("/contact"))} aria-label="Customer support">
             <Headphones className="h-4 w-4" />
           </button>
           {/* Currency */}
           <div className="relative" ref={currencyRef}>
-            <button className="p-2 text-muted-foreground hover:text-primary transition-colors" onClick={() => setCurrencyOpen(!currencyOpen)}>
+            <button className="p-2 text-muted-foreground hover:text-primary transition-colors" onClick={() => setCurrencyOpen(!currencyOpen)} aria-label="Change currency">
               <Coins className="h-4 w-4" />
             </button>
             {currencyOpen && (

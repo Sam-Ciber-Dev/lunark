@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "FAQ",
   description: "Frequently asked questions about Lunark — orders, shipping, returns, payments, account, and sizing.",
   openGraph: { title: "FAQ — Lunark", description: "Find answers to common questions about shopping at Lunark." },
+  alternates: { canonical: "/faq" },
 };
 
 const faqJsonLd = {
@@ -28,7 +29,7 @@ const faqJsonLd = {
     {
       "@type": "Question",
       name: "How do I find my size?",
-      acceptedAnswer: { "@type": "Answer", text: "Check our Size Guide for detailed measurements and conversion charts for women's, men's, and children's clothing and shoes." },
+      acceptedAnswer: { "@type": "Answer", text: "Check our Size Guide for detailed measurements and conversion charts for women’s, men’s, and children’s clothing and shoes." },
     },
     {
       "@type": "Question",
