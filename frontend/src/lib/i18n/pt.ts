@@ -256,15 +256,6 @@ export const pt: Dictionary = {
     items: "artigos",
   },
 
-  about: {
-    title: "Sobre a Lunark",
-    description: "A Lunark nasceu com a missão de trazer moda moderna e acessível a todos. Cada peça é selecionada com qualidade, estilo e conforto em mente.",
-    mission: "A Nossa Missão",
-    missionText: "Acreditamos que um grande estilo não deve ter um preço irracional. A Lunark faz a ponte entre a estética de alta gama e a acessibilidade do dia a dia.",
-    story: "A Nossa História",
-    storyText: "Fundada por entusiastas de moda que estavam fartos de escolher entre estilo e orçamento, a Lunark cura coleções que te fazem sentir confiante sem gastar uma fortuna.",
-  },
-
   contact: {
     title: "Contacta-nos",
     subtitle: "Tens alguma questão ou feedback? Adorávamos ouvir de ti.",

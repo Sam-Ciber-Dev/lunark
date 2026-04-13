@@ -276,16 +276,6 @@ export const en = {
     items: "items",
   },
 
-  // About (moved to footer, but kept for content)
-  about: {
-    title: "About Lunark",
-    description: "Lunark was born with the mission of bringing modern, accessible fashion to everyone. Each piece is selected with quality, style, and comfort in mind.",
-    mission: "Our Mission",
-    missionText: "We believe that great style shouldn't come at an unreasonable price. Lunark bridges the gap between high-end aesthetics and everyday affordability.",
-    story: "Our Story",
-    storyText: "Founded by fashion enthusiasts who were tired of choosing between style and budget, Lunark curates collections that make you feel confident without breaking the bank.",
-  },
-
   // Contact
   contact: {
     title: "Get in Touch",
