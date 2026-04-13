@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
-import { registerAction, resendCodeAction, googleGetProfileAction, verifyCodeAction } from "@/app/(auth)/actions";
+import { signIn as nextAuthSignIn } from "next-auth/react";
+import { registerAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
@@ -22,19 +23,8 @@ function RegisterSubmitButton({ disabled }: { disabled?: boolean }) {
   );
 }
 
-function VerifySubmitButton() {
-  const { pending } = useFormStatus();
-  const { t } = useI18n();
-  return (
-    <Button type="submit" disabled={pending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-      {pending ? t.auth.verifying : t.auth.verifyButton}
-    </Button>
-  );
-}
-
 export default function RegisterPage() {
   const [registerState, registerFormAction] = useFormState(registerAction, undefined);
-  const [verifyState, verifyFormAction] = useFormState(verifyCodeAction, undefined);
   const { t } = useI18n();
   const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -42,6 +32,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const [verifyType] = useState<"register">("register");
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyPending, setVerifyPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
@@ -74,22 +66,6 @@ export default function RegisterPage() {
     }
   }, [registerState]);
 
-  // Redirect on verify success
-  useEffect(() => {
-    if (verifyState?.success) {
-      router.push("/");
-      router.refresh();
-    }
-  }, [verifyState, router]);
-
-  // Reset Turnstile when verify code fails
-  useEffect(() => {
-    if (verifyState?.error) {
-      setTurnstileToken("");
-      setTurnstileResetKey(k => k + 1);
-    }
-  }, [verifyState]);
-
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -101,6 +77,37 @@ export default function RegisterPage() {
     if (!verifyEmail || resendCooldown > 0) return;
     await resendCodeAction(verifyEmail, verifyType);
     setResendCooldown(60);
+  };
+
+  // Verify code — uses client-side signIn (avoids server action hanging)
+  const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const code = formData.get("code") as string;
+    if (!code || !verifyEmail) return;
+
+    setVerifyPending(true);
+    setVerifyError(null);
+
+    try {
+      const result = await nextAuthSignIn("verification-code", {
+        email: verifyEmail,
+        code,
+        type: verifyType,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setVerifyError("INVALID_CODE");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch {
+      setVerifyError("VERIFICATION_FAILED");
+    } finally {
+      setVerifyPending(false);
+    }
   };
 
   // Google Sign-Up — get profile and pre-fill form
@@ -166,15 +173,13 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {verifyState?.error && (
+        {verifyError && (
           <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {verifyState.error === "INVALID_CODE" ? t.auth.invalidCode : verifyState.error === "VERIFICATION_FAILED" ? (t.auth.verificationFailed ?? "Verification failed. Please try again.") : verifyState.error}
+            {verifyError === "INVALID_CODE" ? t.auth.invalidCode : verifyError === "VERIFICATION_FAILED" ? (t.auth.verificationFailed ?? "Verification failed. Please try again.") : verifyError}
           </p>
         )}
 
-        <form action={verifyFormAction} className="flex flex-col gap-4">
-          <input type="hidden" name="email" value={verifyEmail} />
-          <input type="hidden" name="type" value={verifyType} />
+        <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4">
           <input
             name="code"
             type="text"
@@ -186,9 +191,9 @@ export default function RegisterPage() {
             autoFocus
             className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
           />
-          <input type="hidden" name="turnstileToken" value={turnstileToken} />
-          <Turnstile key={turnstileResetKey} onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
-          <VerifySubmitButton />
+          <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
+            {verifyPending ? t.auth.verifying : t.auth.verifyButton}
+          </Button>
         </form>
 
         <div className="text-center">
