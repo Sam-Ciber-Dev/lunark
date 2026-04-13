@@ -3,7 +3,6 @@
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { isRedirectError } from "next/dist/client/components/redirect";
-import { redirect } from "next/navigation";
 import honoApp from "@lunark/api/app";
 
 async function callApi(path: string, body: Record<string, unknown>): Promise<Response> {
@@ -80,7 +79,7 @@ export async function registerAction(
 
 // Step 2: Verify code — form action for useFormState
 export async function verifyCodeAction(
-  _prevState: { error?: string } | undefined,
+  _prevState: { error?: string; success?: boolean } | undefined,
   formData: FormData
 ) {
   const email = formData.get("email") as string;
@@ -105,7 +104,7 @@ export async function verifyCodeAction(
     return { error: "VERIFICATION_FAILED" };
   }
 
-  redirect("/");
+  return { success: true };
 }
 
 // Resend verification code
@@ -136,7 +135,7 @@ export async function googleSignInAction(credential: string) {
     return { error: "Sign-in failed. Please try again." };
   }
 
-  redirect("/");
+  return { success: true };
 }
 
 // Google sign-up — get profile info for pre-filling form

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { registerAction, resendCodeAction, googleGetProfileAction, verifyCodeAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function RegisterPage() {
   const [registerState, registerFormAction] = useFormState(registerAction, undefined);
   const [verifyState, verifyFormAction] = useFormState(verifyCodeAction, undefined);
   const { t } = useI18n();
+  const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
@@ -71,6 +73,14 @@ export default function RegisterPage() {
       setVerifyEmail(registerState.email);
     }
   }, [registerState]);
+
+  // Redirect on verify success
+  useEffect(() => {
+    if (verifyState?.success) {
+      router.push("/");
+      router.refresh();
+    }
+  }, [verifyState, router]);
 
   // Reset Turnstile when verify code fails
   useEffect(() => {

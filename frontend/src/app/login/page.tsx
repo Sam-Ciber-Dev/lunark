@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { loginAction, resendCodeAction, googleSignInAction, forgotPasswordAction, resetPasswordAction, verifyCodeAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [loginState, loginFormAction] = useFormState(loginAction, undefined);
   const [verifyState, verifyFormAction] = useFormState(verifyCodeAction, undefined);
   const { t } = useI18n();
+  const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
@@ -101,6 +103,14 @@ export default function LoginPage() {
       setVerifyEmail(loginState.email);
     }
   }, [loginState]);
+
+  // Redirect on verify success
+  useEffect(() => {
+    if (verifyState?.success) {
+      router.push("/");
+      router.refresh();
+    }
+  }, [verifyState, router]);
 
   // Reset Turnstile when verify code fails
   useEffect(() => {
@@ -184,6 +194,9 @@ export default function LoginPage() {
     const result = await googleSignInAction(response.credential);
     if (result?.error) {
       setGoogleError(result.error);
+    } else if (result?.success) {
+      router.push("/");
+      router.refresh();
     }
   }, []);
 
