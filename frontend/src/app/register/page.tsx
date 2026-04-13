@@ -28,7 +28,6 @@ export default function RegisterPage() {
   const { t } = useI18n();
   const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
   const [verifyType] = useState<"register">("register");
