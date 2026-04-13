@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { loginAction, resendCodeAction, forgotPasswordAction, resetPasswordAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,6 @@ function LoginSubmitButton() {
 export default function LoginPage() {
   const [loginState, loginFormAction] = useFormState(loginAction, undefined);
   const { t } = useI18n();
-  const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifyPending, setVerifyPending] = useState(false);
@@ -129,8 +127,8 @@ export default function LoginPage() {
       if (!res.ok || !data.success) {
         setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : "VERIFICATION_FAILED");
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
+        return;
       }
     } catch {
       setVerifyError("VERIFICATION_FAILED");
@@ -207,13 +205,13 @@ export default function LoginPage() {
       if (!res.ok || !data.success) {
         setGoogleError(data.error ?? "No account found. Please create an account first.");
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
+        return;
       }
     } catch {
       setGoogleError("Sign-in failed. Please try again.");
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || verifyEmail) return;

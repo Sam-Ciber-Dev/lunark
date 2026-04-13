@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { registerAction, resendCodeAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,6 @@ function RegisterSubmitButton({ disabled }: { disabled?: boolean }) {
 export default function RegisterPage() {
   const [registerState, registerFormAction] = useFormState(registerAction, undefined);
   const { t } = useI18n();
-  const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
@@ -98,8 +96,8 @@ export default function RegisterPage() {
       if (!res.ok || !data.success) {
         setVerifyError(data.error === "Invalid or expired code" ? "INVALID_CODE" : "VERIFICATION_FAILED");
       } else {
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
+        return;
       }
     } catch {
       setVerifyError("VERIFICATION_FAILED");

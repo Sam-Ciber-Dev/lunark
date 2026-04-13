@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import honoApp from "@lunark/api/app";
 
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const { credential } = await req.json();
 
     if (!credential) {
-      return Response.json({ error: "Missing credential" }, { status: 400 });
+      return NextResponse.json({ error: "Missing credential" }, { status: 400 });
     }
 
     // Verify Google credential with backend (signin mode)
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({})) as Record<string, string>;
-      return Response.json(
+      return NextResponse.json(
         { error: data.error ?? "No account found. Please create an account first." },
         { status: 400 }
       );
@@ -36,14 +36,14 @@ export async function POST(req: Request) {
     };
 
     if (!user.id) {
-      return Response.json({ error: "No account found" }, { status: 400 });
+      return NextResponse.json({ error: "No account found" }, { status: 400 });
     }
 
     // Create JWT matching NextAuth's format
     const secret = process.env.AUTH_SECRET;
     if (!secret) {
       console.error("AUTH_SECRET is not set");
-      return Response.json({ error: "Server configuration error" }, { status: 500 });
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const isSecure =
@@ -67,8 +67,8 @@ export async function POST(req: Request) {
       maxAge: 30 * 24 * 60 * 60,
     });
 
-    const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, {
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: "lax",
@@ -76,9 +76,9 @@ export async function POST(req: Request) {
       maxAge: 30 * 24 * 60 * 60,
     });
 
-    return Response.json({ success: true });
+    return response;
   } catch (error) {
     console.error("verify-session-google error:", error);
-    return Response.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

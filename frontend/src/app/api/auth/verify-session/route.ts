@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import honoApp from "@lunark/api/app";
 
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const { email, code, type } = await req.json();
 
     if (!email || !code || !type) {
-      return Response.json({ error: "Missing fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
     // Verify code with backend
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({})) as Record<string, string>;
-      return Response.json(
+      return NextResponse.json(
         { error: data.error ?? "Invalid or expired code" },
         { status: 400 }
       );
@@ -37,14 +37,14 @@ export async function POST(req: Request) {
     };
 
     if (!user.verified) {
-      return Response.json({ error: "Verification failed" }, { status: 400 });
+      return NextResponse.json({ error: "Verification failed" }, { status: 400 });
     }
 
     // Create JWT matching NextAuth's format (same fields as jwt callback in auth.config.ts)
     const secret = process.env.AUTH_SECRET;
     if (!secret) {
       console.error("AUTH_SECRET is not set");
-      return Response.json({ error: "Server configuration error" }, { status: 500 });
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
     }
 
     const isSecure =
@@ -68,9 +68,9 @@ export async function POST(req: Request) {
       maxAge: 30 * 24 * 60 * 60, // 30 days
     });
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, {
+    // Set session cookie on the response object (reliable across all environments)
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: "lax",
@@ -78,9 +78,9 @@ export async function POST(req: Request) {
       maxAge: 30 * 24 * 60 * 60,
     });
 
-    return Response.json({ success: true });
+    return response;
   } catch (error) {
     console.error("verify-session error:", error);
-    return Response.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
