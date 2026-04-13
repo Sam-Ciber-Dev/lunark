@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { cookies } from "next/headers";
 import { encode } from "next-auth/jwt";
@@ -14,9 +14,49 @@ async function callApi(path: string, body: Record<string, unknown>): Promise<Res
   );
 }
 
-// Step 1: Login — validate credentials + send verification code
+// ── Session creation helper ──────────────────────────────────────────────────
+async function createSessionCookie(user: {
+  id: string; name: string; email: string; role: string; image: string | null;
+}) {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET is not set");
+
+  const isSecure =
+    process.env.NODE_ENV === "production" ||
+    (process.env.VERCEL_URL ?? "").length > 0;
+  const cookieName = isSecure
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
+  const token = await encode({
+    token: {
+      sub: user.id,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      picture: user.image,
+      role: user.role ?? "customer",
+    },
+    secret,
+    salt: cookieName,
+    maxAge: 30 * 24 * 60 * 60,
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(cookieName, token, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60,
+  });
+}
+
+// ── Auth actions ─────────────────────────────────────────────────────────────
+
+// Login — validate credentials + create session
 export async function loginAction(
-  _prevState: { error?: string; requiresVerification?: boolean; email?: string } | undefined,
+  _prevState: { error?: string; success?: boolean } | undefined,
   formData: FormData
 ) {
   const email = formData.get("email") as string;
@@ -31,20 +71,18 @@ export async function loginAction(
       return { error: (data.error as string) ?? "Incorrect email or password" };
     }
 
-    if (data.requiresVerification) {
-      return { requiresVerification: true, email };
-    }
-
-    return { error: "Unexpected response" };
+    const user = data as { id: string; name: string; email: string; role: string; image: string | null };
+    await createSessionCookie(user);
+    return { success: true };
   } catch (err) {
     console.error("loginAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
-// Step 1: Register — create account + send verification code
+// Register — create account + create session
 export async function registerAction(
-  _prevState: { error?: string; requiresVerification?: boolean; email?: string } | undefined,
+  _prevState: { error?: string; success?: boolean } | undefined,
   formData: FormData
 ) {
   const name = formData.get("name") as string;
@@ -65,24 +103,38 @@ export async function registerAction(
       return { error: (data.error as string) ?? "Failed to create account" };
     }
 
-    if (data.requiresVerification) {
-      return { requiresVerification: true, email };
-    }
-
-    return { error: "Unexpected response" };
+    const user = data as { id: string; name: string; email: string; role: string; image: string | null };
+    await createSessionCookie(user);
+    return { success: true };
   } catch (err) {
     console.error("registerAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
-// Resend verification code
-export async function resendCodeAction(email: string, type: "login" | "register") {
+// Google sign-in + create session
+export async function googleSignInSessionAction(credential: string) {
   try {
-    const res = await callApi("/auth/resend-code", { email, type });
-    return res.ok;
-  } catch {
-    return false;
+    const res = await callApi("/auth/google", { credential, mode: "signin" });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as Record<string, string>;
+      return { error: data.error ?? "No account found. Please create an account first." };
+    }
+
+    const user = await res.json() as {
+      id: string; name: string; email: string; role: string; image: string | null;
+    };
+
+    if (!user.id) {
+      return { error: "No account found" };
+    }
+
+    await createSessionCookie(user);
+    return { success: true };
+  } catch (err) {
+    console.error("googleSignInSessionAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
@@ -133,96 +185,6 @@ export async function resetPasswordAction(email: string, code: string, newPasswo
     return { success: true };
   } catch (err) {
     console.error("resetPasswordAction failed:", err);
-    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
-  }
-}
-
-// ── Session creation helper ──────────────────────────────────────────────────
-async function createSessionCookie(user: {
-  id: string; name: string; email: string; role: string; image: string | null;
-}) {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new Error("AUTH_SECRET is not set");
-
-  const isSecure =
-    process.env.NODE_ENV === "production" ||
-    (process.env.VERCEL_URL ?? "").length > 0;
-  const cookieName = isSecure
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
-
-  const token = await encode({
-    token: {
-      sub: user.id,
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      picture: user.image,
-      role: user.role ?? "customer",
-    },
-    secret,
-    salt: cookieName,
-    maxAge: 30 * 24 * 60 * 60,
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set(cookieName, token, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 30 * 24 * 60 * 60,
-  });
-}
-
-// Verify code + create session (bypasses NextAuth signIn completely)
-export async function verifyAndLoginAction(email: string, code: string, type: "login" | "register") {
-  try {
-    const res = await callApi("/auth/verify-code", { email, code, type });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({})) as Record<string, string>;
-      return { error: data.error ?? "Invalid or expired code" };
-    }
-
-    const user = await res.json() as {
-      id: string; name: string; email: string; role: string; image: string | null; verified: boolean;
-    };
-
-    if (!user.verified) {
-      return { error: "Verification failed" };
-    }
-
-    await createSessionCookie(user);
-    return { success: true };
-  } catch (err) {
-    console.error("verifyAndLoginAction failed:", err);
-    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
-  }
-}
-
-// Google sign-in + create session (bypasses NextAuth signIn completely)
-export async function googleSignInSessionAction(credential: string) {
-  try {
-    const res = await callApi("/auth/google", { credential, mode: "signin" });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({})) as Record<string, string>;
-      return { error: data.error ?? "No account found. Please create an account first." };
-    }
-
-    const user = await res.json() as {
-      id: string; name: string; email: string; role: string; image: string | null;
-    };
-
-    if (!user.id) {
-      return { error: "No account found" };
-    }
-
-    await createSessionCookie(user);
-    return { success: true };
-  } catch (err) {
-    console.error("googleSignInSessionAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }

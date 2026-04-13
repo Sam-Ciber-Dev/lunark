@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { registerAction, resendCodeAction, googleGetProfileAction, verifyAndLoginAction } from "@/app/(auth)/actions";
+import { registerAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Eye, EyeOff, Mail, Lock, User as UserIcon, ArrowLeft, Check, X } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User as UserIcon, Check, X } from "lucide-react";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
@@ -26,11 +26,6 @@ export default function RegisterPage() {
   const { t } = useI18n();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
-  const [verifyType] = useState<"register">("register");
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [verifyPending, setVerifyPending] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
   const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
@@ -55,51 +50,12 @@ export default function RegisterPage() {
     }
   }
 
-  // Handle register state → redirect to verification
+  // Handle register success → redirect
   useEffect(() => {
-    if (registerState?.requiresVerification && registerState.email) {
-      setVerifyEmail(registerState.email);
+    if (registerState?.success) {
+      window.location.href = "/";
     }
   }, [registerState]);
-
-  // Resend cooldown timer
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendCooldown]);
-
-  const handleResend = async () => {
-    if (!verifyEmail || resendCooldown > 0) return;
-    await resendCodeAction(verifyEmail, verifyType);
-    setResendCooldown(60);
-  };
-
-  // Verify code — server action that bypasses NextAuth signIn
-  const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const code = formData.get("code") as string;
-    if (!code || !verifyEmail) return;
-
-    setVerifyPending(true);
-    setVerifyError(null);
-
-    try {
-      const result = await verifyAndLoginAction(verifyEmail, code, verifyType);
-
-      if (result.error) {
-        setVerifyError(result.error === "Invalid or expired code" ? "INVALID_CODE" : result.error);
-      } else {
-        window.location.href = "/";
-        return;
-      }
-    } catch {
-      setVerifyError("VERIFICATION_FAILED");
-    } finally {
-      setVerifyPending(false);
-    }
-  };
 
   // Google Sign-Up — get profile and pre-fill form
   const handleGoogleCallback = useCallback(async (response: { credential: string }) => {
@@ -113,7 +69,7 @@ export default function RegisterPage() {
   }, []);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || verifyEmail || googleProfile) return;
+    if (!GOOGLE_CLIENT_ID || googleProfile) return;
 
     function initGoogle() {
       if (window.google && googleBtnRef.current) {
@@ -141,64 +97,7 @@ export default function RegisterPage() {
       script.onload = () => initGoogle();
       document.head.appendChild(script);
     }
-  }, [handleGoogleCallback, verifyEmail, googleProfile]);
-
-  // Verification code screen
-  if (verifyEmail) {
-    return (
-      <section className="mx-auto flex max-w-[400px] flex-col gap-6 px-4 py-20 sm:px-6">
-        <button
-          onClick={() => setVerifyEmail(null)}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors self-start"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t.common.back}
-        </button>
-
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Mail className="h-7 w-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{t.auth.verifyTitle}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t.auth.verifyDesc} <span className="text-foreground font-medium">{verifyEmail}</span>
-          </p>
-        </div>
-
-        {verifyError && (
-          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {verifyError === "INVALID_CODE" ? t.auth.invalidCode : verifyError === "VERIFICATION_FAILED" ? (t.auth.verificationFailed ?? "Verification failed. Please try again.") : verifyError}
-          </p>
-        )}
-
-        <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4">
-          <input
-            name="code"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            placeholder={t.auth.codePlaceholder}
-            required
-            autoFocus
-            className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
-          />
-          <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-            {verifyPending ? t.auth.verifying : t.auth.verifyButton}
-          </Button>
-        </form>
-
-        <div className="text-center">
-          <button
-            onClick={handleResend}
-            disabled={resendCooldown > 0}
-            className="text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {resendCooldown > 0 ? `${t.auth.resendIn} ${resendCooldown}s` : t.auth.resendCode}
-          </button>
-        </div>
-      </section>
-    );
-  }
+  }, [handleGoogleCallback, googleProfile]);
 
   // Register form
   return (

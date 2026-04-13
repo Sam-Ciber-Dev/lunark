@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
-import { loginAction, resendCodeAction, forgotPasswordAction, resetPasswordAction, verifyAndLoginAction, googleSignInSessionAction } from "@/app/(auth)/actions";
+import { loginAction, forgotPasswordAction, resetPasswordAction, googleSignInSessionAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
 import { useI18n } from "@/lib/i18n";
@@ -25,12 +25,7 @@ export default function LoginPage() {
   const [loginState, loginFormAction] = useFormState(loginAction, undefined);
   const { t } = useI18n();
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [verifyPending, setVerifyPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
-  const [verifyType] = useState<"login">("login");
-  const [resendCooldown, setResendCooldown] = useState(0);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [loginEmail, setLoginEmail] = useState("");
@@ -63,10 +58,6 @@ export default function LoginPage() {
         return t.auth.wrongCredentials;
       case "RATE_LIMITED":
         return t.auth.tooManyRequests;
-      case "INVALID_CODE":
-        return t.auth.invalidCode;
-      case "VERIFICATION_FAILED":
-        return t.auth.verificationFailed ?? "Verification failed. Please try again.";
       case "Captcha verification failed":
         return t.auth.captchaFailed;
       default:
@@ -86,52 +77,12 @@ export default function LoginPage() {
     }
   }, [loginState]);
 
-  // Handle login state → redirect to verification
+  // Handle login success → redirect
   useEffect(() => {
-    if (loginState?.requiresVerification && loginState.email) {
-      setVerifyEmail(loginState.email);
+    if (loginState?.success) {
+      window.location.href = "/";
     }
   }, [loginState]);
-
-  // Resend cooldown timer
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendCooldown]);
-
-  const handleResend = async () => {
-    if (!verifyEmail || resendCooldown > 0) return;
-    await resendCodeAction(verifyEmail, verifyType);
-    setResendCooldown(60);
-  };
-
-  // Verify code — server action that bypasses NextAuth signIn
-  const handleVerifySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const code = formData.get("code") as string;
-    if (!code || !verifyEmail) return;
-
-    setVerifyPending(true);
-    setVerifyError(null);
-
-    try {
-      const result = await verifyAndLoginAction(verifyEmail, code, verifyType);
-
-      if (result.error) {
-        setVerifyError(result.error === "Invalid or expired code" ? "INVALID_CODE" : result.error);
-      } else {
-        window.location.href = "/";
-        return;
-      }
-    } catch (err) {
-      console.error("[verify] Error:", err);
-      setVerifyError("VERIFICATION_FAILED");
-    } finally {
-      setVerifyPending(false);
-    }
-  };
 
   // Forgot password: send code directly (email already known from login form)
   const handleForgotSendCode = async () => {
@@ -205,7 +156,7 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || verifyEmail) return;
+    if (!GOOGLE_CLIENT_ID) return;
 
     function initGoogle() {
       if (window.google && googleBtnRef.current) {
@@ -233,64 +184,7 @@ export default function LoginPage() {
       script.onload = () => initGoogle();
       document.head.appendChild(script);
     }
-  }, [handleGoogleCallback, verifyEmail]);
-
-  // Verification code screen
-  if (verifyEmail) {
-    return (
-      <section className="mx-auto flex max-w-[400px] flex-col gap-6 px-4 py-20 sm:px-6">
-        <button
-          onClick={() => setVerifyEmail(null)}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors self-start"
-        >
-          <ArrowLeft className="h-4 w-4" /> {t.common.back}
-        </button>
-
-        <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Mail className="h-7 w-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{t.auth.verifyTitle}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t.auth.verifyDesc} <span className="text-foreground font-medium">{verifyEmail}</span>
-          </p>
-        </div>
-
-        {verifyError && (
-          <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">
-            {translateError(verifyError)}
-          </p>
-        )}
-
-        <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4">
-          <input
-            name="code"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            placeholder={t.auth.codePlaceholder}
-            required
-            autoFocus
-            className="rounded-md border border-border/40 bg-card px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] text-foreground placeholder:text-muted-foreground placeholder:text-base placeholder:tracking-normal placeholder:font-normal focus:border-primary focus:outline-none"
-          />
-          <Button type="submit" disabled={verifyPending} className="w-full h-11 text-sm font-semibold uppercase tracking-wider">
-            {verifyPending ? t.auth.verifying : t.auth.verifyButton}
-          </Button>
-        </form>
-
-        <div className="text-center">
-          <button
-            onClick={handleResend}
-            disabled={resendCooldown > 0}
-            className="text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {resendCooldown > 0 ? `${t.auth.resendIn} ${resendCooldown}s` : t.auth.resendCode}
-          </button>
-        </div>
-      </section>
-    );
-  }
+  }, [handleGoogleCallback]);
 
   // Forgot password screens
   if (forgotStep) {

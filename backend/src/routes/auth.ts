@@ -108,29 +108,27 @@ auth.post("/register", async (c) => {
     return c.json({ error: "This email is already registered" }, 409);
   }
 
-  // Hash password and store temporarily in verification code record
+  // Hash password and create user immediately
   const passwordHash = await hash(password, 12);
-
-  // Generate and send verification code
-  const code = generateCode();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  await db.insert(verificationCodes).values({
-    id: crypto.randomUUID(),
+  const id = crypto.randomUUID();
+  await db.insert(users).values({
+    id,
+    name,
     email,
-    code,
-    type: "register",
-    expiresAt,
-    // Store registration data temporarily so we can create user after verification
-    pendingName: name,
-    pendingPasswordHash: passwordHash,
+    passwordHash,
+    emailVerified: true,
   });
 
-  const emailSent = await sendVerificationEmail(email, code, "register");
-
-  return c.json({ email, requiresVerification: true, emailSent }, 200);
+  return c.json({
+    id,
+    name,
+    email,
+    role: "customer",
+    image: null,
+  });
 });
 
-// POST /auth/login — Validate credentials + send code
+// POST /auth/login — Validate credentials + return user
 auth.post("/login", async (c) => {
   const body = await c.req.json();
   const parsed = loginSchema.safeParse(body);
@@ -164,22 +162,12 @@ auth.post("/login", async (c) => {
     return c.json({ error: "WRONG_CREDENTIALS" }, 401);
   }
 
-  // Generate and send verification code
-  const code = generateCode();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-  await db.insert(verificationCodes).values({
-    id: crypto.randomUUID(),
-    email,
-    code,
-    type: "login",
-    expiresAt,
-  });
-
-  await sendVerificationEmail(email, code, "login");
-
   return c.json({
-    requiresVerification: true,
+    id: user.id,
+    name: user.name,
     email: user.email,
+    role: user.role,
+    image: user.image,
   });
 });
 
