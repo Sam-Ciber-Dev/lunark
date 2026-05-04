@@ -29,6 +29,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string; image?: string | null } | null>(null);
   const [googleImage, setGoogleImage] = useState<string | null>(null);
+  const [googleCredential, setGoogleCredential] = useState<string>("");
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [passwordValue, setPasswordValue] = useState("");
@@ -60,12 +61,15 @@ export default function RegisterPage() {
     }
   }, [registerState]);
 
-  // Register OTP step → switch to verify screen
+  // Register OTP step → switch to verify screen (only for email/password, not Google)
   useEffect(() => {
-    if (registerState?.requiresVerification && registerState.email) {
+    if (registerState?.requiresVerification && registerState.email && !googleCredential) {
       setVerifyEmail(registerState.email);
     }
-  }, [registerState]);
+    if (registerState?.success) {
+      window.location.href = "/";
+    }
+  }, [registerState, googleCredential]);
 
   // Google Sign-Up — get profile and pre-fill form
   const handleGoogleCallback = useCallback(async (response: { credential: string }) => {
@@ -76,6 +80,7 @@ export default function RegisterPage() {
     } else if (result.profile) {
       setGoogleProfile({ name: result.profile.name, email: result.profile.email, image: result.profile.image });
       setGoogleImage(result.profile.image ?? null);
+      setGoogleCredential(response.credential);
     }
   }, []);
 
@@ -204,6 +209,7 @@ export default function RegisterPage() {
 
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
         <input type="hidden" name="googleImage" value={googleImage ?? ""} />
+        <input type="hidden" name="googleCredential" value={googleCredential} />
         <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
 
         <RegisterSubmitButton disabled={!passwordValid} />

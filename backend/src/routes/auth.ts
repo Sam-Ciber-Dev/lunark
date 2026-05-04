@@ -102,6 +102,35 @@ auth.post("/register", async (c) => {
     name: string; email: string; password: string; turnstileToken?: string;
   };
   const googleImage: string | null = (body as Record<string, unknown>).googleImage as string ?? null;
+  const googleCredential: string | null = (body as Record<string, unknown>).googleCredential as string ?? null;
+
+  // If a Google credential is provided, verify it and create the user directly (no OTP needed)
+  if (googleCredential) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) return c.json({ error: "Google Sign-Up not configured" }, 500);
+    try {
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({ idToken: googleCredential, audience: clientId });
+      const gp = ticket.getPayload();
+      if (!gp?.email || gp.email.toLowerCase() !== email.toLowerCase()) {
+        return c.json({ error: "Google token email mismatch" }, 400);
+      }
+    } catch {
+      return c.json({ error: "Invalid Google token" }, 400);
+    }
+
+    const existingGoogle = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
+    if (existingGoogle) return c.json({ error: "This email is already registered" }, 409);
+
+    const passwordHash = await hash(password, 12);
+    const id = crypto.randomUUID();
+    await db.insert(users).values({
+      id, name, email, passwordHash,
+      image: googleImage,
+      emailVerified: true,
+    });
+    return c.json({ id, name, email, role: "customer", image: googleImage, success: true });
+  }
 
   // Verify Turnstile
   if (turnstileToken) {
