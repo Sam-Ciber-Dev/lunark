@@ -482,12 +482,20 @@ auth.post("/google", async (c) => {
     if (!existing) {
       return c.json({ error: "No account found. Please create an account first." }, 401);
     }
+    // Sync Google picture to DB whenever the user signs in with Google
+    const googlePicture = payload.picture ?? null;
+    if (googlePicture && existing.image !== googlePicture) {
+      await db
+        .update(users)
+        .set({ image: googlePicture, updatedAt: new Date().toISOString() })
+        .where(eq(users.id, existing.id));
+    }
     return c.json({
       id: existing.id,
       name: existing.name,
       email: existing.email,
       role: existing.role,
-      image: existing.image,
+      image: googlePicture ?? existing.image,
     });
   }
 
