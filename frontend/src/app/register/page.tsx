@@ -27,7 +27,8 @@ export default function RegisterPage() {
   const { t } = useI18n();
   const [turnstileToken, setTurnstileToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string } | null>(null);
+  const [googleProfile, setGoogleProfile] = useState<{ name: string; email: string; image?: string | null } | null>(null);
+  const [googleImage, setGoogleImage] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [passwordValue, setPasswordValue] = useState("");
@@ -73,7 +74,8 @@ export default function RegisterPage() {
     if (result.error) {
       setGoogleError(result.error);
     } else if (result.profile) {
-      setGoogleProfile({ name: result.profile.name, email: result.profile.email });
+      setGoogleProfile({ name: result.profile.name, email: result.profile.email, image: result.profile.image });
+      setGoogleImage(result.profile.image ?? null);
     }
   }, []);
 
@@ -201,6 +203,7 @@ export default function RegisterPage() {
         )}
 
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
+        <input type="hidden" name="googleImage" value={googleImage ?? ""} />
         <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
 
         <RegisterSubmitButton disabled={!passwordValid} />

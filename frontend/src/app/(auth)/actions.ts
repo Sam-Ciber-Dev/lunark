@@ -103,13 +103,14 @@ export async function registerAction(
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
   const turnstileToken = formData.get("turnstileToken") as string;
+  const googleImage = (formData.get("googleImage") as string) || null;
 
   if (password !== confirmPassword) {
     return { error: "PASSWORDS_MISMATCH" };
   }
 
   try {
-    const res = await callApi("/auth/register", { name, email, password, turnstileToken });
+    const res = await callApi("/auth/register", { name, email, password, turnstileToken, googleImage });
     const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {

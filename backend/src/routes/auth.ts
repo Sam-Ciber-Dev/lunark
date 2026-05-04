@@ -100,6 +100,7 @@ auth.post("/register", async (c) => {
   const { name, email, password, turnstileToken } = parsed.data as {
     name: string; email: string; password: string; turnstileToken?: string;
   };
+  const googleImage: string | null = (body as Record<string, unknown>).googleImage as string ?? null;
 
   // Verify Turnstile
   if (turnstileToken) {
@@ -143,6 +144,7 @@ auth.post("/register", async (c) => {
     expiresAt,
     pendingName: name,
     pendingPasswordHash: passwordHash,
+    pendingImage: googleImage,
   });
 
   // Send the code via Brevo (in dev without API key, code is logged to console)
@@ -261,6 +263,7 @@ auth.post("/verify-code", async (c) => {
       name: record.pendingName ?? "User",
       email,
       passwordHash: record.pendingPasswordHash,
+      image: record.pendingImage ?? null,
       emailVerified: true,
     });
 
@@ -269,7 +272,7 @@ auth.post("/verify-code", async (c) => {
       name: record.pendingName ?? "User",
       email,
       role: "customer",
-      image: null,
+      image: record.pendingImage ?? null,
       verified: true,
     });
   }

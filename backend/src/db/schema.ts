@@ -263,6 +263,7 @@ export const verificationCodes = sqliteTable("verification_codes", {
   expiresAt: text("expires_at").notNull(),
   pendingName: text("pending_name"),          // stored during register, used after verify
   pendingPasswordHash: text("pending_password_hash"), // stored during register, used after verify
+  pendingImage: text("pending_image"),          // Google profile picture URL, stored during register
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
