@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import bcryptjs from "bcryptjs";
 const { hash, compare } = bcryptjs;
+import { OAuth2Client } from "google-auth-library";
 import { eq, and, gt, desc } from "drizzle-orm";
 import { db } from "../db";
 import { users, verificationCodes } from "../db/schema";
@@ -457,20 +458,16 @@ auth.post("/google", async (c) => {
     return c.json({ error: "Missing Google credential" }, 400);
   }
 
-  // Verify Google ID token
+  // Verify Google ID token using google-auth-library (validates signature + expiry + audience)
   let payload: { email?: string; name?: string; picture?: string; sub?: string };
   try {
-    // Decode and verify Google JWT (simplified - in production use google-auth-library)
-    const parts = credential.split(".");
-    if (parts.length !== 3) throw new Error("Invalid token");
-    const decoded = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-    payload = {
-      email: decoded.email,
-      name: decoded.name,
-      picture: decoded.picture,
-      sub: decoded.sub,
-    };
-    if (!payload.email) throw new Error("No email in token");
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) throw new Error("GOOGLE_CLIENT_ID not configured");
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+    const p = ticket.getPayload();
+    if (!p?.email) throw new Error("No email in token");
+    payload = { email: p.email, name: p.name, picture: p.picture, sub: p.sub };
   } catch {
     return c.json({ error: "Invalid Google token" }, 400);
   }
