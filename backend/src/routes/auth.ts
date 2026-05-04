@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import bcryptjs from "bcryptjs";
 const { hash, compare } = bcryptjs;
 import { OAuth2Client } from "google-auth-library";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt, lt, desc } from "drizzle-orm";
 import { db } from "../db";
 import { users, verificationCodes } from "../db/schema";
 import { registerSchema, loginSchema } from "@lunark/shared";
@@ -91,6 +91,10 @@ async function sendVerificationEmail(email: string, code: string, type: "login" 
 
 // POST /auth/register — Validate + send verification code (do NOT create user yet)
 auth.post("/register", async (c) => {
+  // Lazy cleanup: delete codes older than 1 hour (used or expired) to keep the table small
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  db.delete(verificationCodes).where(lt(verificationCodes.createdAt, oneHourAgo)).run();
+
   const body = await c.req.json();
   const parsed = registerSchema.safeParse(body);
 
@@ -188,6 +192,10 @@ auth.post("/register", async (c) => {
 
 // POST /auth/login — Validate credentials + send verification code (do NOT create session yet)
 auth.post("/login", async (c) => {
+  // Lazy cleanup: delete codes older than 1 hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  db.delete(verificationCodes).where(lt(verificationCodes.createdAt, oneHourAgo)).run();
+
   const body = await c.req.json();
   const parsed = loginSchema.safeParse(body);
 
