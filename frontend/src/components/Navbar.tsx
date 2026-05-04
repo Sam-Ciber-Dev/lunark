@@ -44,9 +44,11 @@ export function Navbar() {
   const [searchResults, setSearchResults] = useState<{ products: SearchSuggestion[]; categories: CategorySuggestion[] } | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { data: session } = useSession();
@@ -60,6 +62,7 @@ export function Navbar() {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
       if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) setCurrencyOpen(false);
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -184,12 +187,37 @@ export function Navbar() {
           <button className="p-2 md:hidden text-muted-foreground hover:text-primary transition-colors" onClick={() => setSearchOpen(!searchOpen)} aria-label="Search">
             <Search className="h-4 w-4" />
           </button>
-          {/* Language toggle */}
-          <button className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50" onClick={toggleLocale} title={locale === "en" ? "Switch to Portuguese" : "Mudar para Inglês"}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={locale === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={locale === "en" ? "EN" : "PT"} className="h-4 w-5 object-cover rounded-[2px]" />
-            <span className="hidden sm:inline text-xs font-medium uppercase">{locale === "en" ? "EN" : "PT"}</span>
-          </button>
+          {/* Language dropdown */}
+          <div className="relative" ref={langRef}>
+            <button
+              className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-accent/50"
+              onClick={() => setLangOpen(o => !o)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={locale === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={locale === "en" ? "EN" : "PT"} className="h-4 w-5 object-cover rounded-[2px]" />
+              <span className="hidden sm:inline text-xs font-medium uppercase">{locale === "en" ? "EN" : "PT"}</span>
+              <ChevronDown className={cn("h-3 w-3 transition-transform", langOpen && "rotate-180")} />
+            </button>
+            {langOpen && (
+              <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-border bg-popover shadow-lg z-50 py-1">
+                {(["en", "pt"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => { setLocale(l); setLangOpen(false); }}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors",
+                      locale === l ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={l === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={l} className="h-3.5 w-4 object-cover rounded-[2px]" />
+                    <span className="uppercase">{l === "en" ? "English" : "Português"}</span>
+                    {locale === l && <span className="ml-auto text-primary">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {/* My Account */}
           <div className="relative" ref={profileRef} onMouseEnter={() => session?.user && setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
             <button
