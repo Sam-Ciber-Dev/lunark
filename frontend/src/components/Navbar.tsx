@@ -209,7 +209,7 @@ export function Navbar() {
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={l === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={l} className="h-3.5 w-4 object-cover rounded-[2px]" />
-                    <span className="uppercase">{l === "en" ? "English" : "Português"}</span>
+                    <span className="uppercase">{l === "en" ? (locale === "en" ? "English" : "Inglês") : (locale === "en" ? "Portuguese" : "Português")}</span>
                     {locale === l && <span className="ml-auto text-primary">✓</span>}
                   </button>
                 ))}
