@@ -201,9 +201,7 @@ export default function RegisterPage() {
         )}
 
         <input type="hidden" name="turnstileToken" value={turnstileToken} />
-        {!googleProfile && (
-          <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
-        )}
+        <Turnstile onVerify={setTurnstileToken} onExpire={() => setTurnstileToken("")} />
 
         <RegisterSubmitButton disabled={!passwordValid} />
       </form>
