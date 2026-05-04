@@ -2,13 +2,12 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
-import { User, Trash2, Package, MessageSquare, LogOut, Pencil, Check, X } from "lucide-react";
+import { User, Package, MessageSquare, LogOut, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function ProfilePage() {
   const { data: session, status, update: updateSession } = useSession();
@@ -23,7 +22,6 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<Array<{ id: string; status: string; total: number; createdAt: string }>>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -89,37 +87,6 @@ export default function ProfilePage() {
     saveProfile({ name: name.trim() });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > MAX_FILE_SIZE) {
-      alert(t.profile.fileTooLarge);
-      return;
-    }
-
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      alert(t.profile.invalidFileType);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setImage(dataUrl);
-      saveProfile({ image: dataUrl });
-    };
-    reader.readAsDataURL(file);
-
-    // Reset input so same file can be selected again
-    e.target.value = "";
-  };
-
-  const handleRemovePhoto = () => {
-    setImage(null);
-    saveProfile({ image: null });
-  };
-
   if (!session?.user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -182,29 +149,6 @@ export default function ProfilePage() {
                   <span className="text-2xl font-bold text-primary-foreground">{initials}</span>
                 </div>
               )}
-              {/* Edit button - top left */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute -top-1 -left-1 h-8 w-8 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors shadow-sm"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              {/* Delete button - top right */}
-              {image && (
-                <button
-                  onClick={handleRemovePhoto}
-                  className="absolute -top-1 -right-1 h-8 w-8 rounded-full bg-red-500 border border-red-400 flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-sm"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                className="hidden"
-              />
             </div>
           </div>
 
