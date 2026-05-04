@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import bcryptjs from "bcryptjs";
 const { hash, compare } = bcryptjs;
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, desc } from "drizzle-orm";
 import { db } from "../db";
 import { users, verificationCodes } from "../db/schema";
 import { registerSchema, loginSchema } from "@lunark/shared";
@@ -118,27 +118,43 @@ auth.post("/register", async (c) => {
     return c.json({ error: "This email is already registered" }, 409);
   }
 
-  // Hash password and create user immediately
+  // Invalidate previous unused register codes for this email
+  await db
+    .update(verificationCodes)
+    .set({ used: true })
+    .where(
+      and(
+        eq(verificationCodes.email, email),
+        eq(verificationCodes.type, "register"),
+        eq(verificationCodes.used, false)
+      )
+    );
+
+  // Hash password and store pending user data + verification code
   const passwordHash = await hash(password, 12);
-  const id = crypto.randomUUID();
-  await db.insert(users).values({
-    id,
-    name,
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  await db.insert(verificationCodes).values({
+    id: crypto.randomUUID(),
     email,
-    passwordHash,
-    emailVerified: true,
+    code,
+    type: "register",
+    expiresAt,
+    pendingName: name,
+    pendingPasswordHash: passwordHash,
   });
 
-  return c.json({
-    id,
-    name,
-    email,
-    role: "customer",
-    image: null,
-  });
+  // Send the code via Brevo (in dev without API key, code is logged to console)
+  const sent = await sendVerificationEmail(email, code, "register");
+  if (!sent && process.env.BREVO_API_KEY) {
+    return c.json({ error: "Failed to send verification email" }, 502);
+  }
+
+  return c.json({ requiresVerification: true, email });
 });
 
-// POST /auth/login — Validate credentials + return user
+// POST /auth/login — Validate credentials + send verification code (do NOT create session yet)
 auth.post("/login", async (c) => {
   const body = await c.req.json();
   const parsed = loginSchema.safeParse(body);
@@ -172,13 +188,34 @@ auth.post("/login", async (c) => {
     return c.json({ error: "WRONG_CREDENTIALS" }, 401);
   }
 
-  return c.json({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    image: user.image,
+  // Credentials valid — emit a one-time login code
+  await db
+    .update(verificationCodes)
+    .set({ used: true })
+    .where(
+      and(
+        eq(verificationCodes.email, email),
+        eq(verificationCodes.type, "login"),
+        eq(verificationCodes.used, false)
+      )
+    );
+
+  const code = generateCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  await db.insert(verificationCodes).values({
+    id: crypto.randomUUID(),
+    email,
+    code,
+    type: "login",
+    expiresAt,
   });
+
+  const sent = await sendVerificationEmail(email, code, "login");
+  if (!sent && process.env.BREVO_API_KEY) {
+    return c.json({ error: "Failed to send verification email" }, 502);
+  }
+
+  return c.json({ requiresVerification: true, email });
 });
 
 // POST /auth/verify-code — Verify the email code and complete auth
@@ -271,6 +308,41 @@ auth.post("/resend-code", async (c) => {
     return c.json({ error: "Missing fields" }, 400);
   }
 
+  // For register, carry over the pending name + password hash from the latest record
+  // so the verify step can still create the user.
+  let pendingName: string | null = null;
+  let pendingPasswordHash: string | null = null;
+  if (type === "register") {
+    const latest = await db
+      .select()
+      .from(verificationCodes)
+      .where(
+        and(
+          eq(verificationCodes.email, email),
+          eq(verificationCodes.type, "register")
+        )
+      )
+      .orderBy(desc(verificationCodes.createdAt))
+      .get();
+    if (!latest?.pendingPasswordHash) {
+      return c.json({ error: "No pending registration found" }, 400);
+    }
+    pendingName = latest.pendingName ?? null;
+    pendingPasswordHash = latest.pendingPasswordHash;
+  }
+
+  // Invalidate previous unused codes of the same type
+  await db
+    .update(verificationCodes)
+    .set({ used: true })
+    .where(
+      and(
+        eq(verificationCodes.email, email),
+        eq(verificationCodes.type, type),
+        eq(verificationCodes.used, false)
+      )
+    );
+
   const code = generateCode();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   await db.insert(verificationCodes).values({
@@ -279,9 +351,14 @@ auth.post("/resend-code", async (c) => {
     code,
     type,
     expiresAt,
+    pendingName,
+    pendingPasswordHash,
   });
 
-  await sendVerificationEmail(email, code, type);
+  const sent = await sendVerificationEmail(email, code, type);
+  if (!sent && process.env.BREVO_API_KEY) {
+    return c.json({ error: "Failed to send verification email" }, 502);
+  }
   return c.json({ sent: true });
 });
 

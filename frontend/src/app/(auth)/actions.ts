@@ -54,9 +54,9 @@ async function createSessionCookie(user: {
 
 // ── Auth actions ─────────────────────────────────────────────────────────────
 
-// Login — validate credentials + create session
+// Login — validate credentials, then send email OTP. Session is only created after /auth/verify-code.
 export async function loginAction(
-  _prevState: { error?: string; success?: boolean } | undefined,
+  _prevState: { error?: string; success?: boolean; requiresVerification?: boolean; email?: string } | undefined,
   formData: FormData
 ) {
   const email = formData.get("email") as string;
@@ -76,18 +76,26 @@ export async function loginAction(
       return { error: errMsg };
     }
 
+    if (data.requiresVerification) {
+      return { requiresVerification: true, email: (data.email as string) ?? email };
+    }
+
+    // Backwards compatibility: if backend ever returns a user directly, create session.
     const user = data as { id: string; name: string; email: string; role: string; image: string | null };
-    await createSessionCookie(user);
-    return { success: true };
+    if (user.id) {
+      await createSessionCookie(user);
+      return { success: true };
+    }
+    return { error: "Unexpected response" };
   } catch (err) {
     console.error("loginAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }
 
-// Register — create account + create session
+// Register — validate + send email OTP. Account is only created after /auth/verify-code.
 export async function registerAction(
-  _prevState: { error?: string; success?: boolean } | undefined,
+  _prevState: { error?: string; success?: boolean; requiresVerification?: boolean; email?: string } | undefined,
   formData: FormData
 ) {
   const name = formData.get("name") as string;
@@ -108,11 +116,56 @@ export async function registerAction(
       return { error: (data.error as string) ?? "Failed to create account" };
     }
 
+    if (data.requiresVerification) {
+      return { requiresVerification: true, email: (data.email as string) ?? email };
+    }
+
+    // Backwards compatibility
+    const user = data as { id: string; name: string; email: string; role: string; image: string | null };
+    if (user.id) {
+      await createSessionCookie(user);
+      return { success: true };
+    }
+    return { error: "Unexpected response" };
+  } catch (err) {
+    console.error("registerAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
+  }
+}
+
+// Verify the email OTP and create a session. Used by both login and register flows.
+export async function verifyCodeAction(
+  email: string,
+  code: string,
+  type: "login" | "register"
+): Promise<{ success?: true } | { error: string }> {
+  try {
+    const res = await callApi("/auth/verify-code", { email, code, type });
+    const data = await res.json() as Record<string, unknown>;
+    if (!res.ok || !data.verified) {
+      return { error: (data.error as string) ?? "INVALID_CODE" };
+    }
     const user = data as { id: string; name: string; email: string; role: string; image: string | null };
     await createSessionCookie(user);
     return { success: true };
   } catch (err) {
-    console.error("registerAction failed:", err);
+    console.error("verifyCodeAction failed:", err);
+    return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
+  }
+}
+
+// Resend OTP code (used by both register and login OTP screens).
+export async function resendCodeAction(
+  email: string,
+  type: "login" | "register"
+): Promise<{ sent?: true } | { error: string }> {
+  try {
+    const res = await callApi("/auth/resend-code", { email, type });
+    const data = await res.json() as Record<string, unknown>;
+    if (!res.ok) return { error: (data.error as string) ?? "Failed to resend code" };
+    return { sent: true };
+  } catch (err) {
+    console.error("resendCodeAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
   }
 }

@@ -7,7 +7,16 @@ declare global {
     turnstile?: {
       render: (
         el: HTMLElement,
-        opts: { sitekey: string; callback: (token: string) => void; "expired-callback"?: () => void; theme?: string; size?: string }
+        opts: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+          theme?: string;
+          size?: string;
+          appearance?: string;
+          language?: string;
+        }
       ) => string;
       reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
@@ -18,6 +27,37 @@ declare global {
 interface TurnstileProps {
   onVerify: (token: string) => void;
   onExpire?: () => void;
+}
+
+const TURNSTILE_SCRIPT_SRC =
+  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+// Module-level promise so the script is fetched at most once across mounts.
+let scriptLoadPromise: Promise<void> | null = null;
+
+function ensureTurnstileScript(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.turnstile) return Promise.resolve();
+  if (scriptLoadPromise) return scriptLoadPromise;
+
+  scriptLoadPromise = new Promise((resolve) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src*="challenges.cloudflare.com/turnstile"]'
+    );
+    if (existing) {
+      if (window.turnstile) return resolve();
+      existing.addEventListener("load", () => resolve(), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = TURNSTILE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve(), { once: true });
+    document.head.appendChild(script);
+  });
+
+  return scriptLoadPromise;
 }
 
 export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
@@ -31,15 +71,22 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
   const renderWidget = useCallback((key: string) => {
     if (!ref.current || !window.turnstile) return;
     if (widgetId.current) {
-      try { window.turnstile.remove(widgetId.current); } catch { /* ignore */ }
+      try {
+        window.turnstile.remove(widgetId.current);
+      } catch {
+        /* ignore */
+      }
+      widgetId.current = null;
     }
     ref.current.innerHTML = "";
     widgetId.current = window.turnstile.render(ref.current, {
       sitekey: key,
       callback: (token: string) => onVerifyRef.current(token),
       "expired-callback": () => onExpireRef.current?.(),
+      "error-callback": () => onExpireRef.current?.(),
       theme: "dark",
       size: "flexible",
+      language: "auto",
     });
   }, []);
 
@@ -47,46 +94,34 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
     if (!siteKey || !ref.current) return;
 
-    // If turnstile is already loaded, render immediately
-    if (window.turnstile) {
-      renderWidget(siteKey);
-      return;
-    }
+    let cancelled = false;
 
-    // Load the script if not already present
-    let script = document.querySelector<HTMLScriptElement>('script[src*="turnstile"]');
-    if (!script) {
-      script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-
-    // Wait for script to load and turnstile to be available
-    const onLoad = () => {
-      // Poll briefly in case turnstile isn't immediately available after load
+    ensureTurnstileScript().then(() => {
+      if (cancelled) return;
+      // Tiny poll in case the global is exposed slightly after the load event.
       let attempts = 0;
-      const check = () => {
+      const tick = () => {
+        if (cancelled) return;
         if (window.turnstile) {
           renderWidget(siteKey);
-        } else if (attempts < 20) {
-          attempts++;
-          setTimeout(check, 100);
+          return;
         }
+        if (attempts++ < 40) setTimeout(tick, 25);
       };
-      check();
-    };
+      tick();
+    });
 
-    if (script.dataset.loaded === "true") {
-      onLoad();
-    } else {
-      const handler = () => {
-        script!.dataset.loaded = "true";
-        onLoad();
-      };
-      script.addEventListener("load", handler);
-      return () => script!.removeEventListener("load", handler);
-    }
+    return () => {
+      cancelled = true;
+      if (widgetId.current && window.turnstile) {
+        try {
+          window.turnstile.remove(widgetId.current);
+        } catch {
+          /* ignore */
+        }
+        widgetId.current = null;
+      }
+    };
   }, [renderWidget]);
 
   if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
@@ -97,5 +132,7 @@ export function Turnstile({ onVerify, onExpire }: TurnstileProps) {
     );
   }
 
-  return <div ref={ref} className="w-full [&>div]:!w-full [&>iframe]:!w-full" />;
+  return (
+    <div ref={ref} className="w-full [&>div]:!w-full [&>iframe]:!w-full" />
+  );
 }

@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { registerAction, googleGetProfileAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
+import { VerifyEmailCode } from "@/components/VerifyEmailCode";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Eye, EyeOff, Mail, Lock, User as UserIcon, Check, X } from "lucide-react";
@@ -30,6 +31,7 @@ export default function RegisterPage() {
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const [passwordValue, setPasswordValue] = useState("");
+  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
 
   // Password strength check
   const passwordValid = passwordValue.length >= 8 && /[A-Z]/.test(passwordValue) && /[a-z]/.test(passwordValue) && /[0-9]/.test(passwordValue);
@@ -54,6 +56,13 @@ export default function RegisterPage() {
   useEffect(() => {
     if (registerState?.success) {
       window.location.href = "/";
+    }
+  }, [registerState]);
+
+  // Register OTP step → switch to verify screen
+  useEffect(() => {
+    if (registerState?.requiresVerification && registerState.email) {
+      setVerifyEmail(registerState.email);
     }
   }, [registerState]);
 
@@ -98,6 +107,20 @@ export default function RegisterPage() {
       document.head.appendChild(script);
     }
   }, [handleGoogleCallback, googleProfile]);
+
+  // Email verification (OTP) step after submitting the register form
+  if (verifyEmail) {
+    return (
+      <VerifyEmailCode
+        email={verifyEmail}
+        type="register"
+        onBack={() => setVerifyEmail(null)}
+        onSuccess={() => {
+          window.location.href = "/";
+        }}
+      />
+    );
+  }
 
   // Register form
   return (

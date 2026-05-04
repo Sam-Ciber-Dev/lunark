@@ -28,6 +28,8 @@ coverage/
 0. Secrets.txt
 0.1 Comandos para iniciar projeto.txt
 start.bat
+.Relatório/
+.Relat*/
 
 # ——— Dependencies ———
 node_modules/

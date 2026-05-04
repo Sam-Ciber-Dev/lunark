@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { loginAction, forgotPasswordAction, resetPasswordAction, googleSignInSessionAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Turnstile } from "@/components/Turnstile";
+import { VerifyEmailCode } from "@/components/VerifyEmailCode";
 import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, Check, X } from "lucide-react";
@@ -31,6 +32,7 @@ export default function LoginPage() {
   const [loginEmail, setLoginEmail] = useState("");
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [localLoginError, setLocalLoginError] = useState<string | null>(null);
+  const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
 
   // Forgot password state
   const [forgotStep, setForgotStep] = useState<"code" | "newpass" | null>(null);
@@ -74,6 +76,14 @@ export default function LoginPage() {
       setLocalLoginError(loginState.error);
       setTurnstileToken("");
       setTurnstileResetKey(k => k + 1);
+    }
+  }, [loginState]);
+
+  // Login OTP step → switch to verify screen
+  useEffect(() => {
+    if (loginState?.requiresVerification && loginState.email) {
+      setVerifyEmail(loginState.email);
+      setLocalLoginError(null);
     }
   }, [loginState]);
 
@@ -185,6 +195,24 @@ export default function LoginPage() {
       document.head.appendChild(script);
     }
   }, [handleGoogleCallback]);
+
+  // Email verification (OTP) step after successful credential check
+  if (verifyEmail) {
+    return (
+      <VerifyEmailCode
+        email={verifyEmail}
+        type="login"
+        onBack={() => {
+          setVerifyEmail(null);
+          setTurnstileToken("");
+          setTurnstileResetKey((k) => k + 1);
+        }}
+        onSuccess={() => {
+          window.location.href = "/";
+        }}
+      />
+    );
+  }
 
   // Forgot password screens
   if (forgotStep) {

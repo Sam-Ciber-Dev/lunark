@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/SessionProvider";
 import { Navbar } from "@/components/Navbar";
@@ -95,6 +96,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", inter.variable)}>
+      <head>
+        {/* Pre-load Cloudflare Turnstile so the widget is ready instantly on auth pages */}
+        <link
+          rel="preconnect"
+          href="https://challenges.cloudflare.com"
+          crossOrigin="anonymous"
+        />
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className="antialiased">
         <I18nProvider>
           <CurrencyProvider>
