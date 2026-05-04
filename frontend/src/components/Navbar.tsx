@@ -89,8 +89,6 @@ export function Navbar() {
     }
   };
 
-  const toggleLocale = () => setLocale(locale === "en" ? "pt" : "en");
-
   const getSubcategories = (gender: string) => {
     const subMap: Record<string, readonly string[]> = { women: WOMEN_SUBCATEGORIES, men: MEN_SUBCATEGORIES, boys: CHILDREN_SUBCATEGORIES, girls: CHILDREN_SUBCATEGORIES };
     return subMap[gender] ?? [];
