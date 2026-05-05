@@ -128,12 +128,15 @@ auth.post("/register", async (c) => {
 
     const passwordHash = await hash(password, 12);
     const id = crypto.randomUUID();
+    const isAdminEmail = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
     await db.insert(users).values({
       id, name, email, passwordHash,
       image: googleImage,
       emailVerified: true,
+      role: isAdminEmail ? "admin" : "customer",
     });
-    return c.json({ id, name, email, role: "customer", image: googleImage, success: true });
+    const assignedRole = isAdminEmail ? "admin" : "customer";
+    return c.json({ id, name, email, role: assignedRole, image: googleImage, success: true });
   }
 
   // Verify Turnstile
@@ -296,6 +299,7 @@ auth.post("/verify-code", async (c) => {
   if (type === "register") {
     // Create user NOW (only after successful verification)
     const id = crypto.randomUUID();
+    const isAdminEmail = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
     await db.insert(users).values({
       id,
       name: record.pendingName ?? "User",
@@ -303,22 +307,28 @@ auth.post("/verify-code", async (c) => {
       passwordHash: record.pendingPasswordHash,
       image: record.pendingImage ?? null,
       emailVerified: true,
+      role: isAdminEmail ? "admin" : "customer",
     });
 
     return c.json({
       id,
       name: record.pendingName ?? "User",
       email,
-      role: "customer",
+      role: isAdminEmail ? "admin" : "customer",
       image: record.pendingImage ?? null,
       verified: true,
     });
   }
 
-  // Login flow — mark email as verified and return user
+  // Login flow — mark email as verified and auto-promote if admin email
+  const isAdminEmailLogin = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
   await db
     .update(users)
-    .set({ emailVerified: true, updatedAt: now })
+    .set({
+      emailVerified: true,
+      updatedAt: now,
+      ...(isAdminEmailLogin ? { role: "admin" } : {}),
+    })
     .where(eq(users.email, email));
 
   const user = await db
@@ -518,6 +528,12 @@ auth.post("/google", async (c) => {
   if (mode === "signin") {
     if (!existing) {
       return c.json({ error: "No account found. Please create an account first." }, 401);
+    }
+    // Auto-promote to admin if this is the designated admin email
+    const isAdminEmail = process.env.ADMIN_EMAIL && existing.email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
+    if (isAdminEmail && existing.role !== "admin") {
+      await db.update(users).set({ role: "admin", updatedAt: new Date().toISOString() }).where(eq(users.id, existing.id));
+      existing.role = "admin";
     }
     // Sync Google picture to DB whenever the user signs in with Google
     const googlePicture = payload.picture ?? null;

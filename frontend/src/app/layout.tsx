@@ -3,8 +3,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/SessionProvider";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { SiteChrome } from "@/components/SiteChrome";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
 import "./globals.css";
@@ -112,9 +111,7 @@ export default function RootLayout({
         <I18nProvider>
           <CurrencyProvider>
             <SessionProvider>
-              <Navbar />
-              <main className="min-h-[calc(100vh-8rem)]">{children}</main>
-              <Footer />
+              <SiteChrome>{children}</SiteChrome>
             </SessionProvider>
           </CurrencyProvider>
         </I18nProvider>

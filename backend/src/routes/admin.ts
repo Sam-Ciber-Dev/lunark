@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, count } from "drizzle-orm";
+import { eq, count, desc, sum } from "drizzle-orm";
 import { db } from "../db";
 import {
   products,
@@ -8,8 +8,15 @@ import {
   categories,
   orders,
   users,
+  cartItems,
+  wishlistItems,
+  orderItems,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
+
+// In-memory admin heartbeat store (reset on cold start)
+const adminPings = new Map<string, Date>();
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 const adminRouter = new Hono();
 
@@ -303,6 +310,124 @@ adminRouter.patch("/orders/:id", async (c) => {
   }
 
   return c.json({ updated: true });
+});
+
+// ——— Admin online status ———
+
+// POST /admin/ping — heartbeat from admin clients
+adminRouter.post("/ping", (c) => {
+  const userId = c.req.header("x-user-id");
+  if (userId) adminPings.set(userId, new Date());
+  return c.json({ ok: true });
+});
+
+// GET /admin/online — list all admins with online status
+adminRouter.get("/online", async (c) => {
+  const admins = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(eq(users.role, "admin"));
+
+  const now = Date.now();
+  const data = admins.map((a) => {
+    const last = adminPings.get(a.id);
+    return {
+      id: a.id,
+      name: a.name,
+      online: last ? now - last.getTime() < ONLINE_THRESHOLD_MS : false,
+    };
+  });
+
+  return c.json(data);
+});
+
+// ——— Top product stats ———
+
+// GET /admin/stats/most-carted
+adminRouter.get("/stats/most-carted", async (c) => {
+  const rows = await db
+    .select({ productId: cartItems.productId, count: count() })
+    .from(cartItems)
+    .groupBy(cartItems.productId)
+    .orderBy(desc(count()))
+    .limit(10);
+
+  const data = await Promise.all(
+    rows.map(async (r) => {
+      const product = await db
+        .select({ name: products.name })
+        .from(products)
+        .where(eq(products.id, r.productId))
+        .get();
+      const image = await db
+        .select({ url: productImages.url })
+        .from(productImages)
+        .where(eq(productImages.productId, r.productId))
+        .limit(1)
+        .get();
+      return { productId: r.productId, name: product?.name ?? r.productId, imageUrl: image?.url ?? null, count: r.count };
+    })
+  );
+
+  return c.json(data);
+});
+
+// GET /admin/stats/most-wishlisted
+adminRouter.get("/stats/most-wishlisted", async (c) => {
+  const rows = await db
+    .select({ productId: wishlistItems.productId, count: count() })
+    .from(wishlistItems)
+    .groupBy(wishlistItems.productId)
+    .orderBy(desc(count()))
+    .limit(10);
+
+  const data = await Promise.all(
+    rows.map(async (r) => {
+      const product = await db
+        .select({ name: products.name })
+        .from(products)
+        .where(eq(products.id, r.productId))
+        .get();
+      const image = await db
+        .select({ url: productImages.url })
+        .from(productImages)
+        .where(eq(productImages.productId, r.productId))
+        .limit(1)
+        .get();
+      return { productId: r.productId, name: product?.name ?? r.productId, imageUrl: image?.url ?? null, count: r.count };
+    })
+  );
+
+  return c.json(data);
+});
+
+// GET /admin/stats/most-ordered
+adminRouter.get("/stats/most-ordered", async (c) => {
+  const rows = await db
+    .select({ productId: orderItems.productId, count: sum(orderItems.quantity) })
+    .from(orderItems)
+    .groupBy(orderItems.productId)
+    .orderBy(desc(sum(orderItems.quantity)))
+    .limit(10);
+
+  const data = await Promise.all(
+    rows.map(async (r) => {
+      const product = await db
+        .select({ name: products.name })
+        .from(products)
+        .where(eq(products.id, r.productId))
+        .get();
+      const image = await db
+        .select({ url: productImages.url })
+        .from(productImages)
+        .where(eq(productImages.productId, r.productId))
+        .limit(1)
+        .get();
+      return { productId: r.productId, name: product?.name ?? r.productId, imageUrl: image?.url ?? null, count: Number(r.count ?? 0) };
+    })
+  );
+
+  return c.json(data);
 });
 
 export { adminRouter };
