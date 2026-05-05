@@ -157,7 +157,8 @@ export default function LoginPage() {
       if (result.error) {
         setGoogleError(result.error);
       } else {
-        window.location.href = "/";
+        const role = (result as { role?: string }).role;
+        window.location.href = role === "admin" ? "/admin" : "/";
         return;
       }
     } catch {
@@ -207,8 +208,8 @@ export default function LoginPage() {
           setTurnstileToken("");
           setTurnstileResetKey((k) => k + 1);
         }}
-        onSuccess={() => {
-          window.location.href = "/";
+        onSuccess={(role) => {
+          window.location.href = role === "admin" ? "/admin" : "/";
         }}
       />
     );

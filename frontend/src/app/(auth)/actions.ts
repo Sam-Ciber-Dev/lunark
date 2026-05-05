@@ -140,7 +140,7 @@ export async function verifyCodeAction(
   email: string,
   code: string,
   type: "login" | "register"
-): Promise<{ success?: true } | { error: string }> {
+): Promise<{ success: true; role: string } | { error: string }> {
   try {
     const res = await callApi("/auth/verify-code", { email, code, type });
     const data = await res.json() as Record<string, unknown>;
@@ -149,7 +149,7 @@ export async function verifyCodeAction(
     }
     const user = data as { id: string; name: string; email: string; role: string; image: string | null };
     await createSessionCookie(user);
-    return { success: true };
+    return { success: true, role: user.role ?? "customer" };
   } catch (err) {
     console.error("verifyCodeAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };
@@ -191,7 +191,7 @@ export async function googleSignInSessionAction(credential: string) {
     }
 
     await createSessionCookie(user);
-    return { success: true };
+    return { success: true, role: user.role ?? "customer" };
   } catch (err) {
     console.error("googleSignInSessionAction failed:", err);
     return { error: `Server error: ${err instanceof Error ? err.message : "Unknown"}` };

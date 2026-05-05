@@ -10,7 +10,7 @@ interface VerifyEmailCodeProps {
   email: string;
   type: "login" | "register";
   onBack: () => void;
-  onSuccess: () => void;
+  onSuccess: (role?: string) => void;
 }
 
 export function VerifyEmailCode({ email, type, onBack, onSuccess }: VerifyEmailCodeProps) {
@@ -39,7 +39,7 @@ export function VerifyEmailCode({ email, type, onBack, onSuccess }: VerifyEmailC
       setError(result.error === "INVALID_CODE" ? t.auth.invalidCode : t.auth.verificationFailed);
       return;
     }
-    onSuccess();
+    onSuccess((result as { role?: string }).role);
   };
 
   const handleResend = async () => {

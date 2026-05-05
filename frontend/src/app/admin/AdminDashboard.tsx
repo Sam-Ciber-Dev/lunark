@@ -36,7 +36,6 @@ interface Stats {
   categories: number;
 }
 
-/* ─── Tab IDs ─── */
 type TabId =
   | "insert-product"
   | "most-carted"
@@ -93,7 +92,7 @@ function TopProductsList({ userId, endpoint, emptyLabel }: { userId: string; end
       {items.map((item, idx) => (
         <Link
           key={item.productId}
-          href={`/admin/products`}
+          href="/admin/products"
           className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40"
         >
           <span className="w-6 text-center text-xs font-bold text-muted-foreground">#{idx + 1}</span>
@@ -136,7 +135,7 @@ function StatsOverview({ userId }: { userId: string }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map(({ label, value, icon: Icon }) => (
-        <div key={label} className="rounded-lg border border-border bg-card p-4">
+        <div key={label} className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">{label}</span>
@@ -148,132 +147,184 @@ function StatsOverview({ userId }: { userId: string }) {
   );
 }
 
+/* ─── Tab icon card ─── */
+interface TabCardProps {
+  id: TabId;
+  label: string;
+  icon: React.ElementType;
+  gradient: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+function TabCard({ label, icon: Icon, gradient, active, onClick }: TabCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group flex flex-col items-center gap-3 rounded-2xl border p-5 transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97]",
+        active
+          ? "border-primary/50 bg-card shadow-[0_0_20px_rgba(var(--primary)/0.15)]"
+          : "border-border bg-card hover:border-primary/30"
+      )}
+    >
+      {/* Icon container */}
+      <div
+        className={cn(
+          "flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-200",
+          gradient,
+          active ? "shadow-lg" : "group-hover:shadow-md"
+        )}
+      >
+        <Icon className="h-7 w-7 text-white drop-shadow" />
+      </div>
+      {/* Label */}
+      <span
+        className={cn(
+          "text-xs font-semibold tracking-wide transition-colors duration-200",
+          active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 /* ─── Main dashboard ─── */
 export default function AdminDashboard({ userId }: { userId: string }) {
   const { locale } = useI18n();
   const [activeTab, setActiveTab] = useState<TabId>("insert-product");
 
-  const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: "insert-product", label: locale === "pt" ? "Inserir Produto" : "Add Product", icon: Plus },
-    { id: "most-carted", label: locale === "pt" ? "Mais no Carrinho" : "Most Carted", icon: ShoppingCart },
-    { id: "most-wishlisted", label: locale === "pt" ? "Mais Desejados" : "Most Wishlisted", icon: Heart },
-    { id: "most-ordered", label: locale === "pt" ? "Mais Comprados" : "Most Ordered", icon: TrendingUp },
-    { id: "news", label: locale === "pt" ? "Notícias" : "News", icon: Newspaper },
-    { id: "support", label: locale === "pt" ? "Apoio ao Cliente" : "Support", icon: Headphones },
-    { id: "visits", label: locale === "pt" ? "Visitas" : "Visits", icon: BarChart2 },
-    { id: "security", label: locale === "pt" ? "Segurança" : "Security", icon: ShieldCheck },
-    { id: "chat", label: "Chat Admin", icon: MessageSquare },
+  const tabs: { id: TabId; label: string; icon: React.ElementType; gradient: string }[] = [
+    {
+      id: "insert-product",
+      label: locale === "pt" ? "Inserir Produto" : "Add Product",
+      icon: Plus,
+      gradient: "bg-gradient-to-br from-amber-500/80 to-yellow-600/80",
+    },
+    {
+      id: "most-carted",
+      label: locale === "pt" ? "Mais no Carrinho" : "Most Carted",
+      icon: ShoppingCart,
+      gradient: "bg-gradient-to-br from-emerald-500/80 to-teal-600/80",
+    },
+    {
+      id: "most-wishlisted",
+      label: locale === "pt" ? "Mais Desejados" : "Most Wishlisted",
+      icon: Heart,
+      gradient: "bg-gradient-to-br from-rose-500/80 to-pink-600/80",
+    },
+    {
+      id: "most-ordered",
+      label: locale === "pt" ? "Mais Comprados" : "Most Ordered",
+      icon: TrendingUp,
+      gradient: "bg-gradient-to-br from-violet-500/80 to-purple-600/80",
+    },
+    {
+      id: "news",
+      label: locale === "pt" ? "Notícias" : "News",
+      icon: Newspaper,
+      gradient: "bg-gradient-to-br from-sky-500/80 to-blue-600/80",
+    },
+    {
+      id: "support",
+      label: locale === "pt" ? "Apoio ao Cliente" : "Support",
+      icon: Headphones,
+      gradient: "bg-gradient-to-br from-orange-500/80 to-amber-600/80",
+    },
+    {
+      id: "visits",
+      label: locale === "pt" ? "Visitas" : "Visits",
+      icon: BarChart2,
+      gradient: "bg-gradient-to-br from-cyan-500/80 to-teal-600/80",
+    },
+    {
+      id: "security",
+      label: locale === "pt" ? "Segurança" : "Security",
+      icon: ShieldCheck,
+      gradient: "bg-gradient-to-br from-red-500/80 to-rose-700/80",
+    },
+    {
+      id: "chat",
+      label: "Chat Admin",
+      icon: MessageSquare,
+      gradient: "bg-gradient-to-br from-indigo-500/80 to-violet-600/80",
+    },
   ];
+
+  const activeTabData = tabs.find((t) => t.id === activeTab);
 
   return (
     <div>
       {/* Overview stats */}
-      <div className="mb-6">
-        <h1 className="mb-4 text-xl font-semibold">
+      <div className="mb-8">
+        <h1 className="mb-4 text-xl font-semibold tracking-tight">
           {locale === "pt" ? "Painel de Administração" : "Admin Panel"}
         </h1>
         <StatsOverview userId={userId} />
       </div>
 
-      {/* Tab bar */}
-      <div className="mb-6 flex gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={cn(
-              "flex flex-shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-all",
-              activeTab === id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
+      {/* Tab cards grid */}
+      <div className="mb-8 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
+        {tabs.map((tab) => (
+          <TabCard
+            key={tab.id}
+            {...tab}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          />
         ))}
       </div>
 
-      {/* Tab content */}
-      <div className="rounded-lg border border-border bg-card p-6">
+      {/* Active tab content */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        {/* Content header */}
+        {activeTabData && (
+          <div className="mb-6 flex items-center gap-3 border-b border-border pb-5">
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", activeTabData.gradient)}>
+              <activeTabData.icon className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-base font-semibold">{activeTabData.label}</h2>
+          </div>
+        )}
 
         {activeTab === "insert-product" && (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold">
-                  {locale === "pt" ? "Inserir Produto" : "Add Product"}
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {locale === "pt"
-                    ? "Cria um novo produto no catálogo"
-                    : "Create a new product in the catalogue"}
-                </p>
-              </div>
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <p className="max-w-xs text-sm text-muted-foreground">
+              {locale === "pt"
+                ? "Cria, edita e remove produtos do catálogo da loja"
+                : "Create, edit and remove products from the store catalogue"}
+            </p>
+            <div className="mt-6 flex gap-3">
               <Link
                 href="/admin/products/new"
-                className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.97]"
               >
                 <Plus className="h-4 w-4" />
-                {locale === "pt" ? "Novo Produto" : "New Product"}
+                {locale === "pt" ? "Criar produto" : "Create product"}
               </Link>
-            </div>
-
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-border bg-card">
-                <ShoppingBag className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium">
-                {locale === "pt" ? "Gerir produtos" : "Manage products"}
-              </p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                {locale === "pt"
-                  ? "Cria, edita e remove produtos do catálogo da loja"
-                  : "Create, edit and remove products from the store catalogue"}
-              </p>
-              <div className="mt-6 flex gap-3">
-                <Link
-                  href="/admin/products/new"
-                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  {locale === "pt" ? "Criar produto" : "Create product"}
-                </Link>
-                <Link
-                  href="/admin/products"
-                  className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
-                >
-                  {locale === "pt" ? "Ver todos" : "View all"}
-                </Link>
-              </div>
+              <Link
+                href="/admin/products"
+                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium transition-all hover:bg-accent active:scale-[0.97]"
+              >
+                {locale === "pt" ? "Ver todos" : "View all"}
+              </Link>
             </div>
           </div>
         )}
 
         {activeTab === "most-carted" && (
-          <div>
-            <h2 className="mb-4 text-base font-semibold">
-              {locale === "pt" ? "Produtos mais adicionados ao carrinho" : "Most added to cart"}
-            </h2>
-            <TopProductsList userId={userId} endpoint="/admin/stats/most-carted" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
-          </div>
+          <TopProductsList userId={userId} endpoint="/admin/stats/most-carted" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
         )}
 
         {activeTab === "most-wishlisted" && (
-          <div>
-            <h2 className="mb-4 text-base font-semibold">
-              {locale === "pt" ? "Produtos mais desejados" : "Most wishlisted products"}
-            </h2>
-            <TopProductsList userId={userId} endpoint="/admin/stats/most-wishlisted" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
-          </div>
+          <TopProductsList userId={userId} endpoint="/admin/stats/most-wishlisted" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
         )}
 
         {activeTab === "most-ordered" && (
-          <div>
-            <h2 className="mb-4 text-base font-semibold">
-              {locale === "pt" ? "Produtos mais comprados" : "Most purchased products"}
-            </h2>
-            <TopProductsList userId={userId} endpoint="/admin/stats/most-ordered" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
-          </div>
+          <TopProductsList userId={userId} endpoint="/admin/stats/most-ordered" emptyLabel={locale === "pt" ? "Sem dados suficientes" : "Not enough data"} />
         )}
 
         {activeTab === "news" && <ComingSoon label={locale === "pt" ? "Notícias" : "News"} />}
@@ -281,8 +332,8 @@ export default function AdminDashboard({ userId }: { userId: string }) {
         {activeTab === "visits" && <ComingSoon label={locale === "pt" ? "Visitas ao Website" : "Website Visits"} />}
         {activeTab === "security" && <ComingSoon label={locale === "pt" ? "Segurança" : "Security"} />}
         {activeTab === "chat" && <ComingSoon label="Chat Admin" />}
-
       </div>
     </div>
   );
 }
+

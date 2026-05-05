@@ -122,8 +122,8 @@ export default function RegisterPage() {
         email={verifyEmail}
         type="register"
         onBack={() => setVerifyEmail(null)}
-        onSuccess={() => {
-          window.location.href = "/";
+        onSuccess={(role) => {
+          window.location.href = role === "admin" ? "/admin" : "/";
         }}
       />
     );
