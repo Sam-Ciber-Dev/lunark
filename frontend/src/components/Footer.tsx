@@ -138,25 +138,29 @@ function CountryCodeSelector({ selected, onSelect }: { selected: CountryCode; on
 /* ─── Payment Method Icons ─── */
 function PaymentIcons() {
   const payments = [
-    { label: "PayPal", src: "/payments/paypal.svg" },
-    { label: "Visa", src: "/payments/visa.svg" },
-    { label: "Mastercard", src: "/payments/mastercard.svg" },
-    { label: "Maestro", src: "/payments/maestro.svg" },
-    { label: "American Express", src: "/payments/amex.svg" },
-    { label: "JCB", src: "/payments/jcb.svg" },
-    { label: "UnionPay", src: "/payments/unionpay.svg" },
-    { label: "MB WAY", src: "/payments/mbway.svg" },
-    { label: "Multibanco", src: "/payments/multibanco.svg" },
-    { label: "Klarna", src: "/payments/klarna.svg" },
-    { label: "Scalapay", src: "/payments/scalapay.svg" },
-    { label: "Apple Pay", src: "/payments/applepay.svg" },
-    { label: "Google Pay", src: "/payments/googlepay.svg" },
+    { label: "Visa", src: "/payments/visa.png" },
+    { label: "Mastercard", src: "/payments/mastercard.png" },
+    { label: "American Express", src: "/payments/amex.png" },
+    { label: "Maestro", src: "/payments/maestro.png" },
+    { label: "PayPal", src: "/payments/paypal.png" },
+    { label: "MB WAY", src: "/payments/mbway.png" },
+    { label: "Multibanco", src: "/payments/multibanco.png" },
+    { label: "Google Pay", src: "/payments/googlepay.png" },
+    { label: "Apple Pay", src: "/payments/applepay.png" },
+    { label: "Klarna", src: "/payments/klarna.png" },
+    { label: "Scalapay", src: "/payments/scalapay.png" },
+    { label: "UnionPay", src: "/payments/unionpay.png" },
+    { label: "JCB", src: "/payments/jcb.png" },
+    { label: "DMCA", src: "/payments/dmca.png" },
+    { label: "Trustwave", src: "/payments/trustwave.png" },
   ];
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <div className="flex flex-wrap items-center gap-2">
       {payments.map(({ label, src }) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={label} src={src} alt={label} title={label} className="h-10 w-auto rounded" loading="lazy" />
+        <div key={label} className="flex h-9 w-14 items-center justify-center rounded border border-border/50 bg-white px-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={label} title={label} className="max-h-full max-w-full object-contain" loading="lazy" />
+        </div>
       ))}
     </div>
   );
@@ -215,10 +219,7 @@ export function Footer() {
   const socialLinks = [
     { icon: InstagramIcon, href: "#", label: "Instagram" },
     { icon: FacebookIcon, href: "#", label: "Facebook" },
-    { icon: TwitterIcon, href: "#", label: "X (Twitter)" },
-    { icon: YoutubeIcon, href: "#", label: "YouTube" },
     { icon: LinkedinIcon, href: "#", label: "LinkedIn" },
-    { icon: WhatsAppIcon, href: "#", label: "WhatsApp" },
   ];
 
   const handleSubscribe = (e: React.FormEvent) => {

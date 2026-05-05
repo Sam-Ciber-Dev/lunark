@@ -203,12 +203,12 @@ export function Navbar() {
                     key={l}
                     onClick={() => { setLocale(l); setLangOpen(false); }}
                     className={cn(
-                      "flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors",
+                      "group flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors hover:text-primary",
                       locale === l ? "text-primary font-semibold" : "text-muted-foreground"
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={l === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={l} className="h-3.5 w-4 object-cover rounded-[2px]" />
+                    <img src={l === "en" ? "https://flagcdn.com/w40/gb.png" : "https://flagcdn.com/w40/pt.png"} alt={l} className={cn("h-3.5 w-4 object-cover rounded-[2px] ring-1 transition-all", locale === l ? "ring-primary" : "ring-transparent group-hover:ring-primary/60")} />
                     <span className="uppercase">{l === "en" ? (locale === "en" ? "English" : "Inglês") : (locale === "en" ? "Portuguese" : "Português")}</span>
                     {locale === l && <span className="ml-auto text-primary">✓</span>}
                   </button>
