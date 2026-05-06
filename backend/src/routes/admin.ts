@@ -430,4 +430,74 @@ adminRouter.get("/stats/most-ordered", async (c) => {
   return c.json(data);
 });
 
+// ——— Chat Admin (Groq AI) ———
+
+interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+const CHAT_SYSTEM_PROMPT = `És o assistente de IA do painel de administração da loja Lunark.
+Ajudas o administrador a gerir a loja: produtos, encomendas, clientes, marketing, segurança, suporte.
+Responde sempre na mesma língua que o admin escreveu (Português ou Inglês).
+Sê conciso, profissional e direto. Quando úteis, sugere comandos práticos ou ações concretas no painel.`;
+
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+adminRouter.post("/chat", async (c) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return c.json({ error: "GROQ_API_KEY not configured" }, 500);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const incoming = Array.isArray(body?.messages) ? (body.messages as ChatMessage[]) : null;
+  if (!incoming || incoming.length === 0) {
+    return c.json({ error: "messages array is required" }, 400);
+  }
+
+  // Sanitize: only allow user/assistant from client; cap length
+  const sanitized: ChatMessage[] = incoming
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .slice(-20)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+
+  if (sanitized.length === 0) {
+    return c.json({ error: "no valid messages" }, 400);
+  }
+
+  const payload = {
+    model: GROQ_MODEL,
+    messages: [{ role: "system" as const, content: CHAT_SYSTEM_PROMPT }, ...sanitized],
+    temperature: 0.6,
+    max_tokens: 1024,
+  };
+
+  const res = await fetch(GROQ_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("[admin/chat] Groq error", res.status, text);
+    return c.json({ error: "Upstream AI error", status: res.status }, 502);
+  }
+
+  const data = (await res.json()) as {
+    choices?: { message?: { role: string; content: string } }[];
+  };
+  const message = data.choices?.[0]?.message;
+  if (!message?.content) {
+    return c.json({ error: "Empty response from AI" }, 502);
+  }
+
+  return c.json({ message: { role: "assistant", content: message.content } });
+});
+
 export { adminRouter };
