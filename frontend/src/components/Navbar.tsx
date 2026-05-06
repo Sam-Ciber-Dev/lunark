@@ -217,11 +217,13 @@ export function Navbar() {
             )}
           </div>
           {/* My Account */}
-          <div className="relative" ref={profileRef} onMouseEnter={() => session?.user && setProfileOpen(true)} onMouseLeave={() => setProfileOpen(false)}>
+          <div className="relative" ref={profileRef}>
             <button
               className={cn("p-2 transition-colors", pathname === "/profile" ? "text-primary" : "text-muted-foreground hover:text-primary")}
-              onClick={() => { if (session?.user) { router.push("/profile"); setProfileOpen(false); } else { router.push("/login"); } }}
+              onClick={() => { if (session?.user) { setProfileOpen((o) => !o); } else { router.push("/login"); } }}
               aria-label="My account"
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
             >
               {session?.user ? (
                 session.user.image ? (

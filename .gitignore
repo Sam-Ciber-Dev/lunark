@@ -69,3 +69,6 @@ public/uploads/*
 .nyc_output/
 .pytest_cache/
 .vercel
+
+# Local task list (not for repo)
+0.1 Tarefas a serem realizadas.txt
