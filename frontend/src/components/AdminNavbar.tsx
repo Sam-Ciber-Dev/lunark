@@ -265,7 +265,7 @@ function MembersPanel({
           <button
             onClick={onClose}
             aria-label={locale === "pt" ? "Fechar" : "Close"}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -293,25 +293,20 @@ function MembersPanel({
             <>
               {/* IA section */}
               <MemberSection
-                title={locale === "pt" ? "IA" : "AI"}
+                title="IA"
                 count={admins.filter((a) => a.isAi).length}
                 members={admins.filter((a) => a.isAi)}
                 locale={locale}
               />
-              {/* Online section */}
+              {/* Admins (online + offline merged) */}
               <MemberSection
-                title={locale === "pt" ? "Online" : "Online"}
-                count={admins.filter((a) => !a.isAi && a.online).length}
-                members={admins.filter((a) => !a.isAi && a.online)}
+                title={locale === "pt" ? "Membros" : "Members"}
+                count={admins.filter((a) => !a.isAi).length}
+                members={[
+                  ...admins.filter((a) => !a.isAi && a.online),
+                  ...admins.filter((a) => !a.isAi && !a.online),
+                ]}
                 locale={locale}
-              />
-              {/* Offline section */}
-              <MemberSection
-                title={locale === "pt" ? "Offline" : "Offline"}
-                count={admins.filter((a) => !a.isAi && !a.online).length}
-                members={admins.filter((a) => !a.isAi && !a.online)}
-                locale={locale}
-                muted
               />
             </>
           )}
@@ -338,14 +333,22 @@ function MemberSection({
   return (
     <div className="mb-2">
       <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {title} — {count}
+        {title}
       </p>
       <ul>
         {members.map((m) => (
           <li
             key={m.id}
-            className="group flex items-center gap-3 px-3 py-1.5 transition-colors hover:bg-accent/60"
+            className={cn(
+              "group relative flex items-center gap-3 px-3 py-2 transition-all duration-200 ease-out",
+              "hover:bg-foreground/[0.04] hover:translate-x-0.5",
+              muted && "opacity-70"
+            )}
           >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-1 left-0 w-0.5 origin-center scale-y-0 rounded-r-full bg-primary transition-transform duration-200 ease-out group-hover:scale-y-100"
+            />
             <div className="relative flex-shrink-0">
               {m.image ? (
                 // eslint-disable-next-line @next/next/no-img-element

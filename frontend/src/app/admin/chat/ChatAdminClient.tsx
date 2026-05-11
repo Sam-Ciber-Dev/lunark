@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +8,6 @@ import {
   Check,
   Copy,
   FileText,
-  Menu,
   MessageSquare,
   MoreVertical,
   Paperclip,
@@ -87,7 +86,6 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     anchor: { x: number; y: number };
   } | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [membersPanelOpen, setMembersPanelOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
   // Mention autocomplete state
@@ -100,7 +98,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
   const lastTsRef = useRef<string | null>(null);
   const stickToBottomRef = useRef(true);
 
-  /* ─── Load members (admins + Luny) ─── */
+  /* â”€â”€â”€ Load members (admins + Luny) â”€â”€â”€ */
   const fetchMembers = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/admin/online`, { headers: { "x-user-id": userId } });
@@ -132,7 +130,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     return () => clearInterval(id);
   }, [fetchMembers]);
 
-  /* ─── Polling messages ─── */
+  /* â”€â”€â”€ Polling messages â”€â”€â”€ */
   const fetchMessages = useCallback(
     async (incremental: boolean) => {
       const qs = incremental && lastTsRef.current ? `?since=${encodeURIComponent(lastTsRef.current)}` : "";
@@ -169,7 +167,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     return () => clearInterval(id);
   }, [fetchMessages]);
 
-  /* ─── Auto-scroll on new messages ─── */
+  /* â”€â”€â”€ Auto-scroll on new messages â”€â”€â”€ */
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -183,7 +181,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     stickToBottomRef.current = distanceFromBottom < 80;
   };
 
-  /* ─── Send message ─── */
+  /* â”€â”€â”€ Send message â”€â”€â”€ */
   async function send() {
     const text = input.trim();
     if ((!text && pendingAttachments.length === 0) || sending) return;
@@ -228,7 +226,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     }
   }
 
-  /* ─── Clear history ─── */
+  /* â”€â”€â”€ Clear history â”€â”€â”€ */
   async function clearHistory() {
     try {
       const res = await fetch(`${API_URL}/admin/chat/messages`, {
@@ -243,19 +241,19 @@ export default function ChatAdminClient({ userId, userName }: Props) {
       lastTsRef.current = null;
       setConfirmClear(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível limpar.");
+      setError(e instanceof Error ? e.message : "NÃ£o foi possÃ­vel limpar.");
       setConfirmClear(false);
     }
   }
 
-  /* ─── File handling ─── */
+  /* â”€â”€â”€ File handling â”€â”€â”€ */
   async function onPickFiles(files: FileList | null) {
     if (!files) return;
     setError(null);
     const next: Attachment[] = [...pendingAttachments];
     for (const f of Array.from(files)) {
       if (next.length >= MAX_ATTACHMENTS) {
-        setError(`Máximo ${MAX_ATTACHMENTS} ficheiros por mensagem.`);
+        setError(`MÃ¡ximo ${MAX_ATTACHMENTS} ficheiros por mensagem.`);
         break;
       }
       if (f.size > MAX_FILE_BYTES) {
@@ -278,7 +276,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  /* ─── Edit / Delete ─── */
+  /* â”€â”€â”€ Edit / Delete â”€â”€â”€ */
   async function saveEdit(id: string) {
     const content = editingDraft.trim();
     if (!content) {
@@ -296,7 +294,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
       setMessages((prev) => prev.map((m) => (m.id === id ? data.data : m)));
       setEditingId(null);
     } catch {
-      setError("Não foi possível editar.");
+      setError("NÃ£o foi possÃ­vel editar.");
     }
   }
 
@@ -315,11 +313,11 @@ export default function ChatAdminClient({ userId, userName }: Props) {
         )
       );
     } catch {
-      setError("Não foi possível anular envio.");
+      setError("NÃ£o foi possÃ­vel anular envio.");
     }
   }
 
-  /* ─── Mention lookup ─── */
+  /* â”€â”€â”€ Mention lookup â”€â”€â”€ */
   const membersByName = useMemo(() => {
     const map = new Map<string, Member>();
     map.set("luny", LUNY_MEMBER);
@@ -335,7 +333,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     return map;
   }, [members]);
 
-  /* ─── Mention autocomplete extraction ─── */
+  /* â”€â”€â”€ Mention autocomplete extraction â”€â”€â”€ */
   function updateMentionQuery(value: string, caret: number) {
     let i = caret - 1;
     while (i >= 0) {
@@ -389,7 +387,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
     });
   }
 
-  /* ─── Render ─── */
+  /* â”€â”€â”€ Render â”€â”€â”€ */
   const grouped = groupMessages(messages);
 
   return (
@@ -397,7 +395,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
       className="fixed inset-x-0 bottom-0 top-14 z-30 flex flex-col bg-background"
       onClick={() => setMenuFor(null)}
     >
-      {/* ── Top bar ─────────────────────────────────────────── */}
+      {/* â”€â”€ Top bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center justify-between gap-3 border-b border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-6">
         <div className="flex items-center gap-3">
           <Link
@@ -420,25 +418,16 @@ export default function ChatAdminClient({ userId, userName }: Props) {
             type="button"
             onClick={() => setConfirmClear(true)}
             disabled={messages.length === 0}
-            title="Limpar histórico"
-            aria-label="Limpar histórico"
+            title="Limpar histÃ³rico"
+            aria-label="Limpar histÃ³rico"
             className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Trash2 className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => setMembersPanelOpen((o) => !o)}
-            title="Membros"
-            aria-label="Membros"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
-      {/* ── Messages area ───────────────────────────────────── */}
+      {/* â”€â”€ Messages area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         {messages.length === 0 ? (
           <EmptyState />
@@ -486,7 +475,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
         )}
       </div>
 
-      {/* ── Composer ────────────────────────────────────────── */}
+      {/* â”€â”€ Composer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="relative border-t border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-8">
         {mentionQuery !== null && mentionMatches.length > 0 && (
           <MentionDropdown
@@ -596,7 +585,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
             }}
             rows={1}
             disabled={sending}
-            placeholder="Escreve uma mensagem ou @luny para chamar a IA…"
+            placeholder="Escreve uma mensagem ou @luny para chamar a IAâ€¦"
             className="min-h-[2.75rem] flex-1 resize-none rounded-full border border-border bg-background px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary/60 disabled:opacity-50"
           />
           <button
@@ -618,7 +607,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
         </p>
       </div>
 
-      {/* ── Mention mini-profile popover ─────────────────── */}
+      {/* â”€â”€ Mention mini-profile popover â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {mentionPopover && (
         <MentionPopover
           member={mentionPopover.member}
@@ -627,7 +616,7 @@ export default function ChatAdminClient({ userId, userName }: Props) {
         />
       )}
 
-      {/* ── Clear-history confirm ─────────────────────────── */}
+      {/* â”€â”€ Clear-history confirm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {confirmClear && (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
@@ -639,11 +628,11 @@ export default function ChatAdminClient({ userId, userName }: Props) {
           >
             <div className="mb-3 flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              <h3 className="text-base font-semibold">Limpar histórico</h3>
+              <h3 className="text-base font-semibold">Limpar histÃ³rico</h3>
             </div>
             <p className="text-xs text-muted-foreground">
               Vais apagar <strong className="text-foreground">todas</strong> as mensagens
-              deste chat partilhado. Esta ação é irreversível.
+              deste chat partilhado. Esta aÃ§Ã£o Ã© irreversÃ­vel.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -663,19 +652,14 @@ export default function ChatAdminClient({ userId, userName }: Props) {
         </div>
       )}
 
-      {/* ── Members side panel (chat-local) ──────────────── */}
-      <MembersSidePanel
-        open={membersPanelOpen}
-        onClose={() => setMembersPanelOpen(false)}
-        members={members}
-      />
+      {/* â”€â”€ Members side panel removed (handled by AdminNavbar) â”€â”€â”€ */}
     </div>
   );
 }
 
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /*  Helpers                                                  */
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -738,7 +722,7 @@ function EmptyState() {
       </div>
       <p className="text-base font-semibold">Sem mensagens</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Envia a primeira mensagem para começar a conversa.
+        Envia a primeira mensagem para comeÃ§ar a conversa.
       </p>
       <p className="mt-3 text-[11px] text-muted-foreground/80">
         Experimenta escrever{" "}
@@ -765,9 +749,9 @@ function TypingIndicator() {
   );
 }
 
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /*  Message group                                            */
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 interface MessageGroupProps {
   group: MessageGroup;
@@ -924,7 +908,7 @@ function MessageRow({
         )}
       </div>
 
-      {/* Inline 3-dot menu — left of own, right of others */}
+      {/* Inline 3-dot menu â€” left of own, right of others */}
       {!isDeleted && (
         <div className="relative self-center opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100">
           <button
@@ -933,8 +917,8 @@ function MessageRow({
               setMenuFor(menuOpen ? null : m.id);
             }}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground"
-            aria-label="Opções"
-            title="Opções"
+            aria-label="OpÃ§Ãµes"
+            title="OpÃ§Ãµes"
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
@@ -1033,9 +1017,9 @@ function AvatarPlate({ name, image, ai }: { name: string; image: string | null; 
   );
 }
 
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /*  Mention rendering                                        */
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 const MENTION_RE = /@([A-Za-z0-9_\u00C0-\u024F]+)/g;
 
@@ -1083,9 +1067,9 @@ function renderWithMentions(
   return out;
 }
 
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /*  Mention autocomplete dropdown                            */
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function MentionDropdown({
   matches,
@@ -1154,9 +1138,9 @@ function MentionDropdown({
   );
 }
 
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /*  Mention mini-profile popover                             */
-/* ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 function MentionPopover({
   member,
@@ -1229,127 +1213,3 @@ function MentionPopover({
   );
 }
 
-/* ───────────────────────────────────────────────────────── */
-/*  Members side panel (chat-local)                          */
-/* ───────────────────────────────────────────────────────── */
-
-function MembersSidePanel({
-  open,
-  onClose,
-  members,
-}: {
-  open: boolean;
-  onClose: () => void;
-  members: Member[];
-}) {
-  const ai = members.filter((m) => m.isAi);
-  const onlineAdmins = members.filter((m) => !m.isAi && m.online);
-  const offlineAdmins = members.filter((m) => !m.isAi && !m.online);
-
-  return (
-    <>
-      <div
-        onClick={onClose}
-        aria-hidden
-        className={cn(
-          "fixed inset-0 z-[55] bg-black/50 backdrop-blur-[2px] transition-opacity duration-300",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Membros"
-        className={cn(
-          "fixed inset-y-0 right-0 z-[60] flex w-[88vw] max-w-sm flex-col border-l border-border bg-card shadow-2xl",
-          "transition-transform duration-300 ease-out will-change-transform",
-          open ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Menu className="h-4 w-4 text-muted-foreground" />
-            Membros
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {members.length}
-            </span>
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2">
-          <MembersSection title="IA" list={ai} />
-          <MembersSection title={`Online — ${onlineAdmins.length}`} list={onlineAdmins} />
-          <MembersSection title={`Offline — ${offlineAdmins.length}`} list={offlineAdmins} muted />
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function MembersSection({
-  title,
-  list,
-  muted,
-}: {
-  title: string;
-  list: Member[];
-  muted?: boolean;
-}) {
-  if (list.length === 0) return null;
-  return (
-    <div className="mb-2">
-      <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </p>
-      <ul>
-        {list.map((m) => (
-          <li
-            key={m.id}
-            className={cn(
-              "group flex items-center gap-3 px-3 py-1.5 transition-colors hover:bg-accent/60",
-              muted && "opacity-70"
-            )}
-          >
-            <div className="relative flex-shrink-0">
-              {m.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.image} alt="" className="h-9 w-9 rounded-full object-cover" />
-              ) : m.isAi ? (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-rose-500 text-white shadow">
-                  <Bot className="h-4 w-4" />
-                </div>
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 text-xs font-semibold uppercase text-white">
-                  {m.name.slice(0, 1)}
-                </div>
-              )}
-              <span
-                className={cn(
-                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card",
-                  m.online ? "bg-emerald-500" : "bg-zinc-500"
-                )}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{m.name}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {m.isAi ? "Assistente IA" : "Administrador"}
-              </p>
-            </div>
-            {m.isAi && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                IA
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
