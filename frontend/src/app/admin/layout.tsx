@@ -14,7 +14,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <AdminNavbar />
       <div className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8">
         {children}

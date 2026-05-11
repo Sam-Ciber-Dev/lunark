@@ -548,6 +548,7 @@ adminRouter.get("/chat/members", async (c) => {
 
 // POST /admin/chat/messages — create a message; trigger AI if @luny is mentioned
 adminRouter.post("/chat/messages", async (c) => {
+  try {
   const userId = c.req.header("x-user-id")!;
   const body = (await c.req.json().catch(() => ({}))) as {
     content?: string;
@@ -598,6 +599,11 @@ adminRouter.post("/chat/messages", async (c) => {
   }
 
   return c.json({ data: aiMsg ? [userMsg, aiMsg] : [userMsg] }, 201);
+  } catch (err: unknown) {
+    console.error("[admin/chat] POST /chat/messages failed", err);
+    const msg = err instanceof Error ? err.message : "internal error";
+    return c.json({ error: `chat send failed: ${msg}` }, 500);
+  }
 });
 
 // PATCH /admin/chat/messages/:id — edit own message

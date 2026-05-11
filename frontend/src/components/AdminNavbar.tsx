@@ -54,26 +54,27 @@ export function AdminNavbar() {
   const fetchAdmins = useCallback(async () => {
     if (!session?.user?.id) return;
     setLoadingAdmins(true);
+    // Always inject current user first so the panel is never empty
+    const me = session.user;
+    const meEntry: AdminStatus = {
+      id: me.id,
+      name: me.name ?? "Eu",
+      online: true,
+      image: (me as { image?: string | null }).image ?? null,
+    };
     try {
       const res = await fetch(`${API_URL}/admin/online`, {
-        headers: { "x-user-id": session.user.id },
+        headers: { "x-user-id": me.id },
       });
       if (res.ok) {
         const data: AdminStatus[] = await res.json();
-        // Ensure current user is present and marked online
-        const me = session.user;
-        const meId = me.id;
-        const meEntry: AdminStatus = {
-          id: meId,
-          name: me.name ?? "Eu",
-          online: true,
-          image: (me as { image?: string | null }).image ?? null,
-        };
-        const others = data.filter((a) => a.id !== meId);
+        const others = data.filter((a) => a.id !== me.id);
         setAdmins([meEntry, ...others]);
+      } else {
+        setAdmins([meEntry]);
       }
     } catch {
-      /* ignore */
+      setAdmins([meEntry]);
     } finally {
       setLoadingAdmins(false);
     }
