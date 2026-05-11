@@ -684,51 +684,6 @@ function DeleteAccountModal({
   );
 }
 
-function ConfirmModal({
-  title,
-  message,
-  confirmLabel,
-  tone,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  tone: "danger" | "warning";
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <ModalShell title={title} onClose={onCancel}>
-      <p className="mb-4 text-xs text-muted-foreground">{message}</p>
-      <div className="flex justify-end gap-2">
-        <button
-          onClick={onCancel}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={pending}
-          className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50",
-            tone === "danger"
-              ? "bg-gradient-to-r from-rose-500 to-rose-600"
-              : "bg-gradient-to-r from-amber-500 to-orange-600"
-          )}
-        >
-          {pending && <Loader2 className="h-3 w-3 animate-spin" />}
-          {confirmLabel}
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
 function BanModal({
   subscriber,
   pending,
