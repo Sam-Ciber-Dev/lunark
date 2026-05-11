@@ -40,7 +40,21 @@ async function secureHandle(req: Request) {
       headers.set("x-user-id", session.user.id);
     }
 
-    const secureReq = new Request(req, { headers });
+    // IMPORTANT: do NOT pass `req` as the first arg to `new Request()`.
+    // Next.js wraps incoming requests in NextRequest, which has private class
+    // fields (#state) that aren't carried over when cloning via the Request
+    // constructor — this throws on Vercel's Node runtime. Construct from URL
+    // + an explicit init object instead, only including a body when present.
+    const method = req.method.toUpperCase();
+    const hasBody = method !== "GET" && method !== "HEAD";
+    const secureReq = new Request(req.url, {
+      method,
+      headers,
+      body: hasBody ? await req.arrayBuffer() : undefined,
+      // @ts-expect-error — duplex is required by undici when streaming bodies
+      duplex: hasBody ? "half" : undefined,
+      redirect: "manual",
+    });
     return honoHandle(secureReq);
   } catch (err) {
     console.error("[api route] secureHandle threw", err);
