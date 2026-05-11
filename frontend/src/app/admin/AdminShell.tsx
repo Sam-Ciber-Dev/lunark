@@ -47,7 +47,7 @@ function StatsOverview({ userId }: { userId: string }) {
   const cards = [
     { label: "Produtos", value: stats?.products ?? "—", icon: ShoppingBag },
     { label: "Encomendas", value: stats?.orders ?? "—", icon: Package },
-    { label: "Utilizadores", value: stats?.users ?? "—", icon: Globe },
+    { label: "Clientes", value: stats?.users ?? "—", icon: Globe },
     { label: "Categorias", value: stats?.categories ?? "—", icon: BarChart2 },
   ];
 

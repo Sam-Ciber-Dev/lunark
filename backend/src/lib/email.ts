@@ -154,3 +154,79 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// ——— Newsletter broadcast (one email per subscriber via Brevo) ———
+
+interface BroadcastResult {
+  attempted: number;
+  delivered: number;
+  failed: number;
+  skipped: boolean;
+}
+
+export async function sendNewsletterBroadcast(
+  recipients: { email: string; locale?: "pt" | "en" }[],
+  subject: string,
+  htmlBody: string
+): Promise<BroadcastResult> {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.log("[Newsletter] BREVO_API_KEY not set — skipping broadcast");
+    return { attempted: recipients.length, delivered: 0, failed: 0, skipped: true };
+  }
+
+  let delivered = 0;
+  let failed = 0;
+
+  // Sequential to stay well under Brevo free-tier rate limits.
+  for (const r of recipients) {
+    const ok = await send({
+      sender: { name: FROM_NAME, email: FROM_EMAIL },
+      to: [{ email: r.email }],
+      subject,
+      htmlContent: `
+        <div style="font-family:sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#111">
+          <div style="text-align:center;margin-bottom:24px">
+            <h1 style="margin:0;color:#111;letter-spacing:0.05em">LUNARK</h1>
+          </div>
+          <div style="font-size:15px;line-height:1.6">
+            ${htmlBody}
+          </div>
+          <hr style="margin:32px 0 16px;border:0;border-top:1px solid #eee" />
+          <p style="font-size:11px;color:#999;text-align:center">
+            Recebeste este email porque subscreveste a newsletter Lunark.
+          </p>
+        </div>
+      `,
+    });
+    if (ok) delivered++;
+    else failed++;
+  }
+
+  return { attempted: recipients.length, delivered, failed, skipped: false };
+}
+
+// ——— Support ticket: notify customer of admin reply ———
+
+interface TicketReplyData {
+  to: { email: string; name: string };
+  subject: string;
+  adminName: string;
+  body: string;
+}
+
+export async function sendSupportReply(data: TicketReplyData) {
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email: data.to.email, name: data.to.name }],
+    subject: `Re: ${data.subject}`,
+    htmlContent: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">
+        <h2 style="margin:0 0 8px">Olá ${escapeHtml(data.to.name)},</h2>
+        <p style="color:#555;font-size:13px">Recebemos a tua mensagem e queremos responder-te:</p>
+        <div style="margin:16px 0;padding:16px;background:#f5f5f5;border-radius:8px;white-space:pre-wrap">${escapeHtml(data.body)}</div>
+        <p style="font-size:13px;color:#555">— ${escapeHtml(data.adminName)}, equipa Lunark</p>
+      </div>
+    `,
+  });
+}

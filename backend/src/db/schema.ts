@@ -290,3 +290,62 @@ export const verificationCodes = sqliteTable("verification_codes", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
+
+// ——————————————————————————————————————————————
+// Newsletter Subscribers (public footer widget)
+// ——————————————————————————————————————————————
+
+export const newsletterSubscribers = sqliteTable("newsletter_subscribers", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  /** Preferred language for outgoing newsletters. */
+  locale: text("locale", { enum: ["pt", "en"] })
+    .notNull()
+    .default("pt"),
+  /** Soft-unsubscribe — keep row to honour opt-out, but skip sends. */
+  unsubscribedAt: text("unsubscribed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+// ——————————————————————————————————————————————
+// Support Tickets — fed by /contact form + admin replies
+// ——————————————————————————————————————————————
+
+export const supportTickets = sqliteTable("support_tickets", {
+  id: text("id").primaryKey(),
+  /** Snapshot of sender contact details (form is anonymous-friendly). */
+  senderName: text("sender_name").notNull(),
+  senderEmail: text("sender_email").notNull(),
+  subject: text("subject").notNull(),
+  /** Preview/initial body — kept for fast list rendering. */
+  preview: text("preview").notNull(),
+  status: text("status", { enum: ["open", "answered", "closed"] })
+    .notNull()
+    .default("open"),
+  /** Admin-side unread flag (resets when admin opens the ticket). */
+  unread: integer("unread", { mode: "boolean" }).notNull().default(true),
+  /** Owning user, if the sender was logged in. Null for guest submissions. */
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const supportMessages = sqliteTable("support_messages", {
+  id: text("id").primaryKey(),
+  ticketId: text("ticket_id")
+    .notNull()
+    .references(() => supportTickets.id, { onDelete: "cascade" }),
+  /** "customer" = original sender / "admin" = admin reply. */
+  authorRole: text("author_role", { enum: ["customer", "admin"] }).notNull(),
+  authorName: text("author_name").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});

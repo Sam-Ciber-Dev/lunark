@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, gt, count, desc, sum, asc } from "drizzle-orm";
+import { eq, gt, count, desc, sum, asc, and, isNull } from "drizzle-orm";
 import { db } from "../db";
 import {
   products,
@@ -12,8 +12,12 @@ import {
   wishlistItems,
   orderItems,
   adminChatMessages,
+  newsletterSubscribers,
+  supportTickets,
+  supportMessages,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
+import { sendNewsletterBroadcast, sendSupportReply } from "../lib/email";
 
 // In-memory admin heartbeat store (reset on cold start)
 const adminPings = new Map<string, Date>();
@@ -27,7 +31,10 @@ adminRouter.use("*", requireAdmin);
 adminRouter.get("/stats", async (c) => {
   const [productCount] = await db.select({ total: count() }).from(products);
   const [orderCount] = await db.select({ total: count() }).from(orders);
-  const [userCount] = await db.select({ total: count() }).from(users);
+  const [userCount] = await db
+    .select({ total: count() })
+    .from(users)
+    .where(eq(users.role, "customer"));
   const [categoryCount] = await db.select({ total: count() }).from(categories);
 
   return c.json({
@@ -866,6 +873,207 @@ adminRouter.post("/chat", async (c) => {
   }
 
   return c.json({ message: { role: "assistant", content: message.content } });
+});
+
+// ——————————————————————————————————————————————
+// News / Newsletter broadcast
+// ——————————————————————————————————————————————
+
+// GET /admin/news/subscribers — count by locale + sample
+adminRouter.get("/news/subscribers", async (c) => {
+  const [total] = await db
+    .select({ total: count() })
+    .from(newsletterSubscribers)
+    .where(isNull(newsletterSubscribers.unsubscribedAt));
+
+  const [pt] = await db
+    .select({ total: count() })
+    .from(newsletterSubscribers)
+    .where(
+      and(
+        eq(newsletterSubscribers.locale, "pt"),
+        isNull(newsletterSubscribers.unsubscribedAt)
+      )
+    );
+
+  const [en] = await db
+    .select({ total: count() })
+    .from(newsletterSubscribers)
+    .where(
+      and(
+        eq(newsletterSubscribers.locale, "en"),
+        isNull(newsletterSubscribers.unsubscribedAt)
+      )
+    );
+
+  return c.json({
+    total: total.total,
+    byLocale: { pt: pt.total, en: en.total },
+  });
+});
+
+// POST /admin/news/broadcast — { subject, body, locale?, testEmail? }
+adminRouter.post("/news/broadcast", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    subject?: string;
+    body?: string;
+    locale?: "pt" | "en" | "all";
+    testEmail?: string;
+  };
+
+  const subject = (body.subject ?? "").trim().slice(0, 200);
+  const html = (body.body ?? "").trim();
+  if (!subject || !html) {
+    return c.json({ error: "subject e body são obrigatórios" }, 400);
+  }
+
+  // Test mode — send a single email to the requesting admin.
+  if (body.testEmail) {
+    const result = await sendNewsletterBroadcast(
+      [{ email: body.testEmail }],
+      `[TESTE] ${subject}`,
+      html
+    );
+    return c.json({ mode: "test", ...result });
+  }
+
+  const locale = body.locale ?? "all";
+  const where =
+    locale === "all"
+      ? isNull(newsletterSubscribers.unsubscribedAt)
+      : and(
+          eq(newsletterSubscribers.locale, locale),
+          isNull(newsletterSubscribers.unsubscribedAt)
+        );
+
+  const recipients = await db
+    .select({ email: newsletterSubscribers.email, locale: newsletterSubscribers.locale })
+    .from(newsletterSubscribers)
+    .where(where);
+
+  if (recipients.length === 0) {
+    return c.json({ error: "Sem subscritores para o filtro selecionado" }, 400);
+  }
+
+  const result = await sendNewsletterBroadcast(recipients, subject, html);
+  return c.json({ mode: "live", ...result });
+});
+
+// ——————————————————————————————————————————————
+// Support Tickets
+// ——————————————————————————————————————————————
+
+// GET /admin/support/tickets — list
+adminRouter.get("/support/tickets", async (c) => {
+  const statusFilter = c.req.query("status");
+
+  const rows = await db
+    .select()
+    .from(supportTickets)
+    .where(
+      statusFilter === "open" || statusFilter === "answered" || statusFilter === "closed"
+        ? eq(supportTickets.status, statusFilter)
+        : undefined
+    )
+    .orderBy(desc(supportTickets.createdAt))
+    .limit(200);
+
+  return c.json({ data: rows });
+});
+
+// GET /admin/support/tickets/:id — detail + messages
+adminRouter.get("/support/tickets/:id", async (c) => {
+  const id = c.req.param("id");
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.id, id))
+    .limit(1);
+
+  if (!ticket) return c.json({ error: "Ticket não encontrado" }, 404);
+
+  const messages = await db
+    .select()
+    .from(supportMessages)
+    .where(eq(supportMessages.ticketId, id))
+    .orderBy(asc(supportMessages.createdAt));
+
+  // Mark as read when admin opens it.
+  if (ticket.unread) {
+    await db
+      .update(supportTickets)
+      .set({ unread: false })
+      .where(eq(supportTickets.id, id));
+  }
+
+  return c.json({ ticket, messages });
+});
+
+// POST /admin/support/tickets/:id/reply — { body }
+adminRouter.post("/support/tickets/:id/reply", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.req.header("x-user-id")!;
+  const body = (await c.req.json().catch(() => ({}))) as { body?: string };
+  const replyBody = (body.body ?? "").trim();
+  if (!replyBody) return c.json({ error: "body é obrigatório" }, 400);
+
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.id, id))
+    .limit(1);
+  if (!ticket) return c.json({ error: "Ticket não encontrado" }, 404);
+
+  const [admin] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const adminName = admin?.name ?? "Equipa Lunark";
+
+  const messageId = crypto.randomUUID();
+  const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+
+  await db.insert(supportMessages).values({
+    id: messageId,
+    ticketId: id,
+    authorRole: "admin",
+    authorName: adminName,
+    body: replyBody,
+  });
+
+  await db
+    .update(supportTickets)
+    .set({ status: "answered", unread: false, updatedAt: now })
+    .where(eq(supportTickets.id, id));
+
+  // Email the customer (Brevo). Non-blocking — if mail fails, the reply is still stored.
+  void sendSupportReply({
+    to: { email: ticket.senderEmail, name: ticket.senderName },
+    subject: ticket.subject,
+    adminName,
+    body: replyBody,
+  });
+
+  return c.json({ success: true, id: messageId });
+});
+
+// POST /admin/support/tickets/:id/status — { status }
+adminRouter.post("/support/tickets/:id/status", async (c) => {
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { status?: string };
+  const status = body.status;
+  if (status !== "open" && status !== "answered" && status !== "closed") {
+    return c.json({ error: "status inválido" }, 400);
+  }
+
+  const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+  await db
+    .update(supportTickets)
+    .set({ status, updatedAt: now })
+    .where(eq(supportTickets.id, id));
+
+  return c.json({ success: true });
 });
 
 export { adminRouter };

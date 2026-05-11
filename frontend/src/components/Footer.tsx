@@ -203,8 +203,17 @@ export function Footer() {
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     if (subscribeMode === "email") {
+      const value = email.trim();
+      if (!value) return;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+      fetch(`${apiUrl}/newsletter/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      }).catch(() => {});
       setEmail("");
     } else {
+      // SMS / WhatsApp providers not yet integrated — just clear input.
       setPhone("");
     }
   };

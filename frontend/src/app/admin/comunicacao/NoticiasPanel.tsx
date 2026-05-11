@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Send, Mail, MessageCircle, Sparkles, Globe2, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Send, Mail, MessageCircle, Sparkles, Globe2, AlertTriangle, Users, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 interface Channel {
   key: "email" | "whatsapp";
@@ -12,16 +14,33 @@ interface Channel {
   icon: React.ElementType;
 }
 
+interface SubscriberStats {
+  total: number;
+  byLocale: { pt: number; en: number };
+}
+
+interface BroadcastResult {
+  mode: "test" | "live";
+  attempted: number;
+  delivered: number;
+  failed: number;
+  skipped: boolean;
+}
+
+interface Props {
+  userId: string;
+  adminEmail?: string;
+}
+
 /**
- * Notícias / Broadcast composer. Sends a newsletter-style message to every
- * subscriber that consented via the footer "Mantém-te Atualizado" widget.
- *
- * Backend wiring will be implemented in a follow-up: a POST /admin/news/broadcast
- * route that fans out via Brevo for email subscribers. WhatsApp is intentionally
- * stubbed (no free providers); the UI shows that clearly to the operator.
+ * Notícias / Broadcast composer. Sends a newsletter to subscribers collected
+ * via the footer "Mantém-te Atualizado" widget. Email is delivered via Brevo
+ * by the backend (POST /admin/news/broadcast). WhatsApp is intentionally
+ * stubbed for now (no free providers).
  */
-export default function NoticiasPanel() {
+export default function NoticiasPanel({ userId, adminEmail }: Props) {
   const [mode, setMode] = useState<"test" | "live">("test");
+  const [localeFilter, setLocaleFilter] = useState<"all" | "pt" | "en">("all");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [channels, setChannels] = useState<Channel[]>([
@@ -41,6 +60,18 @@ export default function NoticiasPanel() {
     },
   ]);
   const [pending, setPending] = useState(false);
+  const [stats, setStats] = useState<SubscriberStats | null>(null);
+  const [result, setResult] = useState<BroadcastResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/admin/news/subscribers`, {
+      headers: { "x-user-id": userId },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setStats)
+      .catch(() => {});
+  }, [userId]);
 
   function toggleChannel(key: Channel["key"]) {
     setChannels((c) => c.map((ch) => (ch.key === key ? { ...ch, enabled: !ch.enabled } : ch)));
@@ -49,8 +80,45 @@ export default function NoticiasPanel() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
-    // Endpoint wiring in Phase B
-    setTimeout(() => setPending(false), 600);
+    setResult(null);
+    setError(null);
+
+    const payload: Record<string, unknown> = {
+      subject: subject.trim(),
+      body: body.trim(),
+    };
+    if (mode === "test") {
+      payload.testEmail = adminEmail ?? "";
+      if (!payload.testEmail) {
+        setError("Sem email de admin para teste.");
+        setPending(false);
+        return;
+      }
+    } else {
+      payload.locale = localeFilter;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/admin/news/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? data.error : "Erro desconhecido");
+      } else {
+        setResult(data as BroadcastResult);
+        if (mode === "live") {
+          setSubject("");
+          setBody("");
+        }
+      }
+    } catch {
+      setError("Falha de rede");
+    } finally {
+      setPending(false);
+    }
   }
 
   const charCount = subject.length;
@@ -59,6 +127,25 @@ export default function NoticiasPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Subscriber stats */}
+      <div className="rounded-xl border border-border bg-card/60 p-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow">
+            <Users className="h-4 w-4" />
+          </span>
+          <div className="flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Subscritores ativos
+            </p>
+            <p className="text-lg font-bold tabular-nums">
+              {stats?.total ?? "—"}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                PT {stats?.byLocale.pt ?? 0} · EN {stats?.byLocale.en ?? 0}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
       {/* Channel toggles */}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -165,11 +252,66 @@ export default function NoticiasPanel() {
           <div className="flex items-start gap-2 text-xs text-amber-200">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
             <p>
-              Backend de broadcast (Brevo + base de subscritores) será ligado num próximo
-              update. O formulário guarda a tua mensagem e configurações para depois.
+              Apenas o canal <strong>Email</strong> está operacional (Brevo). WhatsApp /
+              SMS dependem de um provider gratuito ainda em estudo.
             </p>
           </div>
         </div>
+
+        {/* Live mode → locale filter */}
+        {mode === "live" && (
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Idioma dos destinatários
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["all", "pt", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLocaleFilter(l)}
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                    localeFilter === l
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/30"
+                  )}
+                >
+                  {l === "all" ? "Todos" : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result && (
+          <div
+            className={cn(
+              "flex items-start gap-2 rounded-lg border p-3 text-xs",
+              result.skipped
+                ? "border-amber-500/40 bg-amber-500/5 text-amber-200"
+                : result.failed === 0
+                  ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-200"
+                  : "border-rose-500/40 bg-rose-500/5 text-rose-200"
+            )}
+          >
+            <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <p>
+              {result.skipped
+                ? `Modo dev — BREVO_API_KEY não configurada (${result.attempted} destinatários ignorados).`
+                : `Enviado para ${result.delivered}/${result.attempted} destinatários${
+                    result.failed > 0 ? ` (${result.failed} falhas)` : ""
+                  }.`}
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg border border-rose-500/40 bg-rose-500/5 p-3 text-xs text-rose-200">
+            <X className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
 
         <button
           type="submit"
@@ -182,7 +324,9 @@ export default function NoticiasPanel() {
           )}
         >
           <Send className="h-4 w-4" />
-          <span>{mode === "test" ? "Enviar Teste" : "Enviar Novidades"}</span>
+          <span>
+            {pending ? "A enviar…" : mode === "test" ? "Enviar Teste" : "Enviar Novidades"}
+          </span>
         </button>
       </form>
     </div>

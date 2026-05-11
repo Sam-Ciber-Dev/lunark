@@ -9,21 +9,22 @@ import ChatAdminClient from "../chat/ChatAdminClient";
 interface Props {
   userId: string;
   userName: string;
+  userEmail: string;
 }
 
-export default function ComunicacaoTabs({ userId, userName }: Props) {
+export default function ComunicacaoTabs({ userId, userName, userEmail }: Props) {
   const tabs: TabbedTab[] = [
     {
       key: "noticias",
       label: "Notícias",
       icon: Newspaper,
-      content: <NoticiasPanel />,
+      content: <NoticiasPanel userId={userId} adminEmail={userEmail} />,
     },
     {
       key: "suporte",
       label: "Apoio ao Cliente",
       icon: Headphones,
-      content: <SupportPanel />,
+      content: <SupportPanel userId={userId} />,
     },
     {
       key: "chat",

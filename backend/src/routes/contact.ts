@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { contactSchema } from "@lunark/shared";
 import { rateLimit } from "../middleware/rate-limit";
 import { sendContactNotification } from "../lib/email";
+import { db } from "../db";
+import { supportTickets, supportMessages } from "../db/schema";
 
 const contactRouter = new Hono();
 
@@ -51,6 +53,30 @@ contactRouter.post("/", async (c) => {
 
   // For now, just log the message (Brevo integration comes later)
   console.log("[Contact]", { name, email, subject, message: message.slice(0, 50) });
+
+  // Persist as a support ticket for the admin inbox.
+  const ticketId = crypto.randomUUID();
+  try {
+    await db.insert(supportTickets).values({
+      id: ticketId,
+      senderName: name,
+      senderEmail: email,
+      subject,
+      preview: message.slice(0, 280),
+      status: "open",
+      unread: true,
+      userId: null,
+    });
+    await db.insert(supportMessages).values({
+      id: crypto.randomUUID(),
+      ticketId,
+      authorRole: "customer",
+      authorName: name,
+      body: message,
+    });
+  } catch (err) {
+    console.error("[Contact] failed to create ticket:", err);
+  }
 
   // Send email notification to admin
   await sendContactNotification({ name, email, subject, message });

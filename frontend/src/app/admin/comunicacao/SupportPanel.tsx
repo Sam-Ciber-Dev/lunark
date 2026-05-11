@@ -1,42 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Inbox, Paperclip, Send, Mail, Filter } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Inbox, Send, Mail, Filter, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 interface Ticket {
   id: string;
-  email: string;
-  name: string;
+  senderName: string;
+  senderEmail: string;
   subject: string;
   preview: string;
   unread: boolean;
-  receivedAt: string;
+  createdAt: string;
+  updatedAt: string;
   status: "open" | "answered" | "closed";
 }
 
-const MOCK_TICKETS: Ticket[] = [];
+interface TicketMessage {
+  id: string;
+  ticketId: string;
+  authorRole: "customer" | "admin";
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+interface Props {
+  userId: string;
+}
 
 /**
- * Apoio ao Cliente — Discord-style inbox of support emails.
- *
- * Left column: list of tickets (one per sender / thread). Right column: open
- * ticket view with full message, attachments, and reply composer.
- *
- * Backend wiring will be added in Phase B: a new `support_tickets` table fed
- * either by the existing contact form on the website or by an IMAP poller.
+ * Apoio ao Cliente — Discord-style inbox of support tickets.
+ * Reads from `/admin/support/tickets`, opens a thread on click,
+ * and POSTs admin replies that also email the customer via Brevo.
  */
-export default function SupportPanel() {
-  const [tickets] = useState<Ticket[]>(MOCK_TICKETS);
+export default function SupportPanel({ userId }: Props) {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "open" | "answered">("all");
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    try {
+      const url = new URL(`${API_URL}/admin/support/tickets`);
+      if (filter !== "all") url.searchParams.set("status", filter);
+      const res = await fetch(url.toString(), { headers: { "x-user-id": userId } });
+      if (!res.ok) return;
+      const data = (await res.json()) as { data: Ticket[] };
+      setTickets(data.data);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, filter]);
+
+  useEffect(() => {
+    setLoading(true);
+    refresh();
+  }, [refresh]);
 
   const filtered = tickets.filter((t) => {
-    if (filter !== "all" && t.status !== filter) return false;
     if (
       search &&
-      !`${t.name} ${t.email} ${t.subject} ${t.preview}`.toLowerCase().includes(search.toLowerCase())
+      !`${t.senderName} ${t.senderEmail} ${t.subject} ${t.preview}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
     )
       return false;
     return true;
@@ -44,9 +74,13 @@ export default function SupportPanel() {
 
   const active = filtered.find((t) => t.id === activeId) ?? null;
 
+  function markRead(id: string) {
+    setTickets((list) => list.map((t) => (t.id === id ? { ...t, unread: false } : t)));
+  }
+
   return (
     <div className="grid h-[calc(100vh-18rem)] min-h-[28rem] grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-[280px_1fr]">
-      {/* Sidebar: ticket list */}
+      {/* Sidebar */}
       <aside className="flex flex-col border-r border-border bg-card/40">
         <div className="space-y-2 border-b border-border p-3">
           <div className="relative">
@@ -77,7 +111,11 @@ export default function SupportPanel() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-4 py-12 text-center">
               <Inbox className="mb-2 h-8 w-8 text-muted-foreground/40" />
               <p className="text-xs font-medium">Sem mensagens</p>
@@ -90,12 +128,13 @@ export default function SupportPanel() {
               {filtered.map((t) => (
                 <li key={t.id}>
                   <button
-                    onClick={() => setActiveId(t.id)}
+                    onClick={() => {
+                      setActiveId(t.id);
+                      if (t.unread) markRead(t.id);
+                    }}
                     className={cn(
                       "group block w-full border-b border-border/60 px-3 py-2.5 text-left transition-colors",
-                      active?.id === t.id
-                        ? "bg-primary/5"
-                        : "hover:bg-foreground/[0.04]"
+                      active?.id === t.id ? "bg-primary/5" : "hover:bg-foreground/[0.04]"
                     )}
                   >
                     <div className="mb-0.5 flex items-center justify-between gap-2">
@@ -105,7 +144,7 @@ export default function SupportPanel() {
                           t.unread ? "font-semibold text-foreground" : "text-muted-foreground"
                         )}
                       >
-                        {t.name}
+                        {t.senderName}
                       </span>
                       {t.unread && (
                         <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
@@ -130,10 +169,19 @@ export default function SupportPanel() {
         </div>
       </aside>
 
-      {/* Detail / composer */}
+      {/* Detail */}
       <section className="flex flex-col bg-background">
         {active ? (
-          <TicketDetail ticket={active} />
+          <TicketDetail
+            ticket={active}
+            userId={userId}
+            onReplied={async () => {
+              await refresh();
+            }}
+            onStatusChange={async () => {
+              await refresh();
+            }}
+          />
         ) : (
           <EmptyDetail />
         )}
@@ -148,77 +196,171 @@ function EmptyDetail() {
       <Mail className="mb-3 h-10 w-10 text-muted-foreground/40" />
       <p className="text-sm font-medium">Caixa de Apoio ao Cliente</p>
       <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-        Quando alguém enviar um email para o nosso endereço de suporte (ou usar o formulário de
-        contacto), a conversa aparece aqui — estilo Discord, com anexos e resposta inline.
+        Mensagens enviadas pelo formulário <code>/contact</code> aparecem aqui. Responde
+        diretamente — a resposta é enviada por email ao remetente.
       </p>
-      <div className="mt-4 rounded-lg border border-border bg-card/60 px-4 py-3 text-left text-[11px] text-muted-foreground">
-        <p className="font-semibold text-foreground">Próximos passos (Fase B):</p>
-        <ul className="mt-2 space-y-1 [&>li]:flex [&>li]:items-start [&>li]:gap-1.5">
-          <li>
-            <span className="text-primary">•</span> Tabela <code>support_tickets</code> + envio via
-            Brevo
-          </li>
-          <li>
-            <span className="text-primary">•</span> Formulário <code>/contact</code> a criar tickets
-            automaticamente
-          </li>
-          <li>
-            <span className="text-primary">•</span> Anexos (descarga + preview)
-          </li>
-          <li>
-            <span className="text-primary">•</span> Resposta inline com tracking de threads
-          </li>
-        </ul>
-      </div>
     </div>
   );
 }
 
-function TicketDetail({ ticket }: { ticket: Ticket }) {
+function TicketDetail({
+  ticket,
+  userId,
+  onReplied,
+  onStatusChange,
+}: {
+  ticket: Ticket;
+  userId: string;
+  onReplied: () => void;
+  onStatusChange: () => void;
+}) {
   const [reply, setReply] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<TicketMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
+
+  useEffect(() => {
+    setLoadingMessages(true);
+    fetch(`${API_URL}/admin/support/tickets/${ticket.id}`, {
+      headers: { "x-user-id": userId },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { messages: TicketMessage[] } | null) => {
+        if (data?.messages) setMessages(data.messages);
+      })
+      .finally(() => setLoadingMessages(false));
+  }, [ticket.id, userId]);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reply.trim()) return;
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/admin/support/tickets/${ticket.id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ body: reply.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(typeof data.error === "string" ? data.error : "Falha ao enviar");
+        return;
+      }
+      const text = reply.trim();
+      setReply("");
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          ticketId: ticket.id,
+          authorRole: "admin",
+          authorName: "Eu",
+          body: text,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      onReplied();
+    } catch {
+      setError("Falha de rede");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function changeStatus(status: "open" | "closed") {
+    await fetch(`${API_URL}/admin/support/tickets/${ticket.id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-user-id": userId },
+      body: JSON.stringify({ status }),
+    });
+    onStatusChange();
+  }
+
   return (
     <>
-      <div className="border-b border-border bg-card/40 px-5 py-3">
-        <h2 className="text-sm font-semibold">{ticket.subject}</h2>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          {ticket.name} &lt;{ticket.email}&gt; · {new Date(ticket.receivedAt).toLocaleString()}
-        </p>
+      <div className="flex items-center justify-between border-b border-border bg-card/40 px-5 py-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold">{ticket.subject}</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {ticket.senderName} &lt;{ticket.senderEmail}&gt; ·{" "}
+            {new Date(ticket.createdAt).toLocaleString()}
+          </p>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          {ticket.status !== "closed" ? (
+            <button
+              onClick={() => changeStatus("closed")}
+              className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-rose-500/50 hover:text-rose-300"
+            >
+              <XCircle className="h-3 w-3" />
+              <span>Fechar</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => changeStatus("open")}
+              className="flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-300"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Reabrir</span>
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        <article className="whitespace-pre-wrap text-sm leading-relaxed">{ticket.preview}</article>
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        {loadingMessages ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          messages.map((m) => (
+            <div
+              key={m.id}
+              className={cn(
+                "rounded-lg border p-3",
+                m.authorRole === "admin"
+                  ? "ml-8 border-primary/30 bg-primary/5"
+                  : "mr-8 border-border bg-card/60"
+              )}
+            >
+              <div className="mb-1 flex items-center justify-between text-[11px]">
+                <span className="font-semibold">
+                  {m.authorRole === "admin" ? `${m.authorName} (admin)` : m.authorName}
+                </span>
+                <span className="text-muted-foreground">
+                  {new Date(m.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
+            </div>
+          ))
+        )}
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setReply("");
-        }}
-        className="border-t border-border bg-card/40 px-3 py-2"
-      >
+
+      <form onSubmit={send} className="border-t border-border bg-card/40 px-3 py-2">
+        {error && (
+          <p className="mb-1.5 px-1 text-[11px] text-rose-300">{error}</p>
+        )}
         <div className="flex items-end gap-2">
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground"
-            title="Anexar"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
           <textarea
             rows={1}
             value={reply}
             onChange={(e) => setReply(e.target.value)}
-            placeholder={`Responder a ${ticket.name}…`}
+            placeholder={`Responder a ${ticket.senderName}…`}
             className="min-h-[2.5rem] flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
           />
           <button
             type="submit"
-            disabled={!reply.trim()}
+            disabled={!reply.trim() || pending}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-md text-white transition-all",
               "bg-gradient-to-br from-primary to-rose-500 shadow",
               "disabled:cursor-not-allowed disabled:opacity-40"
             )}
           >
-            <Send className="h-4 w-4" />
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </div>
       </form>

@@ -13,6 +13,7 @@ import { adminRouter } from "./routes/admin";
 import { contactRouter } from "./routes/contact";
 import { wishlistRouter } from "./routes/wishlist";
 import { profileRouter } from "./routes/profile";
+import { newsletterRouter } from "./routes/newsletter";
 import { securityHeaders } from "./middleware/security-headers";
 
 const app = new Hono();
@@ -55,5 +56,6 @@ app.route("/admin", adminRouter);
 app.route("/contact", contactRouter);
 app.route("/wishlist", wishlistRouter);
 app.route("/profile", profileRouter);
+app.route("/newsletter", newsletterRouter);
 
 export default app;
