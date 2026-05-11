@@ -254,6 +254,28 @@ export const wishlistItems = sqliteTable("wishlist_items", {
 // Verification Codes (email MFA)
 // ——————————————————————————————————————————————
 
+// ——————————————————————————————————————————————
+// Admin Chat (shared multi-admin chat with AI @luny)
+// ——————————————————————————————————————————————
+
+export const adminChatMessages = sqliteTable("admin_chat_messages", {
+  id: text("id").primaryKey(),
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }), // null for AI
+  authorRole: text("author_role", { enum: ["admin", "ai"] }).notNull(),
+  /** Snapshot of author name/image at send time (so deleted users still render). */
+  authorName: text("author_name").notNull(),
+  authorImage: text("author_image"),
+  content: text("content").notNull(),
+  /** JSON array of { name, mime, size, dataUrl } for files/images. */
+  attachments: text("attachments"),
+  replyTo: text("reply_to"),
+  editedAt: text("edited_at"),
+  deletedAt: text("deleted_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const verificationCodes = sqliteTable("verification_codes", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),

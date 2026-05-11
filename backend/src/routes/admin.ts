@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, count, desc, sum } from "drizzle-orm";
+import { eq, gt, count, desc, sum, asc } from "drizzle-orm";
 import { db } from "../db";
 import {
   products,
@@ -11,6 +11,7 @@ import {
   cartItems,
   wishlistItems,
   orderItems,
+  adminChatMessages,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
 
@@ -430,20 +431,326 @@ adminRouter.get("/stats/most-ordered", async (c) => {
   return c.json(data);
 });
 
-// ——— Chat Admin (Groq AI) ———
+// ——— Chat Admin (shared multi-admin chat + AI @luny) ———
 
-interface ChatMessage {
+const CHAT_SYSTEM_PROMPT = `És a Luny, a assistente de IA do painel de administração da loja Lunark.
+Ajudas os administradores a gerir a loja: produtos, encomendas, clientes, marketing, segurança, suporte.
+Responde sempre na mesma língua que o admin escreveu (Português ou Inglês).
+Sê concisa, profissional e direta. Quando úteis, sugere comandos práticos ou ações concretas no painel.
+Tens vários administradores nesta conversa partilhada — quando alguém te mencionar com @luny, responde a essa pessoa.`;
+
+const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
+const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+const MAX_CONTENT_LEN = 4000;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB per file (base64-encoded inline)
+const MAX_ATTACHMENTS_PER_MSG = 4;
+const AI_MENTION_RE = /@(?:luny|eye)\b/i;
+
+interface Attachment {
+  name: string;
+  mime: string;
+  size: number;
+  /** data: URL (base64) so it can be rendered/sent to vision model directly. */
+  dataUrl: string;
+}
+
+interface StoredMessage {
+  id: string;
+  authorId: string | null;
+  authorRole: "admin" | "ai";
+  authorName: string;
+  authorImage: string | null;
+  content: string;
+  attachments: Attachment[];
+  replyTo: string | null;
+  editedAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+}
+
+function parseAttachments(raw: string | null): Attachment[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function rowToMessage(row: typeof adminChatMessages.$inferSelect): StoredMessage {
+  const deleted = !!row.deletedAt;
+  return {
+    id: row.id,
+    authorId: row.authorId ?? null,
+    authorRole: row.authorRole as "admin" | "ai",
+    authorName: row.authorName,
+    authorImage: row.authorImage ?? null,
+    content: deleted ? "" : row.content,
+    attachments: deleted ? [] : parseAttachments(row.attachments ?? null),
+    replyTo: row.replyTo ?? null,
+    editedAt: row.editedAt ?? null,
+    deletedAt: row.deletedAt ?? null,
+    createdAt: row.createdAt,
+  };
+}
+
+function validateAttachments(input: unknown): Attachment[] | { error: string } {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) return { error: "attachments must be an array" };
+  if (input.length > MAX_ATTACHMENTS_PER_MSG) {
+    return { error: `Too many attachments (max ${MAX_ATTACHMENTS_PER_MSG})` };
+  }
+  const out: Attachment[] = [];
+  for (const a of input) {
+    if (!a || typeof a !== "object") return { error: "invalid attachment" };
+    const obj = a as Record<string, unknown>;
+    const name = typeof obj.name === "string" ? obj.name.slice(0, 200) : null;
+    const mime = typeof obj.mime === "string" ? obj.mime.slice(0, 100) : null;
+    const size = typeof obj.size === "number" ? obj.size : null;
+    const dataUrl = typeof obj.dataUrl === "string" ? obj.dataUrl : null;
+    if (!name || !mime || size === null || !dataUrl) return { error: "incomplete attachment" };
+    if (!dataUrl.startsWith("data:")) return { error: "attachment must be a data URL" };
+    if (size > MAX_ATTACHMENT_BYTES) return { error: `Attachment too large (max ${MAX_ATTACHMENT_BYTES} bytes)` };
+    if (dataUrl.length > MAX_ATTACHMENT_BYTES * 1.5) return { error: "Attachment payload too large" };
+    out.push({ name, mime, size, dataUrl });
+  }
+  return out;
+}
+
+// GET /admin/chat/messages?since=<ISO>&limit=<n>
+adminRouter.get("/chat/messages", async (c) => {
+  const since = c.req.query("since");
+  const limitRaw = Number(c.req.query("limit") ?? "100");
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 100;
+
+  const where = since ? gt(adminChatMessages.createdAt, since) : undefined;
+  const rows = await db
+    .select()
+    .from(adminChatMessages)
+    .where(where as ReturnType<typeof gt> | undefined)
+    .orderBy(asc(adminChatMessages.createdAt))
+    .limit(limit);
+
+  return c.json({ data: rows.map(rowToMessage) });
+});
+
+// GET /admin/chat/members — list all admins for mention autocomplete + profiles
+adminRouter.get("/chat/members", async (c) => {
+  const rows = await db
+    .select({ id: users.id, name: users.name, image: users.image, email: users.email })
+    .from(users)
+    .where(eq(users.role, "admin"));
+  return c.json({ data: rows });
+});
+
+// POST /admin/chat/messages — create a message; trigger AI if @luny is mentioned
+adminRouter.post("/chat/messages", async (c) => {
+  const userId = c.req.header("x-user-id")!;
+  const body = (await c.req.json().catch(() => ({}))) as {
+    content?: string;
+    attachments?: unknown;
+    replyTo?: string | null;
+  };
+
+  const content = typeof body.content === "string" ? body.content.slice(0, MAX_CONTENT_LEN) : "";
+  const attachmentsResult = validateAttachments(body.attachments);
+  if (!Array.isArray(attachmentsResult)) {
+    return c.json({ error: attachmentsResult.error }, 400);
+  }
+  const attachments = attachmentsResult;
+
+  if (!content.trim() && attachments.length === 0) {
+    return c.json({ error: "content or attachments required" }, 400);
+  }
+
+  const author = await db
+    .select({ id: users.id, name: users.name, image: users.image })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  if (!author) return c.json({ error: "author not found" }, 404);
+
+  const id = crypto.randomUUID();
+  await db.insert(adminChatMessages).values({
+    id,
+    authorId: author.id,
+    authorRole: "admin",
+    authorName: author.name,
+    authorImage: author.image ?? null,
+    content,
+    attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
+    replyTo: body.replyTo ?? null,
+  });
+
+  const userRow = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
+  const userMsg = rowToMessage(userRow!);
+
+  // AI reply if @luny or @eye mentioned
+  let aiMsg: StoredMessage | null = null;
+  if (AI_MENTION_RE.test(content)) {
+    aiMsg = await generateAiReply({ trigger: userMsg }).catch((err: unknown) => {
+      console.error("[admin/chat] AI reply failed", err);
+      return null;
+    });
+  }
+
+  return c.json({ data: aiMsg ? [userMsg, aiMsg] : [userMsg] }, 201);
+});
+
+// PATCH /admin/chat/messages/:id — edit own message
+adminRouter.patch("/chat/messages/:id", async (c) => {
+  const userId = c.req.header("x-user-id")!;
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { content?: string };
+  const content = typeof body.content === "string" ? body.content.slice(0, MAX_CONTENT_LEN) : "";
+  if (!content.trim()) return c.json({ error: "content required" }, 400);
+
+  const existing = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
+  if (!existing) return c.json({ error: "Message not found" }, 404);
+  if (existing.authorId !== userId) return c.json({ error: "Not your message" }, 403);
+  if (existing.deletedAt) return c.json({ error: "Message was unsent" }, 410);
+
+  const now = new Date().toISOString();
+  await db
+    .update(adminChatMessages)
+    .set({ content, editedAt: now })
+    .where(eq(adminChatMessages.id, id));
+
+  const updated = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
+  return c.json({ data: rowToMessage(updated!) });
+});
+
+// DELETE /admin/chat/messages/:id — unsend own message (soft delete)
+adminRouter.delete("/chat/messages/:id", async (c) => {
+  const userId = c.req.header("x-user-id")!;
+  const id = c.req.param("id");
+
+  const existing = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
+  if (!existing) return c.json({ error: "Message not found" }, 404);
+  if (existing.authorId !== userId) return c.json({ error: "Not your message" }, 403);
+
+  const now = new Date().toISOString();
+  await db
+    .update(adminChatMessages)
+    .set({ deletedAt: now, content: "", attachments: null })
+    .where(eq(adminChatMessages.id, id));
+
+  return c.json({ ok: true });
+});
+
+/* ─── AI helpers ─── */
+
+interface GroqTextContent {
+  type: "text";
+  text: string;
+}
+interface GroqImageContent {
+  type: "image_url";
+  image_url: { url: string };
+}
+type GroqContent = string | (GroqTextContent | GroqImageContent)[];
+
+interface GroqHistoryMsg {
+  role: "system" | "user" | "assistant";
+  content: GroqContent;
+  name?: string;
+}
+
+async function generateAiReply({ trigger }: { trigger: StoredMessage }): Promise<StoredMessage | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.warn("[admin/chat] GROQ_API_KEY missing — skipping AI reply");
+    return saveAiMessage(
+      "⚠️ A Luny não está configurada neste ambiente (GROQ_API_KEY em falta). Avisa o administrador do sistema."
+    );
+  }
+
+  // Pull last ~15 messages as history (excluding deleted)
+  const recent = await db
+    .select()
+    .from(adminChatMessages)
+    .orderBy(desc(adminChatMessages.createdAt))
+    .limit(15);
+  const history = recent
+    .filter((r) => !r.deletedAt)
+    .reverse()
+    .map(rowToMessage);
+
+  const hasImages = history.some((m) =>
+    m.attachments.some((a) => a.mime.startsWith("image/"))
+  );
+  const model = hasImages ? GROQ_VISION_MODEL : GROQ_TEXT_MODEL;
+
+  const messages: GroqHistoryMsg[] = [
+    { role: "system", content: CHAT_SYSTEM_PROMPT },
+    ...history.map((m): GroqHistoryMsg => {
+      const role: "user" | "assistant" = m.authorRole === "ai" ? "assistant" : "user";
+      const prefix = m.authorRole === "admin" ? `[${m.authorName}] ` : "";
+      const images = m.attachments.filter((a) => a.mime.startsWith("image/"));
+      const fileSummaries = m.attachments
+        .filter((a) => !a.mime.startsWith("image/"))
+        .map((a) => `[Ficheiro anexo: ${a.name} (${a.mime})]`)
+        .join("\n");
+      const textPart = [prefix + m.content, fileSummaries].filter(Boolean).join("\n");
+
+      if (images.length > 0 && hasImages) {
+        const parts: (GroqTextContent | GroqImageContent)[] = [];
+        if (textPart) parts.push({ type: "text", text: textPart });
+        for (const img of images) parts.push({ type: "image_url", image_url: { url: img.dataUrl } });
+        return { role, content: parts };
+      }
+      return { role, content: textPart };
+    }),
+  ];
+
+  const res = await fetch(GROQ_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, temperature: 0.6, max_tokens: 1024 }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("[admin/chat] Groq error", res.status, text);
+    return saveAiMessage(`⚠️ Erro do modelo de IA (HTTP ${res.status}). Tenta novamente daqui a pouco.`);
+  }
+
+  const data = (await res.json()) as {
+    choices?: { message?: { role: string; content: string } }[];
+  };
+  const reply = data.choices?.[0]?.message?.content?.trim();
+  if (!reply) return saveAiMessage("⚠️ A IA respondeu vazio.");
+
+  // Suppress unused trigger lint
+  void trigger;
+  return saveAiMessage(reply);
+}
+
+async function saveAiMessage(content: string): Promise<StoredMessage> {
+  const id = crypto.randomUUID();
+  await db.insert(adminChatMessages).values({
+    id,
+    authorId: null,
+    authorRole: "ai",
+    authorName: "Luny",
+    authorImage: null,
+    content,
+    attachments: null,
+    replyTo: null,
+  });
+  const row = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
+  return rowToMessage(row!);
+}
+
+// ——— Legacy single-shot /admin/chat (kept for backward compat) ———
+
+interface LegacyChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
-
-const CHAT_SYSTEM_PROMPT = `És o assistente de IA do painel de administração da loja Lunark.
-Ajudas o administrador a gerir a loja: produtos, encomendas, clientes, marketing, segurança, suporte.
-Responde sempre na mesma língua que o admin escreveu (Português ou Inglês).
-Sê conciso, profissional e direto. Quando úteis, sugere comandos práticos ou ações concretas no painel.`;
-
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 adminRouter.post("/chat", async (c) => {
   const apiKey = process.env.GROQ_API_KEY;
@@ -452,13 +759,12 @@ adminRouter.post("/chat", async (c) => {
   }
 
   const body = await c.req.json().catch(() => null);
-  const incoming = Array.isArray(body?.messages) ? (body.messages as ChatMessage[]) : null;
+  const incoming = Array.isArray(body?.messages) ? (body.messages as LegacyChatMessage[]) : null;
   if (!incoming || incoming.length === 0) {
     return c.json({ error: "messages array is required" }, 400);
   }
 
-  // Sanitize: only allow user/assistant from client; cap length
-  const sanitized: ChatMessage[] = incoming
+  const sanitized: LegacyChatMessage[] = incoming
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .slice(-20)
     .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
@@ -468,7 +774,7 @@ adminRouter.post("/chat", async (c) => {
   }
 
   const payload = {
-    model: GROQ_MODEL,
+    model: GROQ_TEXT_MODEL,
     messages: [{ role: "system" as const, content: CHAT_SYSTEM_PROMPT }, ...sanitized],
     temperature: 0.6,
     max_tokens: 1024,
@@ -476,10 +782,7 @@ adminRouter.post("/chat", async (c) => {
 
   const res = await fetch(GROQ_ENDPOINT, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
