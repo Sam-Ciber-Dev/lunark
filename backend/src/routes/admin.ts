@@ -322,10 +322,10 @@ adminRouter.post("/ping", (c) => {
   return c.json({ ok: true });
 });
 
-// GET /admin/online — list all admins with online status
+// GET /admin/online — list all admins with online status + the Luny AI bot.
 adminRouter.get("/online", async (c) => {
   const admins = await db
-    .select({ id: users.id, name: users.name })
+    .select({ id: users.id, name: users.name, image: users.image })
     .from(users)
     .where(eq(users.role, "admin"));
 
@@ -335,8 +335,19 @@ adminRouter.get("/online", async (c) => {
     return {
       id: a.id,
       name: a.name,
+      image: a.image ?? null,
       online: last ? now - last.getTime() < ONLINE_THRESHOLD_MS : false,
+      role: "admin" as const,
     };
+  });
+
+  // Luny is "always online" as long as Groq is configured.
+  data.push({
+    id: "__luny__",
+    name: "Luny",
+    image: null,
+    online: !!process.env.GROQ_API_KEY,
+    role: "ai" as unknown as "admin",
   });
 
   return c.json(data);
@@ -477,6 +488,28 @@ function parseAttachments(raw: string | null): Attachment[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Decode the text payload of a `data:` URL. Returns null for binary content
+ * we can't safely turn into a string. Used to feed .txt / .md / .csv contents
+ * straight into the AI prompt.
+ */
+function decodeDataUrlText(dataUrl: string): string | null {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+  const meta = dataUrl.slice(5, comma); // strip "data:"
+  const payload = dataUrl.slice(comma + 1);
+  const isBase64 = /;base64/i.test(meta);
+  try {
+    if (isBase64) {
+      const buf = Buffer.from(payload, "base64");
+      return buf.toString("utf8");
+    }
+    return decodeURIComponent(payload);
+  } catch {
+    return null;
   }
 }
 
@@ -647,6 +680,19 @@ adminRouter.delete("/chat/messages/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// DELETE /admin/chat/messages — clear entire shared history (admin-only).
+// Hard delete so the chat truly resets. Already protected by requireAdmin gate.
+adminRouter.delete("/chat/messages", async (c) => {
+  try {
+    await db.delete(adminChatMessages);
+    return c.json({ ok: true });
+  } catch (err) {
+    console.error("[admin/chat] clear history failed", err);
+    const msg = err instanceof Error ? err.message : "internal error";
+    return c.json({ error: `clear failed: ${msg}` }, 500);
+  }
+});
+
 /* ─── AI helpers ─── */
 
 interface GroqTextContent {
@@ -696,9 +742,22 @@ async function generateAiReply({ trigger }: { trigger: StoredMessage }): Promise
       const role: "user" | "assistant" = m.authorRole === "ai" ? "assistant" : "user";
       const prefix = m.authorRole === "admin" ? `[${m.authorName}] ` : "";
       const images = m.attachments.filter((a) => a.mime.startsWith("image/"));
-      const fileSummaries = m.attachments
-        .filter((a) => !a.mime.startsWith("image/"))
-        .map((a) => `[Ficheiro anexo: ${a.name} (${a.mime})]`)
+      const nonImage = m.attachments.filter((a) => !a.mime.startsWith("image/"));
+      const fileSummaries = nonImage
+        .map((a) => {
+          // Inline plain-text file contents so the model can actually read them.
+          const isText =
+            a.mime.startsWith("text/") ||
+            /\.(txt|md|csv|json|log|xml|yaml|yml|ini|conf)$/i.test(a.name);
+          if (isText) {
+            const decoded = decodeDataUrlText(a.dataUrl);
+            if (decoded !== null) {
+              const truncated = decoded.length > 8000 ? decoded.slice(0, 8000) + "\n…[truncated]" : decoded;
+              return `[Ficheiro anexo "${a.name}" (${a.mime}) — conteúdo:\n${truncated}\n]`;
+            }
+          }
+          return `[Ficheiro anexo: ${a.name} (${a.mime})]`;
+        })
         .join("\n");
       const textPart = [prefix + m.content, fileSummaries].filter(Boolean).join("\n");
 

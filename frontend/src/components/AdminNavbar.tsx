@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, LogOut, User, Users, X } from "lucide-react";
+import { Bot, ChevronDown, LogOut, Menu, User, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ interface AdminStatus {
   name: string;
   online: boolean;
   image?: string | null;
+  isAi?: boolean;
 }
 
 export function AdminNavbar() {
@@ -67,8 +68,10 @@ export function AdminNavbar() {
         headers: { "x-user-id": me.id },
       });
       if (res.ok) {
-        const data: AdminStatus[] = await res.json();
-        const others = data.filter((a) => a.id !== me.id);
+        const data: (AdminStatus & { role?: string })[] = await res.json();
+        const others = data
+          .filter((a) => a.id !== me.id)
+          .map((a) => ({ ...a, isAi: a.id === "__luny__" || a.role === "ai" }));
         setAdmins([meEntry, ...others]);
       } else {
         setAdmins([meEntry]);
@@ -190,7 +193,7 @@ export function AdminNavbar() {
               title={locale === "pt" ? "Membros" : "Members"}
               aria-label={locale === "pt" ? "Abrir painel de membros" : "Open members panel"}
             >
-              <Users className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
             </button>
 
           </div>
@@ -251,7 +254,7 @@ function MembersPanel({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Menu className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold">
               {locale === "pt" ? "Membros" : "Members"}
             </h2>
@@ -288,18 +291,25 @@ function MembersPanel({
             </p>
           ) : (
             <>
+              {/* IA section */}
+              <MemberSection
+                title={locale === "pt" ? "IA" : "AI"}
+                count={admins.filter((a) => a.isAi).length}
+                members={admins.filter((a) => a.isAi)}
+                locale={locale}
+              />
               {/* Online section */}
               <MemberSection
                 title={locale === "pt" ? "Online" : "Online"}
-                count={admins.filter((a) => a.online).length}
-                members={admins.filter((a) => a.online)}
+                count={admins.filter((a) => !a.isAi && a.online).length}
+                members={admins.filter((a) => !a.isAi && a.online)}
                 locale={locale}
               />
               {/* Offline section */}
               <MemberSection
                 title={locale === "pt" ? "Offline" : "Offline"}
-                count={admins.filter((a) => !a.online).length}
-                members={admins.filter((a) => !a.online)}
+                count={admins.filter((a) => !a.isAi && !a.online).length}
+                members={admins.filter((a) => !a.isAi && !a.online)}
                 locale={locale}
                 muted
               />
@@ -348,6 +358,10 @@ function MemberSection({
                     muted && "opacity-60"
                   )}
                 />
+              ) : m.isAi ? (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-rose-500 text-white shadow ring-2 ring-primary/40">
+                  <Bot className="h-4 w-4" />
+                </div>
               ) : (
                 <div
                   className={cn(
@@ -371,18 +385,26 @@ function MemberSection({
                 {m.name}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {locale === "pt" ? "Administrador" : "Administrator"}
+                {m.isAi
+                  ? locale === "pt" ? "Assistente IA" : "AI Assistant"
+                  : locale === "pt" ? "Administrador" : "Administrator"}
               </p>
             </div>
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                m.online
+                m.isAi
+                  ? "bg-primary/15 text-primary"
+                  : m.online
                   ? "bg-emerald-500/15 text-emerald-400"
                   : "bg-zinc-500/15 text-zinc-400"
               )}
             >
-              {m.online ? (locale === "pt" ? "Online" : "Online") : "Offline"}
+              {m.isAi
+                ? "IA"
+                : m.online
+                ? (locale === "pt" ? "Online" : "Online")
+                : "Offline"}
             </span>
           </li>
         ))}
