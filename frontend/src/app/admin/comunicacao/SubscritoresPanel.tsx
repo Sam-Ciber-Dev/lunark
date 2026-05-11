@@ -99,14 +99,14 @@ export default function SubscritoresPanel({ userId }: Props) {
     return banned.filter((b) => b.email.toLowerCase().includes(q));
   }, [banned, search]);
 
-  async function saveEdit(email: string, locale: "pt" | "en") {
+  async function saveEdit(name: string, reason: string, locale: "pt" | "en") {
     if (!editTarget) return;
     setPending(true);
     try {
       const res = await fetch(`${API_URL}/admin/news/subscribers/${editTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
-        body: JSON.stringify({ email, locale }),
+        body: JSON.stringify({ name, reason, locale }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -120,16 +120,22 @@ export default function SubscritoresPanel({ userId }: Props) {
     }
   }
 
-  async function doDelete() {
+  async function doDelete(reason: string) {
     if (!confirmDelete) return;
     setPending(true);
     try {
-      await fetch(`${API_URL}/admin/news/subscribers/${confirmDelete.id}`, {
+      const res = await fetch(`${API_URL}/admin/news/subscribers/${confirmDelete.id}`, {
         method: "DELETE",
-        headers: { "x-user-id": userId },
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ reason }),
       });
-      setConfirmDelete(null);
-      await refresh();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(typeof data.error === "string" ? data.error : "Falha ao remover");
+      } else {
+        setConfirmDelete(null);
+        await refresh();
+      }
     } finally {
       setPending(false);
     }
@@ -296,13 +302,10 @@ export default function SubscritoresPanel({ userId }: Props) {
         />
       )}
       {confirmDelete && (
-        <ConfirmModal
-          title="Remover subscritor"
-          message={`Tem a certeza que pretende remover ${confirmDelete.email}? O email permanece livre para se subscrever novamente.`}
-          confirmLabel="Remover"
-          tone="danger"
+        <DeleteAccountModal
+          subscriber={confirmDelete}
           pending={pending}
-          onCancel={() => setConfirmDelete(null)}
+          onClose={() => setConfirmDelete(null)}
           onConfirm={doDelete}
         />
       )}
@@ -531,17 +534,21 @@ function EditModal({
   subscriber: Subscriber;
   pending: boolean;
   onClose: () => void;
-  onSave: (email: string, locale: "pt" | "en") => void;
+  onSave: (name: string, reason: string, locale: "pt" | "en") => void;
 }) {
-  const [email, setEmail] = useState(subscriber.email);
+  const [name, setName] = useState(subscriber.userName ?? "");
+  const [reason, setReason] = useState("");
   const [locale, setLocale] = useState<"pt" | "en">(subscriber.locale);
+  const noAccount = subscriber.userName === null;
+  const canSubmit = !noAccount && name.trim().length > 0 && reason.trim().length > 0;
 
   return (
     <ModalShell title="Editar Subscritor" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onSave(email.trim(), locale);
+          if (!canSubmit) return;
+          onSave(name.trim(), reason.trim(), locale);
         }}
         className="space-y-3"
       >
@@ -549,13 +556,42 @@ function EditModal({
           <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Email
           </label>
+          <div className="w-full rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            {subscriber.email}
+          </div>
+          <p className="mt-1 text-[10px] text-muted-foreground">O email é a chave da conta e não pode ser alterado aqui.</p>
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Nome do utilizador
+          </label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={noAccount ? "Sem conta associada" : "Nome a apresentar"}
+            disabled={noAccount}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 disabled:opacity-50"
             required
           />
+          {noAccount && (
+            <p className="mt-1 text-[10px] text-amber-300">Este subscritor não tem conta associada — não é possível alterar o nome.</p>
+          )}
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Motivo da alteração
+          </label>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Ex: pedido do utilizador, correção de typo…"
+            disabled={noAccount}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60 disabled:opacity-50"
+            required
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">O utilizador receberá um email em inglês com este motivo.</p>
         </div>
         <div>
           <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -589,7 +625,7 @@ function EditModal({
           </button>
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !canSubmit}
             className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50"
           >
             {pending && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -597,6 +633,53 @@ function EditModal({
           </button>
         </div>
       </form>
+    </ModalShell>
+  );
+}
+
+function DeleteAccountModal({
+  subscriber,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  subscriber: Subscriber;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const canSubmit = reason.trim().length > 0;
+  return (
+    <ModalShell title="Eliminar conta" onClose={onClose}>
+      <p className="mb-3 text-xs text-muted-foreground">
+        A conta de <strong>{subscriber.email}</strong> será <strong>permanentemente removida</strong> da base de dados, juntamente com todo o histórico (carrinho, wishlist, sessão). O utilizador receberá um email em inglês com o motivo.
+      </p>
+      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Motivo (obrigatório)
+      </label>
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Ex: pedido do utilizador, violação de termos…"
+        className="mb-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
+      />
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={() => canSubmit && onConfirm(reason.trim())}
+          disabled={pending || !canSubmit}
+          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50"
+        >
+          {pending && <Loader2 className="h-3 w-3 animate-spin" />}
+          Eliminar
+        </button>
+      </div>
     </ModalShell>
   );
 }
@@ -658,18 +741,19 @@ function BanModal({
   onConfirm: (reason: string) => void;
 }) {
   const [reason, setReason] = useState("");
+  const canSubmit = reason.trim().length > 0;
   return (
-    <ModalShell title="Banir Subscritor" onClose={onClose}>
+    <ModalShell title="Banir conta" onClose={onClose}>
       <p className="mb-3 text-xs text-muted-foreground">
-        <strong>{subscriber.email}</strong> ficará impedido de subscrever a newsletter novamente.
+        A conta <strong>{subscriber.email}</strong> ficará banida: não poderá iniciar sessão (formulário ou Google), nem registar uma nova conta com este email. A subscrição da newsletter é também removida. O utilizador será automaticamente terminado da sessão atual e receberá um email em inglês com o motivo.
       </p>
       <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Motivo (opcional)
+        Motivo (obrigatório)
       </label>
       <input
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="Ex: spam, abuso, pedido do utilizador…"
+        placeholder="Ex: spam, abuso, violação de termos…"
         className="mb-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
       />
       <div className="flex justify-end gap-2">
@@ -680,8 +764,8 @@ function BanModal({
           Cancelar
         </button>
         <button
-          onClick={() => onConfirm(reason)}
-          disabled={pending}
+          onClick={() => canSubmit && onConfirm(reason.trim())}
+          disabled={pending || !canSubmit}
           className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50"
         >
           {pending && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -703,12 +787,14 @@ function ManualBanModal({
 }) {
   const [email, setEmail] = useState("");
   const [reason, setReason] = useState("");
+  const canSubmit = email.trim().length > 0 && reason.trim().length > 0;
   return (
     <ModalShell title="Banir Email" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onConfirm(email.trim(), reason);
+          if (!canSubmit) return;
+          onConfirm(email.trim(), reason.trim());
         }}
         className="space-y-3"
       >
@@ -726,12 +812,14 @@ function ManualBanModal({
         </div>
         <div>
           <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Motivo (opcional)
+            Motivo (obrigatório)
           </label>
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            placeholder="Ex: spam, abuso, violação de termos…"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/60"
+            required
           />
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -744,7 +832,7 @@ function ManualBanModal({
           </button>
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !canSubmit}
             className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition-all hover:shadow-lg disabled:opacity-50"
           >
             {pending && <Loader2 className="h-3 w-3 animate-spin" />}

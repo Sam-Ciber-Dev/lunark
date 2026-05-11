@@ -101,7 +101,7 @@ export default function SupportPanel({ userId }: Props) {
   }
 
   return (
-    <div className="grid h-[calc(100vh-18rem)] min-h-[28rem] grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-[280px_1fr]">
+    <div className="grid h-[calc(100vh-18rem)] min-h-[28rem] grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-[360px_1fr]">
       {/* Sidebar */}
       <aside className="flex flex-col border-r border-border bg-card/40">
         <div className="space-y-2 border-b border-border p-3">

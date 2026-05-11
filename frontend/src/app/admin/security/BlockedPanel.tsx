@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw, Unlock, X, Edit3 } from "lucide-react";
-import { trafficApi, BlockedDevice, BlockedIp, shortFp } from "./_lib";
+import { RefreshCw, Unlock, X, Edit3, Network } from "lucide-react";
+import { trafficApi, BlockedDevice, shortFp } from "./_lib";
 
 interface Props { userId: string; }
 
@@ -23,10 +23,10 @@ function parseAutoReason(reason: string): { simple: string; detail: string } {
 export default function BlockedPanel({ userId }: Props) {
   const api = trafficApi(userId);
   const [devices, setDevices] = useState<BlockedDevice[]>([]);
-  const [ips, setIps] = useState<BlockedIp[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [detail, setDetail] = useState<BlockedDevice | null>(null);
+  const [ipModal, setIpModal] = useState<BlockedDevice | null>(null);
   const [editing, setEditing] = useState<{ fp: string; current: string } | null>(null);
   const [editReason, setEditReason] = useState("");
 
@@ -34,7 +34,6 @@ export default function BlockedPanel({ userId }: Props) {
     try {
       const data = await api.blocked();
       setDevices(data.blocked_devices);
-      setIps(data.blocked);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "erro");
@@ -50,11 +49,6 @@ export default function BlockedPanel({ userId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function unblockIp(ip: string) {
-    if (!confirm(`Desbloquear IP ${ip}?`)) return;
-    try { await api.unblockIp(ip); refresh(); }
-    catch (e) { alert(e instanceof Error ? e.message : "Falhou"); }
-  }
   async function unblockDev(fp: string) {
     if (!confirm(`Desbloquear dispositivo ${shortFp(fp)}?`)) return;
     try { await api.unblockDevice(fp); refresh(); }
@@ -74,7 +68,7 @@ export default function BlockedPanel({ userId }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Refresh cada 10s · <span className="text-foreground">{devices.length}</span> dispositivos · <span className="text-foreground">{ips.length}</span> IPs
+          Refresh cada 10s · <span className="text-foreground">{devices.length}</span> dispositivos bloqueados
         </div>
         <button onClick={refresh} className="inline-flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
           <RefreshCw className="h-3 w-3" /> Atualizar
@@ -109,12 +103,21 @@ export default function BlockedPanel({ userId }: Props) {
                 return (
                   <tr key={d.id} className="cursor-pointer hover:bg-foreground/[0.03]" onClick={() => setDetail(d)}>
                     <td className="px-3 py-2 font-mono text-xs text-foreground">{shortFp(d.fingerprint_hash)}</td>
-                    <td className="px-3 py-2 text-xs text-foreground/90">
-                      {d.associated_ips.length === 0 ? "—" : (
-                        <span className="font-mono">
-                          {d.associated_ips.slice(0, 2).join(", ")}
-                          {d.associated_ips.length > 2 && <span className="text-muted-foreground"> +{d.associated_ips.length - 2}</span>}
-                        </span>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {d.associated_ips.length === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : d.associated_ips.length === 1 ? (
+                        <span className="text-foreground">{d.associated_ips[0]}</span>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setIpModal(d); }}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card/60 px-2 py-0.5 font-mono text-foreground transition-colors hover:border-primary/40 hover:bg-card"
+                        >
+                          <span>{d.associated_ips[0]}</span>
+                          <span className="rounded-full bg-primary/15 px-1.5 py-0 text-[10px] font-semibold text-primary">
+                            +{d.associated_ips.length - 1}
+                          </span>
+                        </button>
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs">
@@ -143,50 +146,6 @@ export default function BlockedPanel({ userId }: Props) {
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section>
-        <h3 className="mb-2 text-sm font-medium text-foreground">IPs bloqueados</h3>
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-card/60 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2">IP</th>
-                <th className="px-3 py-2">País</th>
-                <th className="px-3 py-2">Motivo</th>
-                <th className="px-3 py-2">Origem</th>
-                <th className="px-3 py-2 text-right">Requests</th>
-                <th className="px-3 py-2">Bloqueado em</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {ips.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Sem IPs bloqueados</td></tr>
-              ) : ips.map((b) => (
-                <tr key={b.id} className="hover:bg-foreground/[0.03]">
-                  <td className="px-3 py-2 font-mono text-xs text-foreground">
-                    {b.ip}{b.is_vpn && <span className="ml-2 rounded bg-rose-500/15 px-1 py-0.5 text-[10px] text-rose-300">VPN</span>}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-foreground/90">{b.country || "—"}</td>
-                  <td className="px-3 py-2 text-xs text-foreground/90">{b.reason || "(sem motivo)"}</td>
-                  <td className="px-3 py-2 text-xs">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] ${b.blocked_by === "system" ? "bg-amber-500/15 text-amber-300" : "bg-primary/15 text-primary"}`}>
-                      {b.blocked_by}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-right text-foreground/90">{b.request_count}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{b.created_at}</td>
-                  <td className="px-3 py-2 text-right">
-                    <button onClick={() => unblockIp(b.ip)} className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300 transition-colors hover:bg-emerald-500/20">
-                      <Unlock className="h-3 w-3" /> Desbloquear
-                    </button>
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
         </div>
@@ -228,6 +187,82 @@ export default function BlockedPanel({ userId }: Props) {
           </div>
         </Modal>
       )}
+
+      {ipModal && (
+        <IpsModal device={ipModal} onClose={() => setIpModal(null)} />
+      )}
+    </div>
+  );
+}
+
+function IpsModal({ device, onClose }: { device: BlockedDevice; onClose: () => void }) {
+  const [current, ...history] = device.ip_details;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center gap-2 border-b border-border px-5 py-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-rose-500 text-white">
+            <Network className="h-4 w-4" />
+          </span>
+          <h3 className="text-base font-semibold text-foreground">IPs do Dispositivo</h3>
+        </header>
+
+        <div className="space-y-5 px-5 py-4">
+          {current && (
+            <section>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                IP atual
+              </p>
+              <IpRow ip={current.ip} isVpn={current.is_vpn} highlight />
+            </section>
+          )}
+
+          {history.length > 0 && (
+            <section>
+              <div className="my-3 border-t border-border/70" />
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                IPs que foram usados
+              </p>
+              <div className="space-y-2">
+                {history.map((d) => (
+                  <IpRow key={d.ip} ip={d.ip} isVpn={d.is_vpn} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <footer className="flex justify-end border-t border-border bg-card/60 px-5 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-md border border-border bg-background px-4 py-1.5 text-sm text-foreground transition-colors hover:bg-card"
+          >
+            Fechar
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function IpRow({ ip, isVpn, highlight }: { ip: string; isVpn: boolean; highlight?: boolean }) {
+  return (
+    <div
+      className={`flex items-center justify-between rounded-lg border px-3 py-2 font-mono text-sm ${
+        highlight
+          ? "border-primary/30 bg-primary/5"
+          : "border-border bg-background"
+      }`}
+    >
+      <span className="text-foreground">{ip}</span>
+      <span
+        className={`text-xs ${isVpn ? "font-semibold text-rose-300" : "text-muted-foreground"}`}
+      >
+        {isVpn ? "Sim" : "Não"}
+      </span>
     </div>
   );
 }

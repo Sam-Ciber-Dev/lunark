@@ -20,6 +20,11 @@ export const users = sqliteTable("users", {
   locale: text("locale", { enum: ["pt", "en"] })
     .notNull()
     .default("pt"),
+  isBanned: integer("is_banned", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  bannedAt: text("banned_at"),
+  banReason: text("ban_reason"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

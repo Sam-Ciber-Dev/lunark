@@ -240,3 +240,95 @@ export async function sendSupportReply(data: TicketReplyData) {
     `,
   });
 }
+
+
+// ——— Account ban / unban / rename / deletion emails (English) ———
+
+function shellEnglish(title: string, intro: string, body: string): string {
+  return ''
+    + '<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111;background:#fafafa">'
+    +   '<div style="text-align:center;margin-bottom:24px">'
+    +     '<h1 style="margin:0;letter-spacing:0.08em;color:#c9a96e">LUNARK</h1>'
+    +   '</div>'
+    +   '<h2 style="margin:0 0 12px;font-size:18px">' + escapeHtml(title) + '</h2>'
+    +   '<p style="margin:0 0 16px;color:#333;font-size:14px;line-height:1.55">' + intro + '</p>'
+    +   body
+    +   '<hr style="margin:28px 0 16px;border:0;border-top:1px solid #ddd" />'
+    +   '<p style="font-size:11px;color:#888;text-align:center">If you believe this was a mistake, reply to this email to contact our support team.</p>'
+    + '</div>';
+}
+
+export async function sendAccountBannedEmail(email: string, reason: string): Promise<boolean> {
+  const reasonBlock = reason && reason.trim().length > 0
+    ? ''
+      + '<div style="margin:16px 0;padding:14px;background:#fff5f5;border:1px solid #f5b5b5;border-radius:8px">'
+      +   '<p style="margin:0;font-size:12px;font-weight:bold;color:#a23030">Reason</p>'
+      +   '<p style="margin:6px 0 0;font-size:13px;color:#7a1a1a">' + escapeHtml(reason) + '</p>'
+      + '</div>'
+    : '';
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email }],
+    subject: "Your Lunark account has been suspended",
+    htmlContent: shellEnglish(
+      "Account suspended",
+      "We are writing to inform you that your Lunark account has been suspended by an administrator. While suspended you will not be able to sign in, register a new account with this email, or subscribe to our newsletter.",
+      reasonBlock
+    ),
+  });
+}
+
+export async function sendAccountUnbannedEmail(email: string): Promise<boolean> {
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email }],
+    subject: "Your Lunark account has been restored",
+    htmlContent: shellEnglish(
+      "Account restored",
+      "Good news — the suspension on your Lunark account has been lifted. You can now sign in again and resume using the store as before. Welcome back.",
+      ''
+    ),
+  });
+}
+
+export async function sendAccountRenamedEmail(email: string, oldName: string, newName: string, reason: string): Promise<boolean> {
+  const reasonBlock = reason && reason.trim().length > 0
+    ? '<p style="margin:0 0 8px;font-size:13px;color:#555"><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>'
+    : '';
+  const body = ''
+    + '<div style="margin:16px 0;padding:14px;background:#fff;border:1px solid #e6e6e6;border-radius:8px">'
+    +   reasonBlock
+    +   '<p style="margin:0;font-size:13px;color:#555"><strong>Previous name:</strong> ' + escapeHtml(oldName) + '</p>'
+    +   '<p style="margin:6px 0 0;font-size:13px;color:#111"><strong>New name:</strong> ' + escapeHtml(newName) + '</p>'
+    + '</div>';
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email }],
+    subject: "Your Lunark account name was updated",
+    htmlContent: shellEnglish(
+      "Account name updated",
+      "An administrator has updated the display name on your Lunark account. The change is shown below.",
+      body
+    ),
+  });
+}
+
+export async function sendAccountDeletedEmail(email: string, reason: string): Promise<boolean> {
+  const reasonBlock = reason && reason.trim().length > 0
+    ? ''
+      + '<div style="margin:16px 0;padding:14px;background:#fff5f5;border:1px solid #f5b5b5;border-radius:8px">'
+      +   '<p style="margin:0;font-size:12px;font-weight:bold;color:#a23030">Reason</p>'
+      +   '<p style="margin:6px 0 0;font-size:13px;color:#7a1a1a">' + escapeHtml(reason) + '</p>'
+      + '</div>'
+    : '';
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email }],
+    subject: "Your Lunark account has been deleted",
+    htmlContent: shellEnglish(
+      "Account deleted",
+      "Your Lunark account has been permanently removed by an administrator. All personal data tied to this account has been erased from our database. If you wish to shop with us in the future you will need to create a new account.",
+      reasonBlock
+    ),
+  });
+}

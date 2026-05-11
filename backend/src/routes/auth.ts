@@ -131,6 +131,19 @@ auth.post("/register", async (c) => {
   const googleImage: string | null = (body as Record<string, unknown>).googleImage as string ?? null;
   const googleCredential: string | null = (body as Record<string, unknown>).googleCredential as string ?? null;
 
+  // Block banned emails from registering. Covers BOTH the case where an admin
+  // banned a previously-existing account (the users row may still exist with
+  // is_banned=1, blocking re-registration with the 409 below) AND the case
+  // where the email never had an account but is in the ban list.
+  const bannedEmail = await db
+    .select({ reason: newsletterBannedEmails.reason })
+    .from(newsletterBannedEmails)
+    .where(eq(newsletterBannedEmails.email, email.toLowerCase()))
+    .get();
+  if (bannedEmail) {
+    return c.json({ error: "ACCOUNT_BANNED", reason: bannedEmail.reason ?? "" }, 403);
+  }
+
   // If a Google credential is provided, verify it and create the user directly (no OTP needed)
   if (googleCredential) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -253,6 +266,15 @@ auth.post("/login", async (c) => {
   const valid = await compare(password, user.passwordHash);
   if (!valid) {
     return c.json({ error: "WRONG_CREDENTIALS" }, 401);
+  }
+
+  // Reject banned accounts BEFORE issuing a verification code. We surface the
+  // reason so the login form can render a clear message in English.
+  if (user.isBanned) {
+    return c.json(
+      { error: "ACCOUNT_BANNED", reason: user.banReason ?? "" },
+      403
+    );
   }
 
   // Credentials valid — emit a one-time login code
@@ -554,6 +576,9 @@ auth.post("/google", async (c) => {
     if (!existing) {
       return c.json({ error: "No account found. Please create an account first." }, 401);
     }
+    if (existing.isBanned) {
+      return c.json({ error: "ACCOUNT_BANNED", reason: existing.banReason ?? "" }, 403);
+    }
     // Auto-promote to admin if this is the designated admin email
     const isAdminEmail = process.env.ADMIN_EMAIL && existing.email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
     if (isAdminEmail && existing.role !== "admin") {
@@ -582,6 +607,16 @@ auth.post("/google", async (c) => {
     return c.json({ error: "This email is already registered" }, 409);
   }
 
+  // Block sign-up if the email is in the newsletter / account ban list.
+  const bannedGoogleEmail = await db
+    .select({ reason: newsletterBannedEmails.reason })
+    .from(newsletterBannedEmails)
+    .where(eq(newsletterBannedEmails.email, payload.email!.toLowerCase()))
+    .get();
+  if (bannedGoogleEmail) {
+    return c.json({ error: "ACCOUNT_BANNED", reason: bannedGoogleEmail.reason ?? "" }, 403);
+  }
+
   // Return Google profile data for form pre-fill (account created on form submit)
   return c.json({
     googleProfile: {
@@ -589,6 +624,35 @@ auth.post("/google", async (c) => {
       email: payload.email!,
       image: payload.picture ?? null,
     },
+  });
+});
+
+// GET /auth/account-status?userId=… — Lightweight existence + ban check used
+// by NextAuth's jwt callback to force-logout banned or deleted users without
+// waiting for their 30-day JWT to expire.
+auth.get("/account-status", async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId) return c.json({ exists: false, banned: false }, 400);
+  const u = await db
+    .select({
+      id: users.id,
+      isBanned: users.isBanned,
+      banReason: users.banReason,
+      role: users.role,
+      name: users.name,
+      image: users.image,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  if (!u) return c.json({ exists: false, banned: false });
+  return c.json({
+    exists: true,
+    banned: !!u.isBanned,
+    reason: u.banReason ?? null,
+    role: u.role,
+    name: u.name,
+    image: u.image,
   });
 });
 

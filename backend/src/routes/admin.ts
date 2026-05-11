@@ -18,7 +18,14 @@ import {
   supportMessages,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
-import { sendNewsletterBroadcast, sendSupportReply } from "../lib/email";
+import {
+  sendNewsletterBroadcast,
+  sendSupportReply,
+  sendAccountBannedEmail,
+  sendAccountUnbannedEmail,
+  sendAccountRenamedEmail,
+  sendAccountDeletedEmail,
+} from "../lib/email";
 
 // In-memory admin heartbeat store (reset on cold start)
 const adminPings = new Map<string, Date>();
@@ -1121,52 +1128,102 @@ adminRouter.get("/news/subscribers/list", async (c) => {
   return c.json({ data: filtered });
 });
 
-// PATCH /admin/news/subscribers/:id — edit email or locale
+// PATCH /admin/news/subscribers/:id — edit subscriber name and/or locale.
+// Email is intentionally NOT editable here (it is the identity key for the
+// user account). A name change touches BOTH the newsletter row (best effort)
+// and the linked users table, and triggers an English notification email.
 adminRouter.patch("/news/subscribers/:id", async (c) => {
   const id = c.req.param("id");
   const body = (await c.req.json().catch(() => ({}))) as {
-    email?: string;
+    name?: string;
+    reason?: string;
     locale?: "pt" | "en";
   };
 
-  const patch: Record<string, unknown> = {};
-  if (typeof body.email === "string") {
-    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const trimmed = body.email.trim().toLowerCase();
-    if (!emailRe.test(trimmed) || trimmed.length > 200) {
-      return c.json({ error: "email inválido" }, 400);
+  const [sub] = await db
+    .select({ email: newsletterSubscribers.email })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.id, id))
+    .limit(1);
+  if (!sub) return c.json({ error: "subscritor não encontrado" }, 404);
+
+  // Locale → newsletter row
+  if (body.locale === "pt" || body.locale === "en") {
+    try {
+      await db
+        .update(newsletterSubscribers)
+        .set({ locale: body.locale })
+        .where(eq(newsletterSubscribers.id, id));
+    } catch {}
+  }
+
+  // Name → users row + notification email
+  const newName = typeof body.name === "string" ? body.name.trim().slice(0, 100) : "";
+  const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+  if (newName.length > 0) {
+    if (reason.length === 0) {
+      return c.json({ error: "É obrigatório indicar um motivo para alterar o nome." }, 400);
     }
-    patch.email = trimmed;
-  }
-  if (body.locale === "pt" || body.locale === "en") patch.locale = body.locale;
-
-  if (Object.keys(patch).length === 0) {
-    return c.json({ error: "nada para atualizar" }, 400);
-  }
-
-  try {
-    await db
-      .update(newsletterSubscribers)
-      .set(patch)
-      .where(eq(newsletterSubscribers.id, id));
-  } catch {
-    return c.json({ error: "email já existe" }, 409);
+    const [u] = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.email, sub.email))
+      .limit(1);
+    if (u && u.name !== newName) {
+      await db
+        .update(users)
+        .set({ name: newName, updatedAt: new Date().toISOString() })
+        .where(eq(users.id, u.id));
+      try { await sendAccountRenamedEmail(sub.email, u.name, newName, reason); } catch {}
+    }
   }
 
   return c.json({ success: true });
 });
 
-// DELETE /admin/news/subscribers/:id — remove subscriber
+// DELETE /admin/news/subscribers/:id — fully delete the user account (and its
+// newsletter subscription). A reason is required so the user gets a clear
+// explanation by email. The users.id cascade removes cart / wishlist / etc.
 adminRouter.delete("/news/subscribers/:id", async (c) => {
   const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { reason?: string };
+  const reason = (body.reason ?? "").trim().slice(0, 500);
+  if (reason.length === 0) {
+    return c.json({ error: "É obrigatório indicar um motivo." }, 400);
+  }
+
+  const [sub] = await db
+    .select({ email: newsletterSubscribers.email })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.id, id))
+    .limit(1);
+  if (!sub) return c.json({ error: "subscritor não encontrado" }, 404);
+
+  // Send notification email BEFORE deleting so we still have the email value.
+  try { await sendAccountDeletedEmail(sub.email, reason); } catch {}
+
+  // Delete user account if it exists. Cascade FKs remove dependent rows
+  // (cart, wishlist, orders.user_id → set null, etc.). Also drop the
+  // newsletter row + any banned-email entry so the email can be reused
+  // freshly in the future by a new account.
+  await db.delete(users).where(eq(users.email, sub.email));
   await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
+  await db.delete(newsletterBannedEmails).where(eq(newsletterBannedEmails.email, sub.email));
+
   return c.json({ success: true });
 });
 
-// POST /admin/news/subscribers/:id/ban — remove from subscribers and add to ban list
+// POST /admin/news/subscribers/:id/ban — full account ban.
+// Reason is REQUIRED. Marks the user as banned (so login / register / Google
+// sign-in are all refused) AND removes the newsletter subscription AND adds
+// the email to the newsletter ban list. Sends an English notification email.
 adminRouter.post("/news/subscribers/:id/ban", async (c) => {
   const id = c.req.param("id");
   const body = (await c.req.json().catch(() => ({}))) as { reason?: string };
+  const reason = (body.reason ?? "").trim().slice(0, 500);
+  if (reason.length === 0) {
+    return c.json({ error: "É obrigatório indicar um motivo." }, 400);
+  }
 
   const [row] = await db
     .select({ email: newsletterSubscribers.email })
@@ -1178,10 +1235,23 @@ adminRouter.post("/news/subscribers/:id/ban", async (c) => {
 
   await db
     .insert(newsletterBannedEmails)
-    .values({ email: row.email, reason: body.reason?.slice(0, 200) ?? null })
+    .values({ email: row.email, reason })
     .onConflictDoNothing();
 
   await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
+
+  // Flip the user account into banned state if one exists.
+  await db
+    .update(users)
+    .set({
+      isBanned: true,
+      bannedAt: new Date().toISOString(),
+      banReason: reason,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.email, row.email));
+
+  try { await sendAccountBannedEmail(row.email, reason); } catch {}
 
   return c.json({ success: true });
 });
@@ -1203,30 +1273,65 @@ adminRouter.get("/news/banned", async (c) => {
   return c.json({ data: filtered });
 });
 
-// POST /admin/news/banned — manually ban an email
+// POST /admin/news/banned — manually ban an email (also flips any user
+// account matching that email into the banned state).
 adminRouter.post("/news/banned", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { email?: string; reason?: string };
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const email = (body.email ?? "").trim().toLowerCase();
+  const reason = (body.reason ?? "").trim().slice(0, 500);
   if (!emailRe.test(email) || email.length > 200) {
     return c.json({ error: "email inválido" }, 400);
+  }
+  if (reason.length === 0) {
+    return c.json({ error: "É obrigatório indicar um motivo." }, 400);
   }
 
   await db
     .insert(newsletterBannedEmails)
-    .values({ email, reason: body.reason?.slice(0, 200) ?? null })
+    .values({ email, reason })
     .onConflictDoNothing();
 
   // Also remove from active subscribers if present.
   await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.email, email));
 
+  // Flip user account if it exists.
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (u) {
+    await db
+      .update(users)
+      .set({
+        isBanned: true,
+        bannedAt: new Date().toISOString(),
+        banReason: reason,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, u.id));
+  }
+
+  try { await sendAccountBannedEmail(email, reason); } catch {}
+
   return c.json({ success: true });
 });
 
-// DELETE /admin/news/banned/:email — unban
+// DELETE /admin/news/banned/:email — unban an email and restore the user
+// account (if any). Sends an English notification email.
 adminRouter.delete("/news/banned/:email", async (c) => {
   const email = decodeURIComponent(c.req.param("email")).toLowerCase();
   await db.delete(newsletterBannedEmails).where(eq(newsletterBannedEmails.email, email));
+
+  await db
+    .update(users)
+    .set({
+      isBanned: false,
+      bannedAt: null,
+      banReason: null,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.email, email));
+
+  try { await sendAccountUnbannedEmail(email); } catch {}
+
   return c.json({ success: true });
 });
 
@@ -1388,6 +1493,25 @@ adminRouter.get("/traffic/connections", async (c) => {
     } catch {}
   }
 
+  // ── Enrich each unique IP via geoLookup so the VPN column reflects the
+  // current heuristic (rather than the value stored at log-insertion time,
+  // which may pre-date the heuristic or have come from a stale cache).
+  const allIps = new Set<string>();
+  for (const c of seen.values()) for (const ip of c._ipsSet) allIps.add(ip);
+  await Promise.all(
+    Array.from(allIps).map(async (ip) => {
+      try {
+        const g = await svc.geoLookup(ip);
+        if (!g.isVpn && !g.provider) return;
+        for (const c of seen.values()) {
+          if (!c._ipsSet.has(ip)) continue;
+          if (g.isVpn) c._ipVpn.set(ip, true);
+          if (g.isVpn && !c.vpn_provider) c.vpn_provider = g.provider;
+        }
+      } catch {}
+    })
+  );
+
   const now = Date.now();
   const out = Array.from(seen.values()).map((c) => {
     const ipList = Array.from(c._ipsSet).sort((a, b) => {
@@ -1413,7 +1537,7 @@ adminRouter.get("/traffic/connections", async (c) => {
       ip_details: ipList.map((ip) => ({ ip, is_vpn: !!c._ipVpn.get(ip) })),
       country: c.country,
       city: c.city,
-      is_vpn: !!c._ipVpn.get(ipList[0] ?? ""),
+      is_vpn: ipList.some((ip) => !!c._ipVpn.get(ip)),
       vpn_provider: c.vpn_provider,
       method: c.method,
       requests: c.requests,
@@ -1518,6 +1642,10 @@ adminRouter.get("/traffic/detailed-logs", async (c) => {
     // Skip server-originated requests with no fingerprint — only visits /
     // requests attributed to a real user device belong in detailed logs.
     if (!l.fingerprintHash) continue;
+    // Skip admin-originated requests entirely. Admin devices send a 20-second
+    // heartbeat plus every admin-panel page visit and request which pollutes
+    // the detailed log feed with noise the admin did not consciously trigger.
+    if (svc.isAdminFp(l.fingerprintHash) || svc.isAdminIp(l.ip)) continue;
     entries.push({
       _type: "request",
       id: `req_${l.id}`,

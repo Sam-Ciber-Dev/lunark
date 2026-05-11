@@ -69,6 +69,14 @@ export async function loginAction(
 
     if (!res.ok) {
       const errMsg = data.error as string ?? "Incorrect email or password";
+      if (errMsg === "ACCOUNT_BANNED") {
+        const reason = (data.reason as string) || "";
+        return {
+          error: reason
+            ? `This account has been suspended. Reason: ${reason}`
+            : "This account has been suspended by the administrator.",
+        };
+      }
       const codes = data.codes as string[] | undefined;
       if (codes?.length) {
         return { error: `${errMsg} [${codes.join(", ")}]` };
@@ -115,7 +123,16 @@ export async function registerAction(
     const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
-      return { error: (data.error as string) ?? "Failed to create account" };
+      const errMsg = (data.error as string) ?? "Failed to create account";
+      if (errMsg === "ACCOUNT_BANNED") {
+        const reason = (data.reason as string) || "";
+        return {
+          error: reason
+            ? `This email is blocked from creating new accounts. Reason: ${reason}`
+            : "This email is blocked from creating new accounts.",
+        };
+      }
+      return { error: errMsg };
     }
 
     if (data.requiresVerification) {
