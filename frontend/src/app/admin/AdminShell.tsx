@@ -157,7 +157,7 @@ export default function AdminShell({ userId }: { userId: string }) {
     {
       id: "security",
       href: "/admin/security",
-      label: locale === "pt" ? "Segurança" : "Security",
+      label: locale === "pt" ? "Painel de Segurança" : "Security Panel",
       icon: ShieldCheck,
       gradient: "bg-gradient-to-br from-red-500/80 to-rose-700/80",
     },

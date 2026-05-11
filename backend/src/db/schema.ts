@@ -361,3 +361,103 @@ export const newsletterBannedEmails = sqliteTable("newsletter_banned_emails", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
+
+// ——————————————————————————————————————————————
+// Painel de Segurança (EyeWeb-style traffic monitor)
+// ——————————————————————————————————————————————
+
+/** One row per HTTP request hitting the backend (filtered by middleware). */
+export const trafficLogs = sqliteTable("traffic_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ip: text("ip").notNull(),
+  method: text("method").notNull(),
+  path: text("path").notNull(),
+  statusCode: integer("status_code").notNull().default(0),
+  userAgent: text("user_agent").notNull().default(""),
+  country: text("country").notNull().default(""),
+  city: text("city").notNull().default(""),
+  isVpn: integer("is_vpn", { mode: "boolean" }).notNull().default(false),
+  vpnProvider: text("vpn_provider").notNull().default(""),
+  responseTimeMs: integer("response_time_ms").notNull().default(0),
+  fingerprintHash: text("fingerprint_hash").notNull().default(""),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+/** Auto-detected suspicious activity (rate limit, scanner, SQLi, etc.). */
+export const trafficSuspicious = sqliteTable("traffic_suspicious", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ip: text("ip").notNull(),
+  event: text("event").notNull(), // rate_limit | scanner | sql_injection | path_traversal | brute_force | recon_probe | suspicious_ua
+  severity: text("severity").notNull().default("low"), // low | medium | high | critical
+  details: text("details").notNull().default(""),
+  path: text("path").notNull().default(""),
+  country: text("country").notNull().default(""),
+  city: text("city").notNull().default(""),
+  isVpn: integer("is_vpn", { mode: "boolean" }).notNull().default(false),
+  fingerprintHash: text("fingerprint_hash").notNull().default(""),
+  autoBlocked: integer("auto_blocked", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+/** Manually or automatically blocked IPs. */
+export const trafficBlockedIps = sqliteTable("traffic_blocked_ips", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ip: text("ip").notNull().unique(),
+  reason: text("reason").notNull().default(""),
+  blockedBy: text("blocked_by").notNull().default("admin"), // "admin" | "system"
+  requestCount: integer("request_count").notNull().default(0),
+  country: text("country").notNull().default(""),
+  isVpn: integer("is_vpn", { mode: "boolean" }).notNull().default(false),
+  logSnapshot: text("log_snapshot").notNull().default(""),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+/** Blocked devices by fingerprint hash (covers IP changes / VPN switches). */
+export const trafficBlockedDevices = sqliteTable("traffic_blocked_devices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fingerprintHash: text("fingerprint_hash").notNull().unique(),
+  reason: text("reason").notNull().default(""),
+  blockedBy: text("blocked_by").notNull().default("admin"),
+  components: text("components").notNull().default("{}"), // JSON
+  associatedIps: text("associated_ips").notNull().default("[]"), // JSON array
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+/** Persistent IP history per fingerprint (for VPN switch tracking). */
+export const trafficDeviceIps = sqliteTable("traffic_device_ips", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fingerprintHash: text("fingerprint_hash").notNull(),
+  ip: text("ip").notNull(),
+  isVpn: integer("is_vpn", { mode: "boolean" }).notNull().default(false),
+  firstSeenAt: text("first_seen_at").notNull().default(sql`(datetime('now'))`),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`(datetime('now'))`),
+});
+
+/** Cache for VPN/proxy lookups (avoid repeated external API calls). */
+export const trafficVpnCache = sqliteTable("traffic_vpn_cache", {
+  ip: text("ip").primaryKey(),
+  isVpn: integer("is_vpn", { mode: "boolean" }).notNull().default(false),
+  provider: text("provider").notNull().default(""),
+  country: text("country").notNull().default(""),
+  city: text("city").notNull().default(""),
+  cachedAt: text("cached_at").notNull().default(sql`(datetime('now'))`),
+});
+
+/** Saved monthly/yearly traffic reports (markdown + aggregated JSON). */
+export const trafficReports = sqliteTable("traffic_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type", { enum: ["monthly", "yearly"] }).notNull(),
+  period: text("period").notNull().unique(), // "2026-05" | "2026"
+  title: text("title").notNull(),
+  markdown: text("markdown").notNull().default(""),
+  data: text("data").notNull().default("{}"), // JSON
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});

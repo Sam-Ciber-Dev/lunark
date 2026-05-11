@@ -14,7 +14,9 @@ import { contactRouter } from "./routes/contact";
 import { wishlistRouter } from "./routes/wishlist";
 import { profileRouter } from "./routes/profile";
 import { newsletterRouter } from "./routes/newsletter";
+import { trafficRouter } from "./routes/traffic";
 import { securityHeaders } from "./middleware/security-headers";
+import { trafficLog } from "./middleware/traffic-log";
 
 const app = new Hono();
 
@@ -27,6 +29,7 @@ app.use(
     credentials: true,
   })
 );
+app.use("*", trafficLog);
 
 // Global error handler — surfaces real error message instead of bare HTTP 500.
 // Without this, any uncaught throw inside a route or middleware returns an
@@ -57,5 +60,6 @@ app.route("/contact", contactRouter);
 app.route("/wishlist", wishlistRouter);
 app.route("/profile", profileRouter);
 app.route("/newsletter", newsletterRouter);
+app.route("/traffic", trafficRouter);
 
 export default app;

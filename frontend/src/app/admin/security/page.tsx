@@ -1,15 +1,11 @@
-import { ShieldCheck } from "lucide-react";
-import AdminSubPage from "../_components/AdminSubPage";
-import ComingSoon from "../_components/ComingSoon";
+import { auth } from "@/lib/auth";
+import SegurancaTabs from "./SegurancaTabs";
 
-export default function SecurityPage() {
-  return (
-    <AdminSubPage
-      label="Segurança"
-      icon={ShieldCheck}
-      gradient="bg-gradient-to-br from-red-500/80 to-rose-700/80"
-    >
-      <ComingSoon label="Segurança" />
-    </AdminSubPage>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function SecurityPage() {
+  const session = await auth();
+  const userId = session!.user.id;
+  return <SegurancaTabs userId={userId} />;
 }
+

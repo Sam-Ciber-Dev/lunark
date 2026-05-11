@@ -4,6 +4,7 @@ import Script from "next/script";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/SessionProvider";
 import { SiteChrome } from "@/components/SiteChrome";
+import TrafficClient from "@/components/TrafficClient";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
 import "./globals.css";
@@ -111,6 +112,7 @@ export default function RootLayout({
         <I18nProvider>
           <CurrencyProvider>
             <SessionProvider>
+              <TrafficClient />
               <SiteChrome>{children}</SiteChrome>
             </SessionProvider>
           </CurrencyProvider>

@@ -1230,4 +1230,784 @@ adminRouter.delete("/news/banned/:email", async (c) => {
   return c.json({ success: true });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// PAINEL DE SEGURANÇA — Traffic monitor admin routes
+// ═══════════════════════════════════════════════════════════════
+import {
+  trafficLogs,
+  trafficSuspicious,
+  trafficBlockedIps,
+  trafficBlockedDevices,
+  trafficDeviceIps,
+  trafficVpnCache,
+  trafficReports,
+} from "../db/schema";
+import { trafficService, isInfraIp } from "../lib/traffic-service";
+import { gte, lt, inArray } from "drizzle-orm";
+
+// Helper — start of today (UTC) as ISO string for createdAt comparisons.
+function todayStartUtc(): string {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString().replace("T", " ").slice(0, 19); // matches sqlite datetime('now')
+}
+
+// Helper — month-name in PT
+const MONTH_NAMES_PT = [
+  "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+// ───── GET /admin/traffic/stats ─────
+adminRouter.get("/traffic/stats", async (c) => {
+  const svc = trafficService();
+  await svc.init();
+  const start = todayStartUtc();
+
+  const [{ n: reqToday } = { n: 0 }] = await db
+    .select({ n: count() })
+    .from(trafficLogs)
+    .where(gte(trafficLogs.createdAt, start));
+
+  const susp = await db
+    .select({ ip: trafficSuspicious.ip })
+    .from(trafficSuspicious)
+    .where(gte(trafficSuspicious.createdAt, start));
+  const suspiciousUnique = new Set(susp.map((r) => r.ip)).size;
+
+  const [{ n: bIps } = { n: 0 }] = await db.select({ n: count() }).from(trafficBlockedIps);
+  const [{ n: bDev } = { n: 0 }] = await db.select({ n: count() }).from(trafficBlockedDevices);
+
+  return c.json({
+    requests_today: reqToday,
+    active_ips_5m: svc.onlineCount(),
+    suspicious_today: suspiciousUnique,
+    blocked_total: bIps + bDev,
+  });
+});
+
+// ───── GET /admin/traffic/connections ─────
+adminRouter.get("/traffic/connections", async (c) => {
+  const svc = trafficService();
+  await svc.init();
+  const start = todayStartUtc();
+
+  const rows = await db
+    .select({
+      ip: trafficLogs.ip,
+      country: trafficLogs.country,
+      city: trafficLogs.city,
+      isVpn: trafficLogs.isVpn,
+      vpnProvider: trafficLogs.vpnProvider,
+      method: trafficLogs.method,
+      createdAt: trafficLogs.createdAt,
+      fingerprintHash: trafficLogs.fingerprintHash,
+    })
+    .from(trafficLogs)
+    .where(gte(trafficLogs.createdAt, start))
+    .orderBy(asc(trafficLogs.createdAt));
+
+  type Conn = {
+    fingerprint_hash: string;
+    ips: string[];
+    ip_details: { ip: string; is_vpn: boolean }[];
+    country: string;
+    city: string;
+    is_vpn: boolean;
+    vpn_provider: string;
+    method: string;
+    requests: number;
+    online: boolean;
+    is_admin: boolean;
+    _ipsSet: Set<string>;
+    _ipVpn: Map<string, boolean>;
+    _ipLast: Map<string, string>;
+    _lastSeen: string;
+  };
+
+  const seen = new Map<string, Conn>();
+  for (const r of rows) {
+    const ip = r.ip;
+    const fp = r.fingerprintHash || "";
+    if (!ip || ip === "127.0.0.1" || ip === "::1" || isInfraIp(ip)) continue;
+    if (!fp) continue; // bots without fingerprint are skipped
+
+    let conn = seen.get(fp);
+    if (!conn) {
+      conn = {
+        fingerprint_hash: fp,
+        ips: [],
+        ip_details: [],
+        country: r.country,
+        city: r.city,
+        is_vpn: r.isVpn,
+        vpn_provider: r.vpnProvider,
+        method: r.method,
+        requests: 0,
+        online: false,
+        is_admin: false,
+        _ipsSet: new Set(),
+        _ipVpn: new Map(),
+        _ipLast: new Map(),
+        _lastSeen: "",
+      };
+      seen.set(fp, conn);
+    }
+    conn.requests += 1;
+    if (!conn._ipsSet.has(ip)) {
+      conn._ipsSet.add(ip);
+      conn._ipVpn.set(ip, r.isVpn);
+    } else if (r.isVpn) {
+      conn._ipVpn.set(ip, true);
+    }
+    conn._ipLast.set(ip, r.createdAt);
+    if (r.isVpn) conn.is_vpn = true;
+    if (r.method === "PAGE") conn.method = "PAGE";
+    conn._lastSeen = r.createdAt;
+  }
+
+  // Enrich with persistent IP history per fingerprint
+  if (seen.size > 0) {
+    const fps = Array.from(seen.keys());
+    try {
+      const hist = await db
+        .select()
+        .from(trafficDeviceIps)
+        .where(inArray(trafficDeviceIps.fingerprintHash, fps))
+        .orderBy(desc(trafficDeviceIps.lastSeenAt));
+      for (const h of hist) {
+        const conn = seen.get(h.fingerprintHash);
+        if (!conn) continue;
+        if (!conn._ipsSet.has(h.ip) && !isInfraIp(h.ip)) {
+          conn._ipsSet.add(h.ip);
+          conn._ipVpn.set(h.ip, h.isVpn);
+          conn._ipLast.set(h.ip, h.lastSeenAt);
+        }
+        if (h.isVpn) conn._ipVpn.set(h.ip, true);
+      }
+    } catch {}
+  }
+
+  const now = Date.now();
+  const out = Array.from(seen.values()).map((c) => {
+    const ipList = Array.from(c._ipsSet).sort((a, b) => {
+      const la = c._ipLast.get(a) ?? "";
+      const lb = c._ipLast.get(b) ?? "";
+      return lb.localeCompare(la);
+    });
+    const recent =
+      c._lastSeen &&
+      (() => {
+        try {
+          const t = Date.parse(c._lastSeen.replace(" ", "T") + "Z");
+          return now - t < 120_000;
+        } catch {
+          return false;
+        }
+      })();
+    const hb = svc.isOnlineFp(c.fingerprint_hash) ||
+      Array.from(c._ipsSet).some((ip) => svc.isOnline(ip));
+    return {
+      fingerprint_hash: c.fingerprint_hash,
+      ips: ipList,
+      ip_details: ipList.map((ip) => ({ ip, is_vpn: !!c._ipVpn.get(ip) })),
+      country: c.country,
+      city: c.city,
+      is_vpn: !!c._ipVpn.get(ipList[0] ?? ""),
+      vpn_provider: c.vpn_provider,
+      method: c.method,
+      requests: c.requests,
+      online: hb || !!recent,
+      is_admin: svc.isAdminFp(c.fingerprint_hash),
+    };
+  });
+
+  out.sort((a, b) => (a.online === b.online ? b.requests - a.requests : a.online ? -1 : 1));
+  return c.json({ connections: out });
+});
+
+// ───── GET /admin/traffic/logs ─────
+adminRouter.get("/traffic/logs", async (c) => {
+  const limit = Math.min(parseInt(c.req.query("limit") || "50") || 50, 200);
+  const offset = parseInt(c.req.query("offset") || "0") || 0;
+  const ipQ = c.req.query("ip") || "";
+  let rows;
+  if (ipQ) {
+    rows = await db
+      .select()
+      .from(trafficLogs)
+      .where(eq(trafficLogs.ip, ipQ))
+      .orderBy(desc(trafficLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+  } else {
+    rows = await db
+      .select()
+      .from(trafficLogs)
+      .orderBy(desc(trafficLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+    rows = rows.filter(
+      (l) => l.ip !== "127.0.0.1" && l.ip !== "::1" && !isInfraIp(l.ip)
+    );
+  }
+  return c.json({ logs: rows, total: rows.length });
+});
+
+// ───── GET /admin/traffic/suspicious ─────
+adminRouter.get("/traffic/suspicious", async (c) => {
+  const limit = Math.min(parseInt(c.req.query("limit") || "50") || 50, 200);
+  const offset = parseInt(c.req.query("offset") || "0") || 0;
+  const rows = await db
+    .select()
+    .from(trafficSuspicious)
+    .orderBy(desc(trafficSuspicious.createdAt))
+    .limit(limit)
+    .offset(offset);
+  const filtered = rows.filter((e) => !isInfraIp(e.ip));
+  return c.json({ events: filtered, total: filtered.length });
+});
+
+// ───── GET /admin/traffic/detailed-logs ─────
+adminRouter.get("/traffic/detailed-logs", async (c) => {
+  const limit = Math.min(parseInt(c.req.query("limit") || "200") || 200, 500);
+  const start = todayStartUtc();
+
+  const logs = await db
+    .select()
+    .from(trafficLogs)
+    .where(gte(trafficLogs.createdAt, start))
+    .orderBy(desc(trafficLogs.createdAt))
+    .limit(limit);
+
+  const threats = await db
+    .select()
+    .from(trafficSuspicious)
+    .where(gte(trafficSuspicious.createdAt, start))
+    .orderBy(desc(trafficSuspicious.createdAt))
+    .limit(limit);
+
+  type Entry = {
+    _type: "request" | "threat";
+    id: string;
+    ip: string;
+    timestamp: string;
+    method: string;
+    path: string;
+    status_code: number;
+    user_agent: string;
+    country: string;
+    city: string;
+    is_vpn: boolean;
+    vpn_provider: string;
+    response_time_ms: number;
+    fingerprint_hash: string;
+    event: string | null;
+    severity: string | null;
+    details: string | null;
+    auto_blocked: boolean;
+  };
+
+  const entries: Entry[] = [];
+  for (const l of logs) {
+    if (isInfraIp(l.ip) || l.ip === "127.0.0.1" || l.ip === "::1") continue;
+    entries.push({
+      _type: "request",
+      id: `req_${l.id}`,
+      ip: l.ip,
+      timestamp: l.createdAt,
+      method: l.method,
+      path: l.path,
+      status_code: l.statusCode,
+      user_agent: l.userAgent,
+      country: l.country,
+      city: l.city,
+      is_vpn: l.isVpn,
+      vpn_provider: l.vpnProvider,
+      response_time_ms: l.responseTimeMs,
+      fingerprint_hash: l.fingerprintHash,
+      event: null,
+      severity: null,
+      details: null,
+      auto_blocked: false,
+    });
+  }
+  for (const t of threats) {
+    if (isInfraIp(t.ip)) continue;
+    entries.push({
+      _type: "threat",
+      id: `thr_${t.id}`,
+      ip: t.ip,
+      timestamp: t.createdAt,
+      method: "",
+      path: t.path,
+      status_code: 0,
+      user_agent: "",
+      country: t.country,
+      city: t.city,
+      is_vpn: t.isVpn,
+      vpn_provider: "",
+      response_time_ms: 0,
+      fingerprint_hash: t.fingerprintHash,
+      event: t.event,
+      severity: t.severity,
+      details: t.details,
+      auto_blocked: t.autoBlocked,
+    });
+  }
+  entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const trimmed = entries.slice(0, limit);
+
+  // Enrich entries without fingerprint by looking up trafficDeviceIps
+  const missingIps = new Set(trimmed.filter((e) => e.ip && !e.fingerprint_hash).map((e) => e.ip));
+  if (missingIps.size > 0) {
+    try {
+      const ipFp = await db
+        .select({ ip: trafficDeviceIps.ip, fp: trafficDeviceIps.fingerprintHash })
+        .from(trafficDeviceIps)
+        .where(inArray(trafficDeviceIps.ip, Array.from(missingIps)))
+        .orderBy(desc(trafficDeviceIps.lastSeenAt));
+      const map = new Map<string, string>();
+      for (const r of ipFp) if (!map.has(r.ip)) map.set(r.ip, r.fp);
+      for (const e of trimmed) {
+        if (!e.fingerprint_hash && map.has(e.ip)) e.fingerprint_hash = map.get(e.ip)!;
+      }
+    } catch {}
+  }
+
+  return c.json({ entries: trimmed, total: trimmed.length });
+});
+
+// ───── GET /admin/traffic/blocked ─────
+adminRouter.get("/traffic/blocked", async (c) => {
+  const blockedIpsRows = await db
+    .select()
+    .from(trafficBlockedIps)
+    .orderBy(desc(trafficBlockedIps.createdAt));
+  const blockedDevRows = await db
+    .select()
+    .from(trafficBlockedDevices)
+    .orderBy(desc(trafficBlockedDevices.createdAt));
+
+  const devices = blockedDevRows.map((d) => {
+    let associatedIps: string[] = [];
+    let components: Record<string, unknown> = {};
+    try { associatedIps = JSON.parse(d.associatedIps || "[]"); } catch {}
+    try { components = JSON.parse(d.components || "{}"); } catch {}
+    return {
+      id: d.id,
+      fingerprint_hash: d.fingerprintHash,
+      reason: d.reason,
+      blocked_by: d.blockedBy,
+      components,
+      associated_ips: associatedIps,
+      ip_details: associatedIps.map((ip) => ({ ip, is_vpn: false })),
+      created_at: d.createdAt,
+    };
+  });
+
+  // Enrich ip_details with VPN cache
+  const allIps = new Set<string>();
+  for (const d of devices) for (const ip of d.associated_ips) allIps.add(ip);
+  if (allIps.size > 0) {
+    try {
+      const cache = await db
+        .select({ ip: trafficVpnCache.ip, isVpn: trafficVpnCache.isVpn })
+        .from(trafficVpnCache)
+        .where(inArray(trafficVpnCache.ip, Array.from(allIps)));
+      const map = new Map(cache.map((r) => [r.ip, r.isVpn]));
+      for (const d of devices) {
+        d.ip_details = d.associated_ips.map((ip) => ({ ip, is_vpn: !!map.get(ip) }));
+      }
+    } catch {}
+  }
+
+  const ips = blockedIpsRows.map((b) => ({
+    id: b.id,
+    ip: b.ip,
+    reason: b.reason,
+    blocked_by: b.blockedBy,
+    request_count: b.requestCount,
+    country: b.country,
+    is_vpn: b.isVpn,
+    log_snapshot: b.logSnapshot,
+    created_at: b.createdAt,
+  }));
+
+  return c.json({ blocked: ips, blocked_devices: devices });
+});
+
+// ───── POST /admin/traffic/block-ip ─────
+adminRouter.post("/traffic/block-ip", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { ip?: string; reason?: string };
+  if (!body.ip) return c.json({ error: "ip required" }, 400);
+  const svc = trafficService();
+  await svc.init();
+  if (svc.isAdminIp(body.ip)) {
+    return c.json(
+      { detail: `IP ${body.ip} pertence a um administrador e não pode ser bloqueado` },
+      403
+    );
+  }
+  await svc.blockIp(body.ip, body.reason || "Bloqueio manual", "admin");
+  return c.json({ success: true, message: `IP ${body.ip} bloqueado` });
+});
+
+// ───── POST /admin/traffic/unblock-ip ─────
+adminRouter.post("/traffic/unblock-ip", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { ip?: string };
+  if (!body.ip) return c.json({ error: "ip required" }, 400);
+  await trafficService().unblockIp(body.ip);
+  return c.json({ success: true, message: `IP ${body.ip} desbloqueado` });
+});
+
+// ───── POST /admin/traffic/block-device ─────
+adminRouter.post("/traffic/block-device", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    fingerprint_hash?: string;
+    reason?: string;
+  };
+  if (!body.fingerprint_hash) return c.json({ error: "fingerprint_hash required" }, 400);
+  const svc = trafficService();
+  await svc.init();
+  try {
+    await svc.blockDevice(body.fingerprint_hash, body.reason ?? "", "admin");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "block failed";
+    return c.json({ detail: msg }, 403);
+  }
+  return c.json({
+    success: true,
+    message: `Device ${body.fingerprint_hash.slice(0, 12)}... bloqueado`,
+  });
+});
+
+// ───── POST /admin/traffic/unblock-device ─────
+adminRouter.post("/traffic/unblock-device", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { fingerprint_hash?: string };
+  if (!body.fingerprint_hash) return c.json({ error: "fingerprint_hash required" }, 400);
+  await trafficService().unblockDevice(body.fingerprint_hash);
+  return c.json({
+    success: true,
+    message: `Device ${body.fingerprint_hash.slice(0, 12)}... desbloqueado`,
+  });
+});
+
+// ───── POST /admin/traffic/update-device-reason ─────
+adminRouter.post("/traffic/update-device-reason", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    fingerprint_hash?: string;
+    reason?: string;
+  };
+  if (!body.fingerprint_hash) return c.json({ error: "fingerprint_hash required" }, 400);
+  await trafficService().updateDeviceReason(body.fingerprint_hash, body.reason ?? "");
+  return c.json({ success: true });
+});
+
+// ───── GET /admin/traffic/chart-data ─────
+adminRouter.get("/traffic/chart-data", async (c) => {
+  const start = todayStartUtc();
+
+  const logs = await db
+    .select({
+      createdAt: trafficLogs.createdAt,
+      country: trafficLogs.country,
+      isVpn: trafficLogs.isVpn,
+      method: trafficLogs.method,
+      ip: trafficLogs.ip,
+    })
+    .from(trafficLogs)
+    .where(gte(trafficLogs.createdAt, start))
+    .orderBy(asc(trafficLogs.createdAt))
+    .limit(5000);
+
+  const threats = await db
+    .select({
+      createdAt: trafficSuspicious.createdAt,
+      event: trafficSuspicious.event,
+      severity: trafficSuspicious.severity,
+      ip: trafficSuspicious.ip,
+    })
+    .from(trafficSuspicious)
+    .where(gte(trafficSuspicious.createdAt, start))
+    .orderBy(asc(trafficSuspicious.createdAt))
+    .limit(2000);
+
+  const recentBlocks = await db
+    .select({ id: trafficBlockedDevices.id })
+    .from(trafficBlockedDevices)
+    .orderBy(desc(trafficBlockedDevices.createdAt))
+    .limit(30);
+
+  const hourly = new Array(24).fill(0);
+  for (const l of logs) {
+    const h = parseInt(l.createdAt.slice(11, 13), 10);
+    if (Number.isFinite(h)) hourly[h] += 1;
+  }
+  const threatsHourly = new Array(24).fill(0);
+  for (const t of threats) {
+    const h = parseInt(t.createdAt.slice(11, 13), 10);
+    if (Number.isFinite(h)) threatsHourly[h] += 1;
+  }
+  const threatTypes = new Map<string, number>();
+  for (const t of threats) {
+    threatTypes.set(t.event, (threatTypes.get(t.event) ?? 0) + 1);
+  }
+  const countries = new Map<string, number>();
+  for (const l of logs) {
+    const k = l.country || "Desconhecido";
+    countries.set(k, (countries.get(k) ?? 0) + 1);
+  }
+  let vpn = 0;
+  for (const l of logs) if (l.isVpn) vpn += 1;
+  const uniqueIps = new Set(logs.filter((l) => l.ip && !isInfraIp(l.ip)).map((l) => l.ip)).size;
+  const methods = new Map<string, number>();
+  for (const l of logs) methods.set(l.method, (methods.get(l.method) ?? 0) + 1);
+
+  return c.json({
+    hourly_requests: hourly.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, requests: v })),
+    hourly_threats: threatsHourly.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, threats: v })),
+    threat_distribution: Array.from(threatTypes.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count })),
+    top_countries: Array.from(countries.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([country, requests]) => ({ country, requests })),
+    vpn_stats: { vpn, direct: logs.length - vpn },
+    methods: Array.from(methods.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([method, count]) => ({ method, count })),
+    unique_ips_today: uniqueIps,
+    total_requests_today: logs.length,
+    total_threats_today: threats.length,
+    recent_blocks: recentBlocks.length,
+  });
+});
+
+// ───── Reports — aggregate helper ─────
+async function aggregatePeriod(periodStart: string, periodEnd: string) {
+  const logs = await db
+    .select()
+    .from(trafficLogs)
+    .where(and(gte(trafficLogs.createdAt, periodStart), lt(trafficLogs.createdAt, periodEnd)))
+    .orderBy(asc(trafficLogs.createdAt))
+    .limit(50_000);
+  const threats = await db
+    .select()
+    .from(trafficSuspicious)
+    .where(and(gte(trafficSuspicious.createdAt, periodStart), lt(trafficSuspicious.createdAt, periodEnd)))
+    .orderBy(asc(trafficSuspicious.createdAt))
+    .limit(50_000);
+  const blocks = await db
+    .select({ id: trafficBlockedDevices.id })
+    .from(trafficBlockedDevices)
+    .where(and(gte(trafficBlockedDevices.createdAt, periodStart), lt(trafficBlockedDevices.createdAt, periodEnd)))
+    .limit(5_000);
+
+  const hourly = new Array(24).fill(0);
+  for (const l of logs) {
+    const h = parseInt(l.createdAt.slice(11, 13), 10);
+    if (Number.isFinite(h)) hourly[h] += 1;
+  }
+  const threatsHourly = new Array(24).fill(0);
+  for (const t of threats) {
+    const h = parseInt(t.createdAt.slice(11, 13), 10);
+    if (Number.isFinite(h)) threatsHourly[h] += 1;
+  }
+  const threatTypes = new Map<string, number>();
+  for (const t of threats) threatTypes.set(t.event, (threatTypes.get(t.event) ?? 0) + 1);
+  const countries = new Map<string, number>();
+  for (const l of logs) countries.set(l.country || "Desconhecido", (countries.get(l.country || "Desconhecido") ?? 0) + 1);
+  let vpn = 0;
+  for (const l of logs) if (l.isVpn) vpn += 1;
+  const methods = new Map<string, number>();
+  for (const l of logs) methods.set(l.method, (methods.get(l.method) ?? 0) + 1);
+  const daily = new Map<string, number>();
+  for (const l of logs) {
+    const d = l.createdAt.slice(0, 10);
+    daily.set(d, (daily.get(d) ?? 0) + 1);
+  }
+  const paths = new Map<string, number>();
+  for (const l of logs) paths.set(l.path, (paths.get(l.path) ?? 0) + 1);
+  const uniqueIps = new Set(logs.map((l) => l.ip)).size;
+
+  return {
+    hourly_requests: hourly.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, requests: v })),
+    hourly_threats: threatsHourly.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, threats: v })),
+    threat_distribution: Array.from(threatTypes.entries()).sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count })),
+    top_countries: Array.from(countries.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([country, requests]) => ({ country, requests })),
+    vpn_stats: { vpn, direct: logs.length - vpn },
+    methods: Array.from(methods.entries()).sort((a, b) => b[1] - a[1]).map(([method, count]) => ({ method, count })),
+    unique_ips: uniqueIps,
+    total_requests: logs.length,
+    total_threats: threats.length,
+    total_blocks: blocks.length,
+    daily_requests: Array.from(daily.entries()).sort().map(([date, requests]) => ({ date, requests })),
+    top_paths: Array.from(paths.entries()).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([path, count]) => ({ path, count })),
+  };
+}
+
+function generateReportMarkdown(title: string, period: string, data: Awaited<ReturnType<typeof aggregatePeriod>>) {
+  const lines: string[] = [
+    `# ${title}`,
+    `**Período:** ${period}`,
+    `**Gerado em:** ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    "",
+    "---",
+    "",
+    "## Resumo",
+    "",
+    `| Métrica | Valor |`,
+    `|---------|-------|`,
+    `| Total de Requests | ${data.total_requests} |`,
+    `| IPs Únicos | ${data.unique_ips} |`,
+    `| Total de Ameaças | ${data.total_threats} |`,
+    `| Dispositivos Bloqueados | ${data.total_blocks} |`,
+    `| Conexões VPN | ${data.vpn_stats.vpn} |`,
+    `| Conexões Diretas | ${data.vpn_stats.direct} |`,
+    "",
+    "## Top Países",
+    "",
+    "| País | Requests |",
+    "|------|----------|",
+    ...data.top_countries.map((c) => `| ${c.country} | ${c.requests} |`),
+    "",
+    "## Distribuição de Ameaças",
+    "",
+    "| Tipo | Ocorrências |",
+    "|------|-------------|",
+    ...(data.threat_distribution.length
+      ? data.threat_distribution.map((t) => `| ${t.type} | ${t.count} |`)
+      : ["| Nenhuma ameaça registada | 0 |"]),
+    "",
+    "## Métodos HTTP",
+    "",
+    "| Método | Contagem |",
+    "|--------|----------|",
+    ...data.methods.map((m) => `| ${m.method} | ${m.count} |`),
+    "",
+    "## Top Endpoints",
+    "",
+    "| Path | Requests |",
+    "|------|----------|",
+    ...data.top_paths.map((p) => `| ${p.path} | ${p.count} |`),
+    "",
+    "## Requests por Dia",
+    "",
+    "| Data | Requests |",
+    "|------|----------|",
+    ...data.daily_requests.map((d) => `| ${d.date} | ${d.requests} |`),
+    "",
+    "---",
+    "*Lunark Traffic Report — gerado automaticamente*",
+  ];
+  return lines.join("\n");
+}
+
+// ───── GET /admin/traffic/reports ─────
+adminRouter.get("/traffic/reports", async (c) => {
+  const rows = await db
+    .select({
+      id: trafficReports.id,
+      type: trafficReports.type,
+      period: trafficReports.period,
+      title: trafficReports.title,
+      createdAt: trafficReports.createdAt,
+    })
+    .from(trafficReports)
+    .orderBy(desc(trafficReports.period));
+  return c.json({
+    reports: rows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      period: r.period,
+      title: r.title,
+      created_at: r.createdAt,
+    })),
+  });
+});
+
+// ───── GET /admin/traffic/reports/:period ─────
+adminRouter.get("/traffic/reports/:period", async (c) => {
+  const period = c.req.param("period");
+  const row = await db
+    .select()
+    .from(trafficReports)
+    .where(eq(trafficReports.period, period))
+    .limit(1)
+    .get();
+  if (!row) return c.json({ error: "Relatório não encontrado" }, 404);
+  let data: unknown = {};
+  try { data = JSON.parse(row.data || "{}"); } catch {}
+  return c.json({
+    id: row.id,
+    type: row.type,
+    period: row.period,
+    title: row.title,
+    markdown: row.markdown,
+    data,
+    created_at: row.createdAt,
+  });
+});
+
+// ───── GET /admin/traffic/reports/:period/download ─────
+adminRouter.get("/traffic/reports/:period/download", async (c) => {
+  const period = c.req.param("period");
+  const row = await db
+    .select({ markdown: trafficReports.markdown })
+    .from(trafficReports)
+    .where(eq(trafficReports.period, period))
+    .limit(1)
+    .get();
+  if (!row) return c.json({ error: "Relatório não encontrado" }, 404);
+  const filename = `relatorio_${period.replace("-", "_")}.md`;
+  return new Response(row.markdown, {
+    headers: {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+});
+
+// ───── POST /admin/traffic/reports/generate-current ─────
+adminRouter.post("/traffic/reports/generate-current", async (c) => {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const period = `${year}-${String(month).padStart(2, "0")}`;
+  const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString().replace("T", " ").slice(0, 19);
+  const monthEnd = now.toISOString().replace("T", " ").slice(0, 19);
+  const title = `Relatório ${MONTH_NAMES_PT[month]} ${year}`;
+  const data = await aggregatePeriod(monthStart, monthEnd);
+  const md = generateReportMarkdown(`${title} (A decorrer)`, period, data);
+
+  try {
+    await db
+      .insert(trafficReports)
+      .values({
+        type: "monthly",
+        period,
+        title,
+        markdown: md,
+        data: JSON.stringify(data),
+      })
+      .onConflictDoUpdate({
+        target: trafficReports.period,
+        set: { title, markdown: md, data: JSON.stringify(data) },
+      });
+  } catch (err) {
+    return c.json({ ok: false, error: err instanceof Error ? err.message : "save failed" }, 500);
+  }
+  return c.json({ ok: true, period, title });
+});
+
+// ───── DELETE /admin/traffic/clear-old-logs ─────
+adminRouter.delete("/traffic/clear-old-logs", async (c) => {
+  const start = todayStartUtc();
+  await db.delete(trafficLogs).where(lt(trafficLogs.createdAt, start));
+  await db.delete(trafficSuspicious).where(lt(trafficSuspicious.createdAt, start));
+  return c.json({ ok: true });
+});
+
 export { adminRouter };
