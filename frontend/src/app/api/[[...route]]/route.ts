@@ -18,9 +18,11 @@ const honoHandle = handle(handler);
  */
 async function secureHandle(req: Request) {
   try {
-    let session: Awaited<ReturnType<typeof auth>> | null = null;
+    let session: { user?: { id?: string } } | null = null;
     try {
-      session = await auth();
+      // NextAuth `auth()` is overloaded (middleware/session). Cast to the no-arg
+      // session-fetch signature so TS doesn't pick the middleware overload.
+      session = await (auth as unknown as () => Promise<{ user?: { id?: string } } | null>)();
     } catch (authErr) {
       console.error("[api route] auth() threw", authErr);
       const msg = authErr instanceof Error ? authErr.message : "auth failed";
