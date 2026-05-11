@@ -27,6 +27,16 @@ app.use(
   })
 );
 
+// Global error handler — surfaces real error message instead of bare HTTP 500.
+// Without this, any uncaught throw inside a route or middleware returns an
+// opaque "Internal Server Error" with no useful info on the client.
+app.onError((err, c) => {
+  console.error("[hono onError]", err);
+  const message = err instanceof Error ? err.message : "internal error";
+  const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined;
+  return c.json({ error: message, stack }, 500);
+});
+
 app.get("/", (c) => c.json({ name: "Lunark API", version: "0.1.0" }));
 
 app.get("/health", async (c) => {

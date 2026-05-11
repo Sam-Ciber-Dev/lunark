@@ -9,11 +9,18 @@ export async function requireAdmin(c: Context, next: Next) {
     return c.json({ error: "Não autenticado" }, 401);
   }
 
-  const user = await db
-    .select({ role: users.role })
-    .from(users)
-    .where(eq(users.id, userId))
-    .get();
+  let user: { role: string | null } | undefined;
+  try {
+    user = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+  } catch (err) {
+    console.error("[requireAdmin] DB lookup failed", err);
+    const msg = err instanceof Error ? err.message : "db error";
+    return c.json({ error: `admin gate db error: ${msg}` }, 500);
+  }
 
   if (!user || user.role !== "admin") {
     return c.json({ error: "Acesso negado" }, 403);
