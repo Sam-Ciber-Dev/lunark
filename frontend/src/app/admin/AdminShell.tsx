@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   BarChart2,
   Globe,
@@ -16,6 +15,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   TrendingUp,
+  ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -29,23 +29,12 @@ interface Stats {
   categories: number;
 }
 
-type TabId =
-  | "insert-product"
-  | "most-carted"
-  | "most-wishlisted"
-  | "most-ordered"
-  | "news"
-  | "support"
-  | "visits"
-  | "security"
-  | "chat";
-
 interface TabDef {
-  id: TabId;
+  id: string;
   href: string;
+  label: string;
   icon: React.ElementType;
   gradient: string;
-  matchPrefix?: string;
 }
 
 /* ─── Stats overview ─── */
@@ -69,7 +58,10 @@ function StatsOverview({ userId }: { userId: string }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map(({ label, value, icon: Icon }) => (
-        <div key={label} className="rounded-xl border border-border bg-card p-4">
+        <div
+          key={label}
+          className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30"
+        >
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">{label}</span>
@@ -81,71 +73,76 @@ function StatsOverview({ userId }: { userId: string }) {
   );
 }
 
-/* ─── Tab card ─── */
+/* ─── Tab card (animated, professional) ─── */
 function TabCard({
   href,
   label,
   icon: Icon,
   gradient,
-  active,
+  index,
 }: {
   href: string;
   label: string;
   icon: React.ElementType;
   gradient: string;
-  active: boolean;
+  index: number;
 }) {
   return (
     <Link
       href={href}
+      style={{ animationDelay: `${index * 40}ms` }}
       className={cn(
-        "group flex flex-col items-center gap-3 rounded-2xl border p-5 transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97]",
-        active
-          ? "border-primary/50 bg-card shadow-[0_0_20px_rgba(var(--primary)/0.15)]"
-          : "border-border bg-card hover:border-primary/30"
+        "group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl border border-border bg-card p-5",
+        "transition-all duration-300 ease-out will-change-transform",
+        "hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.35)]",
+        "active:scale-[0.97] active:duration-75",
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:fill-mode-both motion-safe:duration-500"
       )}
     >
+      {/* Gradient glow on hover */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-0 -z-10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-30",
+          gradient
+        )}
+      />
+
+      {/* Arrow indicator */}
+      <ArrowUpRight
+        aria-hidden
+        className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/40 opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary group-hover:opacity-100"
+      />
+
+      {/* Icon bubble */}
       <div
         className={cn(
-          "flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-200",
+          "flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300",
           gradient,
-          active ? "shadow-lg" : "group-hover:shadow-md"
+          "shadow-md group-hover:shadow-xl group-hover:scale-105"
         )}
       >
-        <Icon className="h-7 w-7 text-white drop-shadow" />
+        <Icon className="h-7 w-7 text-white drop-shadow transition-transform duration-300 group-hover:scale-110" />
       </div>
-      <span
-        className={cn(
-          "text-xs font-semibold tracking-wide transition-colors duration-200",
-          active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-        )}
-      >
+
+      <span className="text-center text-xs font-semibold tracking-wide text-muted-foreground transition-colors duration-200 group-hover:text-foreground">
         {label}
       </span>
     </Link>
   );
 }
 
-/* ─── Shell ─── */
-export default function AdminShell({
-  userId,
-  children,
-}: {
-  userId: string;
-  children: React.ReactNode;
-}) {
+/* ─── Shell (hub view at /admin) ─── */
+export default function AdminShell({ userId }: { userId: string }) {
   const { locale } = useI18n();
-  const pathname = usePathname() ?? "";
 
-  const tabs: (TabDef & { label: string })[] = [
+  const tabs: TabDef[] = [
     {
       id: "insert-product",
       href: "/admin/products/new",
       label: locale === "pt" ? "Inserir Produto" : "Add Product",
       icon: Plus,
       gradient: "bg-gradient-to-br from-amber-500/80 to-yellow-600/80",
-      matchPrefix: "/admin/products",
     },
     {
       id: "most-carted",
@@ -205,45 +202,31 @@ export default function AdminShell({
     },
   ];
 
-  const isActive = (tab: TabDef) => {
-    if (tab.matchPrefix) return pathname.startsWith(tab.matchPrefix);
-    return pathname === tab.href || pathname.startsWith(tab.href + "/");
-  };
-
-  const activeTab = tabs.find(isActive);
-
   return (
     <div>
       <div className="mb-8">
-        <h1 className="mb-4 text-xl font-semibold tracking-tight">
+        <h1 className="mb-1 text-xl font-semibold tracking-tight">
           {locale === "pt" ? "Painel de Administração" : "Admin Panel"}
         </h1>
+        <p className="mb-4 text-xs text-muted-foreground">
+          {locale === "pt"
+            ? "Escolhe uma das áreas para gerir a tua loja."
+            : "Pick an area to manage your store."}
+        </p>
         <StatsOverview userId={userId} />
       </div>
 
-      <div className="mb-8 grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
-        {tabs.map((tab) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {tabs.map((tab, i) => (
           <TabCard
             key={tab.id}
+            index={i}
             href={tab.href}
             label={tab.label}
             icon={tab.icon}
             gradient={tab.gradient}
-            active={isActive(tab)}
           />
         ))}
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-6">
-        {activeTab && (
-          <div className="mb-6 flex items-center gap-3 border-b border-border pb-5">
-            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", activeTab.gradient)}>
-              <activeTab.icon className="h-4 w-4 text-white" />
-            </div>
-            <h2 className="text-base font-semibold">{activeTab.label}</h2>
-          </div>
-        )}
-        {children}
       </div>
     </div>
   );

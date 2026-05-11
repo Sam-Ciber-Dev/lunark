@@ -1,12 +1,15 @@
-import { auth } from "@/lib/auth";
-import AdminShell from "../AdminShell";
+import { Newspaper } from "lucide-react";
+import AdminSubPage from "../_components/AdminSubPage";
 import ComingSoon from "../_components/ComingSoon";
 
-export default async function NewsPage() {
-  const session = await auth();
+export default function NewsPage() {
   return (
-    <AdminShell userId={session!.user.id}>
+    <AdminSubPage
+      label="Notícias"
+      icon={Newspaper}
+      gradient="bg-gradient-to-br from-sky-500/80 to-blue-600/80"
+    >
       <ComingSoon label="Notícias" />
-    </AdminShell>
+    </AdminSubPage>
   );
 }

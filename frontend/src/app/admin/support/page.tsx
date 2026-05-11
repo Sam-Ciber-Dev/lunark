@@ -1,12 +1,15 @@
-import { auth } from "@/lib/auth";
-import AdminShell from "../AdminShell";
+import { Headphones } from "lucide-react";
+import AdminSubPage from "../_components/AdminSubPage";
 import ComingSoon from "../_components/ComingSoon";
 
-export default async function SupportPage() {
-  const session = await auth();
+export default function SupportPage() {
   return (
-    <AdminShell userId={session!.user.id}>
+    <AdminSubPage
+      label="Apoio ao Cliente"
+      icon={Headphones}
+      gradient="bg-gradient-to-br from-orange-500/80 to-amber-600/80"
+    >
       <ComingSoon label="Apoio ao Cliente" />
-    </AdminShell>
+    </AdminSubPage>
   );
 }

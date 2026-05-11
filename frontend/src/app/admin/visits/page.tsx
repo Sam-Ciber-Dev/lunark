@@ -1,12 +1,15 @@
-import { auth } from "@/lib/auth";
-import AdminShell from "../AdminShell";
+import { BarChart2 } from "lucide-react";
+import AdminSubPage from "../_components/AdminSubPage";
 import ComingSoon from "../_components/ComingSoon";
 
-export default async function VisitsPage() {
-  const session = await auth();
+export default function VisitsPage() {
   return (
-    <AdminShell userId={session!.user.id}>
+    <AdminSubPage
+      label="Visitas"
+      icon={BarChart2}
+      gradient="bg-gradient-to-br from-cyan-500/80 to-teal-600/80"
+    >
       <ComingSoon label="Visitas ao Website" />
-    </AdminShell>
+    </AdminSubPage>
   );
 }

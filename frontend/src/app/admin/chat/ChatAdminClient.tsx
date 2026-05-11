@@ -88,12 +88,8 @@ export default function ChatAdminClient({ userId }: { userId: string }) {
 
   return (
     <div className="flex h-[calc(100vh-22rem)] min-h-[480px] flex-col">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Powered by Groq · llama-3.3-70b</span>
-        </div>
-        {messages.length > 0 && (
+      {messages.length > 0 && (
+        <div className="mb-3 flex items-center justify-end">
           <button
             onClick={clearHistory}
             className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -101,8 +97,8 @@ export default function ChatAdminClient({ userId }: { userId: string }) {
             <Trash2 className="h-3 w-3" />
             Limpar histórico
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Message list */}
       <div
@@ -110,13 +106,20 @@ export default function ChatAdminClient({ userId }: { userId: string }) {
         className="flex-1 space-y-4 overflow-y-auto rounded-xl border border-border bg-background/40 p-4"
       >
         {messages.length === 0 && !loading && (
-          <div className="flex h-full flex-col items-center justify-center text-center">
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-600/20">
               <Sparkles className="h-5 w-5 text-violet-400" />
             </div>
-            <p className="text-sm font-medium">Olá, admin.</p>
+            <p className="text-sm font-semibold">Sem mensagens</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Pergunta-me qualquer coisa sobre a tua loja.
+              Envia a primeira mensagem para começar a conversa.
+            </p>
+            <p className="mt-3 text-[11px] text-muted-foreground/80">
+              Experimenta escrever{" "}
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
+                @luny ola!
+              </span>{" "}
+              para falar com a IA.
             </p>
           </div>
         )}
