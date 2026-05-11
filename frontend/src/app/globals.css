@@ -40,6 +40,9 @@
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
+  /* Prevent off-screen fixed panels (e.g. admin Members slide-in) from
+     extending the page width and creating a horizontal scrollbar. */
+  overflow-x: clip;
 }
 
 /* Fade-in animation */

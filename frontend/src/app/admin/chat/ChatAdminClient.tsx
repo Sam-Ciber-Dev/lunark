@@ -138,8 +138,15 @@ export default function ChatAdminClient({ userId }: { userId: string }) {
         body: JSON.stringify({ content: text, attachments: pendingAttachments }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error ?? `HTTP ${res.status}`);
+        const raw = await res.text().catch(() => "");
+        let parsed: { error?: string } | null = null;
+        try {
+          parsed = raw ? (JSON.parse(raw) as { error?: string }) : null;
+        } catch {
+          /* not JSON */
+        }
+        const detail = parsed?.error ?? (raw ? raw.slice(0, 200) : `HTTP ${res.status}`);
+        throw new Error(detail);
       }
       const data = (await res.json()) as { data: ChatMessage[] };
       setMessages((prev) => {
