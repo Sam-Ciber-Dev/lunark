@@ -17,18 +17,38 @@ const honoHandle = handle(handler);
  * This ensures the Hono backend always receives a trustworthy user identity.
  */
 async function secureHandle(req: Request) {
-  const session = await auth();
+  try {
+    let session: Awaited<ReturnType<typeof auth>> | null = null;
+    try {
+      session = await auth();
+    } catch (authErr) {
+      console.error("[api route] auth() threw", authErr);
+      const msg = authErr instanceof Error ? authErr.message : "auth failed";
+      return new Response(JSON.stringify({ error: `auth error: ${msg}` }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-  const headers = new Headers(req.headers);
-  // Always remove client-supplied identity — cannot be trusted
-  headers.delete("x-user-id");
-  // Only inject after server-side session verification
-  if (session?.user?.id) {
-    headers.set("x-user-id", session.user.id);
+    const headers = new Headers(req.headers);
+    // Always remove client-supplied identity — cannot be trusted
+    headers.delete("x-user-id");
+    // Only inject after server-side session verification
+    if (session?.user?.id) {
+      headers.set("x-user-id", session.user.id);
+    }
+
+    const secureReq = new Request(req, { headers });
+    return honoHandle(secureReq);
+  } catch (err) {
+    console.error("[api route] secureHandle threw", err);
+    const msg = err instanceof Error ? err.message : "internal error";
+    const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 4).join(" | ") : undefined;
+    return new Response(JSON.stringify({ error: `route error: ${msg}`, stack }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
-
-  const secureReq = new Request(req, { headers });
-  return honoHandle(secureReq);
 }
 
 export const GET = secureHandle;
