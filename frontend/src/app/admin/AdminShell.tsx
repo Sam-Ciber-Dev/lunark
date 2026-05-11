@@ -3,18 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   BarChart2,
   Globe,
-  Heart,
-  Headphones,
-  MessageSquare,
-  Newspaper,
+  MessagesSquare,
   Package,
   Plus,
   ShieldCheck,
   ShoppingBag,
-  ShoppingCart,
-  TrendingUp,
   ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -145,46 +141,18 @@ export default function AdminShell({ userId }: { userId: string }) {
       gradient: "bg-gradient-to-br from-amber-500/80 to-yellow-600/80",
     },
     {
-      id: "most-carted",
-      href: "/admin/stats/most-carted",
-      label: locale === "pt" ? "Mais no Carrinho" : "Most Carted",
-      icon: ShoppingCart,
+      id: "atividade",
+      href: "/admin/atividade",
+      label: locale === "pt" ? "Atividade" : "Activity",
+      icon: Activity,
       gradient: "bg-gradient-to-br from-emerald-500/80 to-teal-600/80",
     },
     {
-      id: "most-wishlisted",
-      href: "/admin/stats/most-wishlisted",
-      label: locale === "pt" ? "Mais Desejados" : "Most Wishlisted",
-      icon: Heart,
-      gradient: "bg-gradient-to-br from-rose-500/80 to-pink-600/80",
-    },
-    {
-      id: "most-ordered",
-      href: "/admin/stats/most-ordered",
-      label: locale === "pt" ? "Mais Comprados" : "Most Ordered",
-      icon: TrendingUp,
-      gradient: "bg-gradient-to-br from-violet-500/80 to-purple-600/80",
-    },
-    {
-      id: "news",
-      href: "/admin/news",
-      label: locale === "pt" ? "Notícias" : "News",
-      icon: Newspaper,
+      id: "comunicacao",
+      href: "/admin/comunicacao",
+      label: locale === "pt" ? "Comunicação" : "Communication",
+      icon: MessagesSquare,
       gradient: "bg-gradient-to-br from-sky-500/80 to-blue-600/80",
-    },
-    {
-      id: "support",
-      href: "/admin/support",
-      label: locale === "pt" ? "Apoio ao Cliente" : "Support",
-      icon: Headphones,
-      gradient: "bg-gradient-to-br from-orange-500/80 to-amber-600/80",
-    },
-    {
-      id: "visits",
-      href: "/admin/visits",
-      label: locale === "pt" ? "Visitas" : "Visits",
-      icon: BarChart2,
-      gradient: "bg-gradient-to-br from-cyan-500/80 to-teal-600/80",
     },
     {
       id: "security",
@@ -192,13 +160,6 @@ export default function AdminShell({ userId }: { userId: string }) {
       label: locale === "pt" ? "Segurança" : "Security",
       icon: ShieldCheck,
       gradient: "bg-gradient-to-br from-red-500/80 to-rose-700/80",
-    },
-    {
-      id: "chat",
-      href: "/admin/chat",
-      label: "Chat Admin",
-      icon: MessageSquare,
-      gradient: "bg-gradient-to-br from-indigo-500/80 to-violet-600/80",
     },
   ];
 
@@ -216,7 +177,7 @@ export default function AdminShell({ userId }: { userId: string }) {
         <StatsOverview userId={userId} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tabs.map((tab, i) => (
           <TabCard
             key={tab.id}
