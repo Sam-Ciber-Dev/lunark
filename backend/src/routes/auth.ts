@@ -4,7 +4,7 @@ const { hash, compare } = bcryptjs;
 import { OAuth2Client } from "google-auth-library";
 import { eq, and, gt, lt, desc } from "drizzle-orm";
 import { db } from "../db";
-import { users, verificationCodes } from "../db/schema";
+import { users, verificationCodes, newsletterSubscribers, newsletterBannedEmails } from "../db/schema";
 import { registerSchema, loginSchema } from "@lunark/shared";
 import { rateLimit } from "../middleware/rate-limit";
 
@@ -13,6 +13,29 @@ const auth = new Hono();
 // Rate limit: 5 login attempts per 15 min, 3 register per 15 min
 auth.use("/login", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
 auth.use("/register", rateLimit({ limit: 3, windowMs: 15 * 60 * 1000 }));
+
+/**
+ * Auto-subscreve um utilizador recém-criado à newsletter, exceto se o email
+ * estiver banido. Idempotente — silenciosamente ignora duplicados.
+ */
+async function autoSubscribeNewUser(email: string): Promise<void> {
+  try {
+    const normalized = email.toLowerCase().trim();
+    const banned = await db
+      .select({ email: newsletterBannedEmails.email })
+      .from(newsletterBannedEmails)
+      .where(eq(newsletterBannedEmails.email, normalized))
+      .get();
+    if (banned) return;
+    await db.insert(newsletterSubscribers).values({
+      id: crypto.randomUUID(),
+      email: normalized,
+      locale: "pt",
+    }).onConflictDoNothing();
+  } catch (err) {
+    console.warn("[autoSubscribeNewUser] failed:", err);
+  }
+}
 auth.use("/send-code", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
 auth.use("/verify-code", rateLimit({ limit: 10, windowMs: 15 * 60 * 1000 }));
 auth.use("/forgot-password", rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 }));
@@ -135,6 +158,7 @@ auth.post("/register", async (c) => {
       emailVerified: true,
       role: isAdminEmail ? "admin" : "customer",
     });
+    await autoSubscribeNewUser(email);
     const assignedRole = isAdminEmail ? "admin" : "customer";
     return c.json({ id, name, email, role: assignedRole, image: googleImage, success: true });
   }
@@ -309,6 +333,7 @@ auth.post("/verify-code", async (c) => {
       emailVerified: true,
       role: isAdminEmail ? "admin" : "customer",
     });
+    await autoSubscribeNewUser(email);
 
     return c.json({
       id,

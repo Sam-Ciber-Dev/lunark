@@ -1506,11 +1506,18 @@ adminRouter.get("/traffic/detailed-logs", async (c) => {
     severity: string | null;
     details: string | null;
     auto_blocked: boolean;
+    is_admin: boolean;
   };
+
+  const svc = trafficService();
+  await svc.init();
 
   const entries: Entry[] = [];
   for (const l of logs) {
     if (isInfraIp(l.ip) || l.ip === "127.0.0.1" || l.ip === "::1") continue;
+    // Skip server-originated requests with no fingerprint — only visits /
+    // requests attributed to a real user device belong in detailed logs.
+    if (!l.fingerprintHash) continue;
     entries.push({
       _type: "request",
       id: `req_${l.id}`,
@@ -1530,10 +1537,14 @@ adminRouter.get("/traffic/detailed-logs", async (c) => {
       severity: null,
       details: null,
       auto_blocked: false,
+      is_admin: svc.isAdminFp(l.fingerprintHash) || svc.isAdminIp(l.ip),
     });
   }
   for (const t of threats) {
     if (isInfraIp(t.ip)) continue;
+    if (!t.fingerprintHash) continue;
+    // Skip threats attributed to admin devices/IPs — admins never generate threats.
+    if (svc.isAdminFp(t.fingerprintHash) || svc.isAdminIp(t.ip)) continue;
     entries.push({
       _type: "threat",
       id: `thr_${t.id}`,
@@ -1553,6 +1564,7 @@ adminRouter.get("/traffic/detailed-logs", async (c) => {
       severity: t.severity,
       details: t.details,
       auto_blocked: t.autoBlocked,
+      is_admin: false,
     });
   }
   entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));

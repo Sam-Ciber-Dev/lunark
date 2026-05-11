@@ -136,6 +136,75 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
     <div className="space-y-8">
       {/* ─── Form: Composer ─── */}
       <form onSubmit={submit} className="space-y-5">
+        {/* ─── Canais de envio ─── */}
+        <Section icon={Radio} title="Canais de envio" description="Selecione o canal através do qual a comunicação será entregue.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ChannelCard
+              icon={Mail}
+              label="Email"
+              status="Operacional via Brevo"
+              statusTone="success"
+              active={channel === "email"}
+              onClick={() => setChannel("email")}
+            />
+            <ChannelCard
+              icon={MessageCircle}
+              label="WhatsApp"
+              status="Em desenvolvimento"
+              statusTone="muted"
+              active={channel === "whatsapp"}
+              disabled
+              onClick={() => setChannel("whatsapp")}
+            />
+          </div>
+        </Section>
+
+        {/* ─── Tipo de Modo ─── */}
+        <Section icon={SlidersHorizontal} title="Tipo de Modo" description="Escolha entre um envio de validação ou difundir para todos os subscritores.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ModeCard
+              icon={Sparkles}
+              label="Modo Teste"
+              description="Envia apenas para o seu email de administrador."
+              active={mode === "test"}
+              onClick={() => setMode("test")}
+            />
+            <ModeCard
+              icon={Globe2}
+              label="Enviar Novidades"
+              description="Difunde para todos os subscritores ativos."
+              active={mode === "live"}
+              onClick={() => setMode("live")}
+            />
+          </div>
+        </Section>
+
+        {/* Live mode → locale filter */}
+        {mode === "live" && (
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Idioma dos destinatários
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {(["all", "pt", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLocaleFilter(l)}
+                  className={cn(
+                    "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                    localeFilter === l
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/30"
+                  )}
+                >
+                  {l === "all" ? "Todos" : l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="mb-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>Assunto</span>
@@ -220,75 +289,6 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
             </ul>
           )}
         </div>
-
-        {/* ─── Canais de envio ─── */}
-        <Section icon={Radio} title="Canais de envio" description="Selecione o canal através do qual a comunicação será entregue.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ChannelCard
-              icon={Mail}
-              label="Email"
-              status="Operacional via Brevo"
-              statusTone="success"
-              active={channel === "email"}
-              onClick={() => setChannel("email")}
-            />
-            <ChannelCard
-              icon={MessageCircle}
-              label="WhatsApp"
-              status="Em desenvolvimento"
-              statusTone="muted"
-              active={channel === "whatsapp"}
-              disabled
-              onClick={() => setChannel("whatsapp")}
-            />
-          </div>
-        </Section>
-
-        {/* ─── Tipo de Modo ─── */}
-        <Section icon={SlidersHorizontal} title="Tipo de Modo" description="Escolha entre um envio de validação ou difundir para todos os subscritores.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ModeCard
-              icon={Sparkles}
-              label="Modo Teste"
-              description="Envia apenas para o seu email de administrador."
-              active={mode === "test"}
-              onClick={() => setMode("test")}
-            />
-            <ModeCard
-              icon={Globe2}
-              label="Enviar Novidades"
-              description="Difunde para todos os subscritores ativos."
-              active={mode === "live"}
-              onClick={() => setMode("live")}
-            />
-          </div>
-        </Section>
-
-        {/* Live mode → locale filter */}
-        {mode === "live" && (
-          <div>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Idioma dos destinatários
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {(["all", "pt", "en"] as const).map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => setLocaleFilter(l)}
-                  className={cn(
-                    "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200",
-                    localeFilter === l
-                      ? "border-primary/60 bg-primary/10 text-foreground"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/30"
-                  )}
-                >
-                  {l === "all" ? "Todos" : l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {result && (
           <div

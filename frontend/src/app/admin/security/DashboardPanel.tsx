@@ -44,11 +44,11 @@ export default function DashboardPanel({ userId }: Props) {
   }, []);
 
   if (loading) {
-    return <div className="text-zinc-400 text-sm py-8 text-center">A carregar dashboard…</div>;
+    return <div className="text-muted-foreground text-sm py-8 text-center">A carregar dashboard…</div>;
   }
   if (err) {
     return (
-      <div className="rounded-lg border border-red-900/50 bg-red-950/30 p-4 text-sm text-red-300">
+      <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-4 text-sm text-rose-300">
         Erro: {err}
         <button onClick={refresh} className="ml-3 underline">Tentar novamente</button>
       </div>
@@ -70,19 +70,19 @@ export default function DashboardPanel({ userId }: Props) {
     <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Activity} label="Requests hoje" value={stats.requests_today} accent="from-red-500/30 to-rose-700/30" />
-        <StatCard icon={ShieldAlert} label="IPs activos (5 min)" value={stats.active_ips_5m} accent="from-orange-500/30 to-amber-700/30" />
-        <StatCard icon={AlertTriangle} label="Ameaças hoje" value={stats.suspicious_today} accent="from-yellow-500/30 to-orange-700/30" />
-        <StatCard icon={Ban} label="Bloqueados" value={stats.blocked_total} accent="from-rose-500/30 to-red-800/30" />
+        <StatCard icon={Activity} label="Requests hoje" value={stats.requests_today} accent="from-primary/25 to-rose-500/20" />
+        <StatCard icon={ShieldAlert} label="IPs activos (5 min)" value={stats.active_ips_5m} accent="from-orange-500/25 to-amber-700/20" />
+        <StatCard icon={AlertTriangle} label="Ameaças hoje" value={stats.suspicious_today} accent="from-yellow-500/25 to-orange-700/20" />
+        <StatCard icon={Ban} label="Bloqueados" value={stats.blocked_total} accent="from-rose-500/25 to-primary/20" />
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-xs text-zinc-500">
-          Refresh automático cada 15s · Únicos hoje: <span className="text-zinc-300">{chart.unique_ips_today}</span>
+        <div className="text-xs text-muted-foreground">
+          Refresh automático cada 15s · Únicos hoje: <span className="text-foreground">{chart.unique_ips_today}</span>
         </div>
         <button
           onClick={refresh}
-          className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/50 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-card/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
         >
           <RefreshCw className="h-3 w-3" /> Atualizar
         </button>
@@ -121,7 +121,7 @@ export default function DashboardPanel({ userId }: Props) {
 
         <ChartCard title="Distribuição de ameaças">
           {threatPie.length === 0 ? (
-            <div className="text-zinc-500 text-sm text-center py-12">Nenhuma ameaça hoje</div>
+            <div className="text-muted-foreground text-sm text-center py-12">Nenhuma ameaça hoje</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -181,19 +181,19 @@ function StatCard({ icon: Icon, label, value, accent }: {
   icon: typeof Activity; label: string; value: number; accent: string;
 }) {
   return (
-    <div className={`rounded-xl border border-zinc-800/80 bg-gradient-to-br ${accent} p-4`}>
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-zinc-300">
+    <div className={`rounded-xl border border-border bg-gradient-to-br ${accent} p-4`}>
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-foreground">
         <Icon className="h-4 w-4" /> {label}
       </div>
-      <div className="mt-1 text-2xl font-semibold text-white">{value.toLocaleString("pt-PT")}</div>
+      <div className="mt-1 text-2xl font-semibold text-foreground">{value.toLocaleString("pt-PT")}</div>
     </div>
   );
 }
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4">
-      <div className="mb-2 text-sm font-medium text-zinc-200">{title}</div>
+    <div className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="mb-2 text-sm font-medium text-foreground">{title}</div>
       {children}
     </div>
   );

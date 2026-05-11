@@ -155,12 +155,14 @@ export default function TrafficClient() {
     return () => clearInterval(id);
   }, []);
 
-  // Admin heartbeat every 20s on /admin/*
+  // Admin heartbeat: fires immediately whenever the user is authenticated as
+  // admin (independent of pathname) so the backend tags this IP+FP as admin
+  // ASAP — protecting it from any auto-block heuristic the moment we log in.
   useEffect(() => {
     if (status !== "authenticated") return;
     const userId = session?.user?.id;
-    if (!userId) return;
-    if (!pathname?.startsWith("/admin")) return;
+    const role = (session?.user as { role?: string } | undefined)?.role;
+    if (!userId || role !== "admin") return;
     const tick = () => {
       const fp = fpRef.current || localStorage.getItem(FP_KEY) || "";
       fetch(`${API_URL}/traffic/admin-heartbeat`, {
@@ -177,7 +179,7 @@ export default function TrafficClient() {
     tick();
     const id = setInterval(tick, 20_000);
     return () => clearInterval(id);
-  }, [status, session?.user?.id, pathname]);
+  }, [status, session?.user?.id, session?.user]);
 
   return null;
 }

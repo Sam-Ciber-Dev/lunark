@@ -161,6 +161,7 @@ export interface DetailedEntry {
   severity: string | null;
   details: string | null;
   auto_blocked: boolean;
+  is_admin: boolean;
 }
 
 export interface BlockedIp {

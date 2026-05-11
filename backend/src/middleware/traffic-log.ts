@@ -14,6 +14,9 @@
 
 import type { Context, Next } from "hono";
 import { trafficService, isInfraIp } from "../lib/traffic-service";
+import { db } from "../db";
+import { users } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 export function getClientIp(c: Context): string {
   const xff = c.req.header("x-forwarded-for");
@@ -36,6 +39,31 @@ export function getClientCity(c: Context): string {
   return c.req.header("x-vercel-ip-city") || "";
 }
 
+// ───── Cache role lookups so we can flag admin IPs/FPs instantly ─────
+const roleCache = new Map<string, { role: string; expiresAt: number }>();
+const ROLE_CACHE_TTL = 60_000;
+
+async function lookupRole(userId: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = roleCache.get(userId);
+  if (cached && cached.expiresAt > now) return cached.role;
+  try {
+    const row = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+    if (!row) return null;
+    roleCache.set(userId, { role: row.role, expiresAt: now + ROLE_CACHE_TTL });
+    if (roleCache.size > 5_000) {
+      for (const [k, v] of roleCache) if (v.expiresAt < now) roleCache.delete(k);
+    }
+    return row.role;
+  } catch {
+    return null;
+  }
+}
+
 export async function trafficLog(c: Context, next: Next) {
   const svc = trafficService();
   await svc.init();
@@ -46,8 +74,25 @@ export async function trafficLog(c: Context, next: Next) {
   const path = c.req.path;
   const method = c.req.method;
 
-  // ─── Hard block: IP / device / hardware ───
-  if (svc.isBlocked(ip) || svc.isDeviceBlocked(fp) || svc.isHardwareBlocked(hwfp)) {
+  // ─── Instant admin tagging: any authenticated admin request marks
+  // the IP+FP as admin BEFORE the block check runs. This means an
+  // administrator can never be auto-blocked even on the very first
+  // request after the backend cold-starts.
+  const userId = c.req.header("x-user-id");
+  if (userId) {
+    const role = await lookupRole(userId);
+    if (role === "admin") {
+      svc.registerAdminIp(ip);
+      if (fp) svc.registerAdminFp(fp);
+    }
+  }
+
+  // ─── Hard block: IP / device / hardware (admins are never blocked) ───
+  const isAdmin = svc.isAdminIp(ip) || svc.isAdminFp(fp);
+  if (
+    !isAdmin &&
+    (svc.isBlocked(ip) || svc.isDeviceBlocked(fp) || svc.isHardwareBlocked(hwfp))
+  ) {
     return c.json({ error: "Acesso bloqueado" }, 403);
   }
 

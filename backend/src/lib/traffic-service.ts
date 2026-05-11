@@ -88,6 +88,60 @@ export function isInfraIp(ip: string): boolean {
 
 const LOCALHOST = new Set(["127.0.0.1", "::1", "localhost", "unknown", ""]);
 
+// ───── VPN / hosting heuristic (used as fallback for the free ip-api tier) ─────
+// Matches against the ISP / Org / AS strings returned by ip-api. We look for
+// well-known consumer VPN brands plus the big cloud / datacenter providers
+// (because residential users almost never come from those AS ranges).
+const VPN_PROVIDER_PATTERNS: Array<{ re: RegExp; name: string }> = [
+  { re: /nordvpn|nord\s*vpn/i, name: "NordVPN" },
+  { re: /express\s*vpn/i, name: "ExpressVPN" },
+  { re: /surfshark/i, name: "Surfshark" },
+  { re: /mullvad/i, name: "Mullvad" },
+  { re: /proton\s*(vpn|ag)/i, name: "ProtonVPN" },
+  { re: /\bivpn\b/i, name: "IVPN" },
+  { re: /cyberghost/i, name: "CyberGhost" },
+  { re: /private\s*internet\s*access|\bpia\b/i, name: "Private Internet Access" },
+  { re: /hide\s*my\s*ass|\bhma\b/i, name: "HideMyAss" },
+  { re: /tunnelbear/i, name: "TunnelBear" },
+  { re: /hotspot\s*shield/i, name: "Hotspot Shield" },
+  { re: /windscribe/i, name: "Windscribe" },
+  { re: /vyprvpn/i, name: "VyprVPN" },
+  { re: /perfect\s*privacy/i, name: "Perfect Privacy" },
+  { re: /tor\s*(exit|network|project)/i, name: "Tor" },
+];
+const DATACENTER_PATTERNS: Array<{ re: RegExp; name: string }> = [
+  { re: /\bamazon\b|\baws\b|ec2/i, name: "Amazon AWS" },
+  { re: /microsoft|azure/i, name: "Microsoft Azure" },
+  { re: /google\s*(cloud|llc)|\bgcp\b/i, name: "Google Cloud" },
+  { re: /digital\s*ocean/i, name: "DigitalOcean" },
+  { re: /\blinode\b/i, name: "Linode" },
+  { re: /\bvultr\b/i, name: "Vultr" },
+  { re: /\bovh\b/i, name: "OVH" },
+  { re: /hetzner/i, name: "Hetzner" },
+  { re: /leaseweb/i, name: "Leaseweb" },
+  { re: /contabo/i, name: "Contabo" },
+  { re: /scaleway/i, name: "Scaleway" },
+  { re: /oracle\s*cloud/i, name: "Oracle Cloud" },
+  { re: /\bcloudflare\b/i, name: "Cloudflare" },
+  { re: /m247/i, name: "M247" },
+  { re: /datacamp/i, name: "DataCamp" },
+];
+
+export function classifyVpn(
+  isp?: string,
+  org?: string,
+  asStr?: string,
+): { isVpn: boolean; provider: string } {
+  const haystack = `${isp ?? ""} | ${org ?? ""} | ${asStr ?? ""}`;
+  for (const p of VPN_PROVIDER_PATTERNS) {
+    if (p.re.test(haystack)) return { isVpn: true, provider: p.name };
+  }
+  for (const p of DATACENTER_PATTERNS) {
+    if (p.re.test(haystack)) return { isVpn: true, provider: p.name };
+  }
+  return { isVpn: false, provider: "" };
+}
+
 // ───── Threat signatures (kept identical to EyeWeb) ─────
 export const SCANNER_AGENTS = [
   "nmap", "nikto", "sqlmap", "dirbuster", "gobuster",
@@ -563,6 +617,8 @@ class TrafficServiceImpl {
     const { ip, method, path, userAgent, geo, fingerprintHash } = args;
     if (isInfraIp(ip)) return;
     if (method === "PAGE") return;
+    // Administrators never trigger threat events.
+    if (this.isAdminIp(ip) || (fingerprintHash && this.isAdminFp(fingerprintHash))) return;
 
     type Evt = {
       event: string;
@@ -726,21 +782,36 @@ class TrafficServiceImpl {
       }
     } catch {}
     // External lookup: ip-api.com (free, 45 req/min/IP). Fire-and-forget cache on success.
+    // NB: the free tier does NOT include the `proxy`/`hosting` boolean fields
+    // (Pro-only), so we still request them but fall back to a heuristic based
+    // on the ISP / org / AS strings to detect VPNs and datacenter hosts.
     try {
       const r = await fetch(
-        `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,city,proxy,hosting,isp`,
+        `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,city,proxy,hosting,isp,org,as`,
         { signal: AbortSignal.timeout(3_000) }
       );
       if (r.ok) {
         const d = (await r.json()) as {
-          status?: string; country?: string; city?: string; proxy?: boolean; isp?: string;
+          status?: string;
+          country?: string;
+          city?: string;
+          proxy?: boolean;
+          hosting?: boolean;
+          isp?: string;
+          org?: string;
+          as?: string;
         };
         if (d.status === "success") {
+          const heur = classifyVpn(d.isp, d.org, d.as);
+          const isVpn = !!d.proxy || !!d.hosting || heur.isVpn;
+          const provider = isVpn
+            ? heur.provider || d.isp || d.org || ""
+            : "";
           const result: GeoResult = {
             country: d.country ?? "Desconhecido",
             city: d.city ?? "",
-            isVpn: !!d.proxy,
-            provider: d.proxy ? d.isp ?? "" : "",
+            isVpn,
+            provider,
           };
           this.geoCache.set(ip, result);
           try {

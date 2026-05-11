@@ -50,7 +50,7 @@ export default function SegurancaTabs({ userId }: Props) {
     <AdminTabbedSubPage
       label="Painel de Segurança"
       icon={ShieldCheck}
-      gradient="bg-gradient-to-br from-red-500/80 to-rose-700/80"
+      gradient="bg-gradient-to-br from-primary to-rose-500"
       tabs={tabs}
       bare
     />

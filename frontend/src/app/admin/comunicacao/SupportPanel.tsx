@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, Inbox, Send, Mail, Filter, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Inbox, Send, Mail, Loader2, CheckCircle2, XCircle, BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -45,27 +45,34 @@ export default function SupportPanel({ userId }: Props) {
 
   const refresh = useCallback(async () => {
     try {
-      const url = new URL(`${API_URL}/admin/support/tickets`);
-      // "new" is client-side (unread flag); "open"/"answered" go to the backend.
-      if (filter === "open" || filter === "answered") {
-        url.searchParams.set("status", filter);
-      }
-      const res = await fetch(url.toString(), { headers: { "x-user-id": userId } });
+      // Always fetch all tickets so we can compute filter counts client-side.
+      const res = await fetch(`${API_URL}/admin/support/tickets`, {
+        headers: { "x-user-id": userId },
+      });
       if (!res.ok) return;
       const data = (await res.json()) as { data: Ticket[] };
       setTickets(data.data);
     } finally {
       setLoading(false);
     }
-  }, [userId, filter]);
+  }, [userId]);
 
   useEffect(() => {
     setLoading(true);
     refresh();
   }, [refresh]);
 
+  // Counts for the filter pills (Respondidos não mostra badge).
+  const counts = {
+    all: tickets.length,
+    new: tickets.filter((t) => t.unread).length,
+    open: tickets.filter((t) => t.status === "open").length,
+  };
+
   const filtered = tickets.filter((t) => {
     if (filter === "new" && !t.unread) return false;
+    if (filter === "open" && t.status !== "open") return false;
+    if (filter === "answered" && t.status !== "answered") return false;
     if (
       search &&
       !`${t.senderName} ${t.senderEmail} ${t.subject} ${t.preview}`
@@ -82,6 +89,17 @@ export default function SupportPanel({ userId }: Props) {
     setTickets((list) => list.map((t) => (t.id === id ? { ...t, unread: false } : t)));
   }
 
+  async function ignoreTicket(id: string) {
+    // Marca como respondido sem enviar resposta (cliente carregou em "Ignorar").
+    await fetch(`${API_URL}/admin/support/tickets/${id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-user-id": userId },
+      body: JSON.stringify({ status: "answered" }),
+    });
+    if (activeId === id) setActiveId(null);
+    refresh();
+  }
+
   return (
     <div className="grid h-[calc(100vh-18rem)] min-h-[28rem] grid-cols-1 overflow-hidden rounded-xl border border-border sm:grid-cols-[280px_1fr]">
       {/* Sidebar */}
@@ -96,28 +114,44 @@ export default function SupportPanel({ userId }: Props) {
               className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2 text-xs outline-none focus:border-primary/60"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-1 text-[10px]">
-            <Filter className="h-3 w-3 text-muted-foreground" />
-            {(["all", "new", "open", "answered"] as const).map((k) => (
-              <button
-                key={k}
-                onClick={() => setFilter(k)}
-                className={cn(
-                  "rounded-full px-2 py-0.5 font-medium uppercase tracking-wider transition-colors",
-                  filter === k
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {k === "all"
-                  ? "Todos"
-                  : k === "new"
-                    ? "Novo"
-                    : k === "open"
-                      ? "Abertos"
-                      : "Respondidos"}
-              </button>
-            ))}
+          <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-[10px]">
+            {(
+              [
+                { k: "all", label: "Todos", count: counts.all },
+                { k: "new", label: "Novo", count: counts.new },
+                { k: "open", label: "Abertos", count: counts.open },
+                { k: "answered", label: "Respondidos", count: null },
+              ] as const
+            ).map(({ k, label, count }) => {
+              const isActive = filter === k;
+              const showBadge = count !== null && count > 0;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className={cn(
+                    "inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium uppercase tracking-wider transition-colors",
+                    isActive
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span>{label}</span>
+                  {showBadge && (
+                    <span
+                      className={cn(
+                        "inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-bold tabular-nums",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-rose-500/90 text-white"
+                      )}
+                    >
+                      {count > 99 ? "+99" : count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -136,7 +170,7 @@ export default function SupportPanel({ userId }: Props) {
           ) : (
             <ul>
               {filtered.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="relative group/item">
                   <button
                     onClick={() => {
                       setActiveId(t.id);
@@ -162,16 +196,29 @@ export default function SupportPanel({ userId }: Props) {
                     </div>
                     <p
                       className={cn(
-                        "truncate text-xs",
+                        "truncate pr-14 text-xs",
                         t.unread ? "font-medium" : "text-muted-foreground"
                       )}
                     >
                       {t.subject}
                     </p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">
+                    <p className="mt-0.5 truncate pr-14 text-[11px] text-muted-foreground/80">
                       {t.preview}
                     </p>
                   </button>
+                  {t.status === "open" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        ignoreTicket(t.id);
+                      }}
+                      title="Marcar como respondido sem responder"
+                      className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-md border border-border bg-card/80 px-1.5 py-0.5 text-[10px] text-muted-foreground opacity-0 transition-all hover:border-rose-500/50 hover:text-rose-300 group-hover/item:opacity-100"
+                    >
+                      <BellOff className="h-3 w-3" />
+                      <span>Ignorar</span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
