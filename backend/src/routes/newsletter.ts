@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { newsletterSubscribers } from "../db/schema";
+import { newsletterSubscribers, newsletterBannedEmails } from "../db/schema";
 import { rateLimit } from "../middleware/rate-limit";
 
 const newsletterRouter = new Hono();
@@ -21,6 +21,16 @@ newsletterRouter.post("/subscribe", async (c) => {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
     return c.json({ error: "Email inválido" }, 400);
+  }
+
+  // Banned check — silently refuse with a generic 403 to avoid leaking state.
+  const [banned] = await db
+    .select({ email: newsletterBannedEmails.email })
+    .from(newsletterBannedEmails)
+    .where(eq(newsletterBannedEmails.email, email))
+    .limit(1);
+  if (banned) {
+    return c.json({ error: "Não foi possível subscrever este email" }, 403);
   }
 
   const [existing] = await db

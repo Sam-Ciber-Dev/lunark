@@ -6,11 +6,19 @@ const FROM_EMAIL = process.env.BREVO_SENDER_EMAIL ?? "noreply@lunark.store";
 const FROM_NAME = "Lunark";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@lunark.store";
 
+interface BrevoAttachment {
+  /** File name shown in the recipient's mail client. */
+  name: string;
+  /** Base64-encoded file content (no data: prefix). */
+  content: string;
+}
+
 interface BrevoPayload {
   sender: { name: string; email: string };
   to: { email: string; name?: string }[];
   subject: string;
   htmlContent: string;
+  attachment?: BrevoAttachment[];
 }
 
 async function send(payload: BrevoPayload): Promise<boolean> {
@@ -167,7 +175,8 @@ interface BroadcastResult {
 export async function sendNewsletterBroadcast(
   recipients: { email: string; locale?: "pt" | "en" }[],
   subject: string,
-  htmlBody: string
+  htmlBody: string,
+  attachments?: BrevoAttachment[]
 ): Promise<BroadcastResult> {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
@@ -198,6 +207,7 @@ export async function sendNewsletterBroadcast(
           </p>
         </div>
       `,
+      ...(attachments && attachments.length > 0 ? { attachment: attachments } : {}),
     });
     if (ok) delivered++;
     else failed++;

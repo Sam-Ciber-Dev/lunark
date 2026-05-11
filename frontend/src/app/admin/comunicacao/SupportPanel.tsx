@@ -39,14 +39,17 @@ interface Props {
 export default function SupportPanel({ userId }: Props) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "open" | "answered">("all");
+  const [filter, setFilter] = useState<"all" | "new" | "open" | "answered">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
       const url = new URL(`${API_URL}/admin/support/tickets`);
-      if (filter !== "all") url.searchParams.set("status", filter);
+      // "new" is client-side (unread flag); "open"/"answered" go to the backend.
+      if (filter === "open" || filter === "answered") {
+        url.searchParams.set("status", filter);
+      }
       const res = await fetch(url.toString(), { headers: { "x-user-id": userId } });
       if (!res.ok) return;
       const data = (await res.json()) as { data: Ticket[] };
@@ -62,6 +65,7 @@ export default function SupportPanel({ userId }: Props) {
   }, [refresh]);
 
   const filtered = tickets.filter((t) => {
+    if (filter === "new" && !t.unread) return false;
     if (
       search &&
       !`${t.senderName} ${t.senderEmail} ${t.subject} ${t.preview}`
@@ -92,9 +96,9 @@ export default function SupportPanel({ userId }: Props) {
               className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2 text-xs outline-none focus:border-primary/60"
             />
           </div>
-          <div className="flex items-center gap-1 text-[10px]">
+          <div className="flex flex-wrap items-center gap-1 text-[10px]">
             <Filter className="h-3 w-3 text-muted-foreground" />
-            {(["all", "open", "answered"] as const).map((k) => (
+            {(["all", "new", "open", "answered"] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => setFilter(k)}
@@ -105,7 +109,13 @@ export default function SupportPanel({ userId }: Props) {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {k === "all" ? "Todos" : k === "open" ? "Abertos" : "Respondidos"}
+                {k === "all"
+                  ? "Todos"
+                  : k === "new"
+                    ? "Novo"
+                    : k === "open"
+                      ? "Abertos"
+                      : "Respondidos"}
               </button>
             ))}
           </div>

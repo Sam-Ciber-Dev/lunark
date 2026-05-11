@@ -349,3 +349,15 @@ export const supportMessages = sqliteTable("support_messages", {
     .notNull()
     .default(sql`(datetime('now'))`),
 });
+
+// ——————————————————————————————————————————————
+// Newsletter — Banned emails (anti-spam / opt-out enforcement)
+// ——————————————————————————————————————————————
+
+export const newsletterBannedEmails = sqliteTable("newsletter_banned_emails", {
+  email: text("email").primaryKey(),
+  reason: text("reason"),
+  bannedAt: text("banned_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});

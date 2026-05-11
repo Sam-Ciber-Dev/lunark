@@ -1,9 +1,10 @@
 "use client";
 
-import { MessagesSquare, Newspaper, Headphones, MessageSquare } from "lucide-react";
+import { MessagesSquare, Newspaper, Headphones, MessageSquare, Users } from "lucide-react";
 import AdminTabbedSubPage, { TabbedTab } from "../_components/AdminTabbedSubPage";
 import NoticiasPanel from "./NoticiasPanel";
 import SupportPanel from "./SupportPanel";
+import SubscritoresPanel from "./SubscritoresPanel";
 import ChatAdminClient from "../chat/ChatAdminClient";
 
 interface Props {
@@ -25,6 +26,12 @@ export default function ComunicacaoTabs({ userId, userName, userEmail }: Props) 
       label: "Apoio ao Cliente",
       icon: Headphones,
       content: <SupportPanel userId={userId} />,
+    },
+    {
+      key: "subscritores",
+      label: "Subscritores",
+      icon: Users,
+      content: <SubscritoresPanel userId={userId} />,
     },
     {
       key: "chat",

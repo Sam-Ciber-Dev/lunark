@@ -115,16 +115,17 @@ export default function AdminTabbedSubPage({
                 aria-selected={isActive}
                 onClick={() => setTab(tab.key)}
                 className={cn(
-                  "group inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-200 ease-out",
+                  "group inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-300 ease-out",
+                  "active:scale-[0.96]",
                   isActive
-                    ? "bg-gradient-to-br from-primary to-rose-500 text-white shadow-md"
-                    : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                    ? "bg-gradient-to-br from-primary to-rose-500 text-white shadow-md scale-[1.02]"
+                    : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground hover:scale-[1.02]"
                 )}
               >
                 <TabIcon
                   className={cn(
-                    "h-3.5 w-3.5 transition-transform duration-200",
-                    !isActive && "group-hover:scale-110"
+                    "h-3.5 w-3.5 transition-transform duration-300",
+                    isActive ? "scale-110" : "group-hover:scale-110 group-hover:rotate-6"
                   )}
                 />
                 <span className="whitespace-nowrap">{tab.label}</span>
@@ -134,12 +135,17 @@ export default function AdminTabbedSubPage({
         </div>
       </div>
 
-      {/* Active content */}
-      {bare ? (
-        active?.content
-      ) : (
-        <div className="rounded-2xl border border-border bg-card p-6">{active?.content}</div>
-      )}
+      {/* Active content — keyed so it re-fires the fade/slide on tab change */}
+      <div
+        key={active?.key}
+        className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300"
+      >
+        {bare ? (
+          active?.content
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-6">{active?.content}</div>
+        )}
+      </div>
     </div>
   );
 }

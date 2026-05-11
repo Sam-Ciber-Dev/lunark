@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Send, Mail, MessageCircle, Sparkles, Globe2, AlertTriangle, Users, Check, X } from "lucide-react";
+import { useState } from "react";
+import {
+  Send,
+  Mail,
+  MessageCircle,
+  Sparkles,
+  Globe2,
+  Check,
+  X,
+  Paperclip,
+  Radio,
+  SlidersHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-interface Channel {
-  key: "email" | "whatsapp";
-  label: string;
-  enabled: boolean;
-  description: string;
-  icon: React.ElementType;
-}
-
-interface SubscriberStats {
-  total: number;
-  byLocale: { pt: number; en: number };
-}
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5 MB per file (Brevo soft limit ~10 MB total)
 
 interface BroadcastResult {
   mode: "test" | "live";
@@ -25,6 +24,13 @@ interface BroadcastResult {
   delivered: number;
   failed: number;
   skipped: boolean;
+}
+
+interface Attachment {
+  name: string;
+  size: number;
+  /** base64 (no data: prefix) */
+  content: string;
 }
 
 interface Props {
@@ -35,46 +41,37 @@ interface Props {
 /**
  * Notícias / Broadcast composer. Sends a newsletter to subscribers collected
  * via the footer "Mantém-te Atualizado" widget. Email is delivered via Brevo
- * by the backend (POST /admin/news/broadcast). WhatsApp is intentionally
- * stubbed for now (no free providers).
+ * by the backend (POST /admin/news/broadcast).
  */
 export default function NoticiasPanel({ userId, adminEmail }: Props) {
   const [mode, setMode] = useState<"test" | "live">("test");
   const [localeFilter, setLocaleFilter] = useState<"all" | "pt" | "en">("all");
+  const [channel, setChannel] = useState<"email" | "whatsapp">("email");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [channels, setChannels] = useState<Channel[]>([
-    {
-      key: "email",
-      label: "Email",
-      enabled: true,
-      description: "Via Brevo. Funcional.",
-      icon: Mail,
-    },
-    {
-      key: "whatsapp",
-      label: "WhatsApp",
-      enabled: false,
-      description: "Sem provider gratuito disponível — em estudo.",
-      icon: MessageCircle,
-    },
-  ]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [pending, setPending] = useState(false);
-  const [stats, setStats] = useState<SubscriberStats | null>(null);
   const [result, setResult] = useState<BroadcastResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch(`${API_URL}/admin/news/subscribers`, {
-      headers: { "x-user-id": userId },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setStats)
-      .catch(() => {});
-  }, [userId]);
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-picking same file
 
-  function toggleChannel(key: Channel["key"]) {
-    setChannels((c) => c.map((ch) => (ch.key === key ? { ...ch, enabled: !ch.enabled } : ch)));
+    const next: Attachment[] = [];
+    for (const file of files) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setError(`Ficheiro "${file.name}" excede 5 MB.`);
+        continue;
+      }
+      const content = await fileToBase64(file);
+      next.push({ name: file.name, size: file.size, content });
+    }
+    setAttachments((a) => [...a, ...next].slice(0, 10));
+  }
+
+  function removeAttachment(idx: number) {
+    setAttachments((a) => a.filter((_, i) => i !== idx));
   }
 
   async function submit(e: React.FormEvent) {
@@ -83,10 +80,19 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
     setResult(null);
     setError(null);
 
+    if (channel !== "email") {
+      setError("Canal WhatsApp ainda não está disponível.");
+      setPending(false);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       subject: subject.trim(),
       body: body.trim(),
     };
+    if (attachments.length > 0) {
+      payload.attachments = attachments.map((a) => ({ name: a.name, content: a.content }));
+    }
     if (mode === "test") {
       payload.testEmail = adminEmail ?? "";
       if (!payload.testEmail) {
@@ -112,6 +118,7 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
         if (mode === "live") {
           setSubject("");
           setBody("");
+          setAttachments([]);
         }
       }
     } catch {
@@ -126,89 +133,9 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
   const canSend = subject.trim().length > 0 && body.trim().length > 0;
 
   return (
-    <div className="space-y-6">
-      {/* Subscriber stats */}
-      <div className="rounded-xl border border-border bg-card/60 p-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow">
-            <Users className="h-4 w-4" />
-          </span>
-          <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Subscritores ativos
-            </p>
-            <p className="text-lg font-bold tabular-nums">
-              {stats?.total ?? "—"}
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                PT {stats?.byLocale.pt ?? 0} · EN {stats?.byLocale.en ?? 0}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-      {/* Channel toggles */}
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Canais de envio
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {channels.map((ch) => {
-            const Icon = ch.icon;
-            const disabled = ch.key === "whatsapp";
-            return (
-              <button
-                key={ch.key}
-                type="button"
-                disabled={disabled}
-                onClick={() => toggleChannel(ch.key)}
-                className={cn(
-                  "group flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200",
-                  ch.enabled
-                    ? "border-primary/50 bg-primary/5"
-                    : "border-border bg-card hover:border-primary/30",
-                  disabled && "cursor-not-allowed opacity-60"
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                    ch.enabled
-                      ? "bg-gradient-to-br from-primary to-rose-500 text-white shadow"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{ch.label}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{ch.description}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mode (test vs live) */}
-      <div className="grid grid-cols-2 gap-2">
-        <ModeChip
-          label="Modo Teste"
-          description="Envia só para administradores"
-          active={mode === "test"}
-          onClick={() => setMode("test")}
-          icon={Sparkles}
-        />
-        <ModeChip
-          label="Enviar Novidades"
-          description="Envia para todos os subscritores"
-          active={mode === "live"}
-          onClick={() => setMode("live")}
-          icon={Globe2}
-        />
-      </div>
-
-      {/* Form */}
-      <form onSubmit={submit} className="space-y-4">
+    <div className="space-y-8">
+      {/* ─── Form: Composer ─── */}
+      <form onSubmit={submit} className="space-y-5">
         <div>
           <label className="mb-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground">
             <span>Assunto</span>
@@ -248,15 +175,94 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
           </p>
         </div>
 
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
-          <div className="flex items-start gap-2 text-xs text-amber-200">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-            <p>
-              Apenas o canal <strong>Email</strong> está operacional (Brevo). WhatsApp /
-              SMS dependem de um provider gratuito ainda em estudo.
-            </p>
-          </div>
+        {/* Attachments */}
+        <div>
+          <label className="mb-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+            <span>Anexos</span>
+            <span className="font-normal text-muted-foreground/80">
+              {attachments.length}/10 · máx. 5 MB cada
+            </span>
+          </label>
+          <label
+            className={cn(
+              "group flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/40 px-4 py-3 text-xs text-muted-foreground transition-all",
+              "hover:border-primary/40 hover:bg-card/80 hover:text-foreground"
+            )}
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+            <span>Clique para escolher ficheiros (PDF, imagens, etc.)</span>
+            <input type="file" multiple onChange={onPickFiles} className="hidden" />
+          </label>
+          {attachments.length > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {attachments.map((a, i) => (
+                <li
+                  key={`${a.name}-${i}`}
+                  className="flex items-center justify-between gap-2 rounded-md border border-border bg-card/60 px-2.5 py-1.5 text-xs"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Paperclip className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                    <span className="truncate">{a.name}</span>
+                    <span className="flex-shrink-0 text-[10px] text-muted-foreground/80">
+                      {formatBytes(a.size)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(i)}
+                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+                    aria-label="Remover anexo"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+
+        {/* ─── Canais de envio ─── */}
+        <Section icon={Radio} title="Canais de envio" description="Selecione o canal através do qual a comunicação será entregue.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ChannelCard
+              icon={Mail}
+              label="Email"
+              status="Operacional via Brevo"
+              statusTone="success"
+              active={channel === "email"}
+              onClick={() => setChannel("email")}
+            />
+            <ChannelCard
+              icon={MessageCircle}
+              label="WhatsApp"
+              status="Em desenvolvimento"
+              statusTone="muted"
+              active={channel === "whatsapp"}
+              disabled
+              onClick={() => setChannel("whatsapp")}
+            />
+          </div>
+        </Section>
+
+        {/* ─── Tipo de Modo ─── */}
+        <Section icon={SlidersHorizontal} title="Tipo de Modo" description="Escolha entre um envio de validação ou difundir para todos os subscritores.">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ModeCard
+              icon={Sparkles}
+              label="Modo Teste"
+              description="Envia apenas para o seu email de administrador."
+              active={mode === "test"}
+              onClick={() => setMode("test")}
+            />
+            <ModeCard
+              icon={Globe2}
+              label="Enviar Novidades"
+              description="Difunde para todos os subscritores ativos."
+              active={mode === "live"}
+              onClick={() => setMode("live")}
+            />
+          </div>
+        </Section>
 
         {/* Live mode → locale filter */}
         {mode === "live" && (
@@ -333,18 +339,115 @@ export default function NoticiasPanel({ userId, adminEmail }: Props) {
   );
 }
 
-function ModeChip({
+function Section({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card/40 p-4 sm:p-5">
+      <header className="mb-3 flex items-start gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/80 to-rose-500/80 text-white shadow-sm">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold leading-tight">{title}</h3>
+          {description && (
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
+          )}
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function ChannelCard({
+  icon: Icon,
+  label,
+  status,
+  statusTone,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  status: string;
+  statusTone: "success" | "muted";
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "group flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200",
+        active
+          ? "border-primary/60 bg-primary/5 shadow-sm ring-1 ring-primary/30"
+          : "border-border bg-card hover:border-primary/30",
+        disabled && "cursor-not-allowed opacity-60 hover:border-border"
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
+          active
+            ? "bg-gradient-to-br from-primary to-rose-500 text-white shadow"
+            : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold">{label}</p>
+          {active && (
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+              <Check className="h-2.5 w-2.5" />
+            </span>
+          )}
+        </div>
+        <p
+          className={cn(
+            "mt-0.5 flex items-center gap-1.5 text-[11px]",
+            statusTone === "success" ? "text-emerald-400/90" : "text-muted-foreground/80"
+          )}
+        >
+          <span
+            className={cn(
+              "inline-block h-1.5 w-1.5 rounded-full",
+              statusTone === "success" ? "bg-emerald-400" : "bg-muted-foreground/50"
+            )}
+          />
+          {status}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function ModeCard({
+  icon: Icon,
   label,
   description,
   active,
   onClick,
-  icon: Icon,
 }: {
+  icon: React.ElementType;
   label: string;
   description: string;
   active: boolean;
   onClick: () => void;
-  icon: React.ElementType;
 }) {
   return (
     <button
@@ -353,13 +456,13 @@ function ModeChip({
       className={cn(
         "group flex items-start gap-3 rounded-xl border p-3 text-left transition-all duration-200",
         active
-          ? "border-primary/60 bg-primary/10 shadow-sm"
+          ? "border-primary/60 bg-primary/5 shadow-sm ring-1 ring-primary/30"
           : "border-border bg-card hover:border-primary/30"
       )}
     >
       <span
         className={cn(
-          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
+          "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
           active
             ? "bg-gradient-to-br from-primary to-rose-500 text-white shadow"
             : "bg-muted text-muted-foreground"
@@ -368,9 +471,36 @@ function ModeChip({
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="text-[11px] text-muted-foreground">{description}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold">{label}</p>
+          {active && (
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white">
+              <Check className="h-2.5 w-2.5" />
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
       </div>
     </button>
   );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // Strip "data:<mime>;base64," prefix.
+      const comma = dataUrl.indexOf(",");
+      resolve(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }

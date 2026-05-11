@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, gt, count, desc, sum, asc, and, isNull } from "drizzle-orm";
+import { eq, gt, count, desc, sum, asc, and, isNull, like, or } from "drizzle-orm";
 import { db } from "../db";
 import {
   products,
@@ -13,6 +13,7 @@ import {
   orderItems,
   adminChatMessages,
   newsletterSubscribers,
+  newsletterBannedEmails,
   supportTickets,
   supportMessages,
 } from "../db/schema";
@@ -912,13 +913,14 @@ adminRouter.get("/news/subscribers", async (c) => {
   });
 });
 
-// POST /admin/news/broadcast — { subject, body, locale?, testEmail? }
+// POST /admin/news/broadcast — { subject, body, locale?, testEmail?, attachments? }
 adminRouter.post("/news/broadcast", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     subject?: string;
     body?: string;
     locale?: "pt" | "en" | "all";
     testEmail?: string;
+    attachments?: { name: string; content: string }[];
   };
 
   const subject = (body.subject ?? "").trim().slice(0, 200);
@@ -927,12 +929,21 @@ adminRouter.post("/news/broadcast", async (c) => {
     return c.json({ error: "subject e body são obrigatórios" }, 400);
   }
 
+  // Sanitise attachments: name + base64 content only; cap total size at ~10 MB.
+  const attachments = Array.isArray(body.attachments)
+    ? body.attachments
+        .filter((a) => a && typeof a.name === "string" && typeof a.content === "string")
+        .slice(0, 10)
+        .map((a) => ({ name: a.name.slice(0, 200), content: a.content }))
+    : undefined;
+
   // Test mode — send a single email to the requesting admin.
   if (body.testEmail) {
     const result = await sendNewsletterBroadcast(
       [{ email: body.testEmail }],
       `[TESTE] ${subject}`,
-      html
+      html,
+      attachments
     );
     return c.json({ mode: "test", ...result });
   }
@@ -955,7 +966,7 @@ adminRouter.post("/news/broadcast", async (c) => {
     return c.json({ error: "Sem subscritores para o filtro selecionado" }, 400);
   }
 
-  const result = await sendNewsletterBroadcast(recipients, subject, html);
+  const result = await sendNewsletterBroadcast(recipients, subject, html, attachments);
   return c.json({ mode: "live", ...result });
 });
 
@@ -1073,6 +1084,149 @@ adminRouter.post("/support/tickets/:id/status", async (c) => {
     .set({ status, updatedAt: now })
     .where(eq(supportTickets.id, id));
 
+  return c.json({ success: true });
+});
+
+// ——————————————————————————————————————————————
+// Newsletter — Subscriber list management (EyeWeb style)
+// ——————————————————————————————————————————————
+
+// GET /admin/news/subscribers/list?search=
+// Returns the full list of subscribers joined with users (for the display name).
+adminRouter.get("/news/subscribers/list", async (c) => {
+  const search = (c.req.query("search") ?? "").trim().toLowerCase();
+
+  const rows = await db
+    .select({
+      id: newsletterSubscribers.id,
+      email: newsletterSubscribers.email,
+      locale: newsletterSubscribers.locale,
+      unsubscribedAt: newsletterSubscribers.unsubscribedAt,
+      createdAt: newsletterSubscribers.createdAt,
+      userName: users.name,
+    })
+    .from(newsletterSubscribers)
+    .leftJoin(users, eq(users.email, newsletterSubscribers.email))
+    .orderBy(desc(newsletterSubscribers.createdAt))
+    .limit(500);
+
+  const filtered = search
+    ? rows.filter(
+        (r) =>
+          r.email.toLowerCase().includes(search) ||
+          (r.userName ?? "").toLowerCase().includes(search)
+      )
+    : rows;
+
+  return c.json({ data: filtered });
+});
+
+// PATCH /admin/news/subscribers/:id — edit email or locale
+adminRouter.patch("/news/subscribers/:id", async (c) => {
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as {
+    email?: string;
+    locale?: "pt" | "en";
+  };
+
+  const patch: Record<string, unknown> = {};
+  if (typeof body.email === "string") {
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmed = body.email.trim().toLowerCase();
+    if (!emailRe.test(trimmed) || trimmed.length > 200) {
+      return c.json({ error: "email inválido" }, 400);
+    }
+    patch.email = trimmed;
+  }
+  if (body.locale === "pt" || body.locale === "en") patch.locale = body.locale;
+
+  if (Object.keys(patch).length === 0) {
+    return c.json({ error: "nada para atualizar" }, 400);
+  }
+
+  try {
+    await db
+      .update(newsletterSubscribers)
+      .set(patch)
+      .where(eq(newsletterSubscribers.id, id));
+  } catch {
+    return c.json({ error: "email já existe" }, 409);
+  }
+
+  return c.json({ success: true });
+});
+
+// DELETE /admin/news/subscribers/:id — remove subscriber
+adminRouter.delete("/news/subscribers/:id", async (c) => {
+  const id = c.req.param("id");
+  await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
+  return c.json({ success: true });
+});
+
+// POST /admin/news/subscribers/:id/ban — remove from subscribers and add to ban list
+adminRouter.post("/news/subscribers/:id/ban", async (c) => {
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { reason?: string };
+
+  const [row] = await db
+    .select({ email: newsletterSubscribers.email })
+    .from(newsletterSubscribers)
+    .where(eq(newsletterSubscribers.id, id))
+    .limit(1);
+
+  if (!row) return c.json({ error: "subscritor não encontrado" }, 404);
+
+  await db
+    .insert(newsletterBannedEmails)
+    .values({ email: row.email, reason: body.reason?.slice(0, 200) ?? null })
+    .onConflictDoNothing();
+
+  await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
+
+  return c.json({ success: true });
+});
+
+// GET /admin/news/banned — banned emails list
+adminRouter.get("/news/banned", async (c) => {
+  const search = (c.req.query("search") ?? "").trim().toLowerCase();
+
+  const rows = await db
+    .select()
+    .from(newsletterBannedEmails)
+    .orderBy(desc(newsletterBannedEmails.bannedAt))
+    .limit(500);
+
+  const filtered = search
+    ? rows.filter((r) => r.email.toLowerCase().includes(search))
+    : rows;
+
+  return c.json({ data: filtered });
+});
+
+// POST /admin/news/banned — manually ban an email
+adminRouter.post("/news/banned", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { email?: string; reason?: string };
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const email = (body.email ?? "").trim().toLowerCase();
+  if (!emailRe.test(email) || email.length > 200) {
+    return c.json({ error: "email inválido" }, 400);
+  }
+
+  await db
+    .insert(newsletterBannedEmails)
+    .values({ email, reason: body.reason?.slice(0, 200) ?? null })
+    .onConflictDoNothing();
+
+  // Also remove from active subscribers if present.
+  await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.email, email));
+
+  return c.json({ success: true });
+});
+
+// DELETE /admin/news/banned/:email — unban
+adminRouter.delete("/news/banned/:email", async (c) => {
+  const email = decodeURIComponent(c.req.param("email")).toLowerCase();
+  await db.delete(newsletterBannedEmails).where(eq(newsletterBannedEmails.email, email));
   return c.json({ success: true });
 });
 
