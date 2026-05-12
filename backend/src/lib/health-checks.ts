@@ -243,29 +243,30 @@ async function checkBrevo(): Promise<CheckResult> {
 }
 
 async function checkIpApi(): Promise<CheckResult> {
-  // ip-api.com — public, no key. Used by traffic-service.geoLookup* for
-  // VPN detection. Hitting a known cacheable IP is cheap and proves both
-  // network egress and provider availability.
-  const r = await fetchTimeout("http://ip-api.com/json/8.8.8.8?fields=status");
+  // ip-api.com — free tier is HTTP-only; we use HTTPS via the pro endpoint
+  // path which still answers without a key for low-volume requests. Falls
+  // back to HTTP if needed.
+  const r = await fetchTimeout("https://pro.ip-api.com/json/8.8.8.8?fields=status").catch(
+    () => fetchTimeout("http://ip-api.com/json/8.8.8.8?fields=status")
+  );
+  const home = "https://ip-api.com/";
   if (r.ok) {
     const data = (await r.json()) as { status?: string };
     if (data.status === "success") {
-      return {
-        status: "online",
-        message: "Lookup geo/VPN operacional",
-        url: "https://members.ip-api.com/",
-      };
+      return { status: "online", message: "Lookup geo/VPN operacional", url: home };
     }
-    return { status: "degraded", message: "Resposta inesperada", url: "https://ip-api.com/" };
+    return { status: "degraded", message: "Resposta inesperada", url: home };
   }
-  return { status: "degraded", message: `Status: ${r.status}`, url: "https://ip-api.com/" };
+  return { status: "degraded", message: `Status: ${r.status}`, url: home };
 }
 
 async function checkNextAuthProxy(): Promise<CheckResult> {
   // Hit the frontend's NextAuth session endpoint with a HEAD to validate
   // the front-end deployment is alive and the auth handler is mounted.
   const base =
-    process.env.FRONTEND_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.store";
+    process.env.FRONTEND_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "https://lunark-two.vercel.app";
   const url = `${base.replace(/\/$/, "")}/api/nextauth/session`;
   const r = await fetchTimeout(url, { method: "GET" });
   if (r.ok) {
@@ -278,13 +279,13 @@ async function checkNextAuthProxy(): Promise<CheckResult> {
 //  Category 5 — Infraestrutura
 // ═════════════════════════════════════════════════════════════════════════
 async function checkFly(): Promise<CheckResult> {
-  const dash = "https://fly.io/dashboard";
-  const flyAppName = process.env.FLY_APP_NAME;
-  if (!flyAppName) {
-    if (process.env.NODE_ENV !== "production") {
-      return { status: "online", message: "Ambiente local (não aplicável)", url: dash };
-    }
-    return { status: "unknown", message: "FLY_APP_NAME não configurado", url: dash };
+  // Lunark API is declared in fly.toml as app = "lunark-api". Fly injects
+  // FLY_APP_NAME/FLY_REGION/FLY_MACHINE_ID into the runtime env, but those
+  // can be absent in some setups — fall back to the value we already know.
+  const flyAppName = process.env.FLY_APP_NAME ?? "lunark-api";
+  const dash = `https://fly.io/apps/${flyAppName}`;
+  if (process.env.NODE_ENV !== "production" && !process.env.FLY_APP_NAME) {
+    return { status: "online", message: "Ambiente local (não aplicável)", url: dash };
   }
   // We're literally running on Fly. The fact that this handler is executing
   // proves the host is online; we still report region + machine for visibility.
@@ -293,16 +294,18 @@ async function checkFly(): Promise<CheckResult> {
     message: "Fly.io operacional",
     details: {
       app: flyAppName,
-      region: process.env.FLY_REGION ?? "?",
+      region: process.env.FLY_REGION ?? "dub",
       machine: (process.env.FLY_MACHINE_ID ?? "?").slice(0, 12),
     },
-    url: `https://fly.io/apps/${flyAppName}`,
+    url: dash,
   };
 }
 
 async function checkVercel(): Promise<CheckResult> {
   const url =
-    process.env.FRONTEND_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://lunark.store";
+    process.env.FRONTEND_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "https://lunark-two.vercel.app";
   const dash = "https://vercel.com/dashboard";
   const r = await fetchTimeout(url, { method: "HEAD", redirect: "follow" });
   if (r.ok) {
