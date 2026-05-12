@@ -2,12 +2,20 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { users } from "../db/schema";
+import { getUserId } from "../lib/get-user-id";
 
 const profileRouter = new Hono();
 
-// GET /profile/:userId — Get user profile
+// GET /profile/:userId — Get user profile.
+// Even though the userId is in the path, we still require the caller to prove
+// they own the session for that id — otherwise anyone could enumerate profiles
+// by guessing/leaking ids.
 profileRouter.get("/:userId", async (c) => {
   const userId = c.req.param("userId");
+  const authedId = getUserId(c);
+  if (!authedId || authedId !== userId) {
+    return c.json({ error: "Não autorizado" }, 401);
+  }
 
   const user = await db
     .select({
@@ -32,6 +40,10 @@ profileRouter.get("/:userId", async (c) => {
 // PUT /profile/:userId — Update user profile
 profileRouter.put("/:userId", async (c) => {
   const userId = c.req.param("userId");
+  const authedId = getUserId(c);
+  if (!authedId || authedId !== userId) {
+    return c.json({ error: "Não autorizado" }, 401);
+  }
   const body = await c.req.json() as { name?: string; image?: string | null };
 
   const user = await db

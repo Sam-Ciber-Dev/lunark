@@ -18,6 +18,7 @@ import {
   supportMessages,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
+import { getUserId } from "../lib/get-user-id";
 import { invalidateUserCache } from "../middleware/traffic-log";
 import { broadcastAccountEvent } from "../lib/account-events";
 import { runHealthCheck } from "../lib/health-checks";
@@ -344,7 +345,7 @@ adminRouter.get("/health-check", async (c) => {
 
 // POST /admin/ping — heartbeat from admin clients
 adminRouter.post("/ping", (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (userId) adminPings.set(userId, new Date());
   return c.json({ ok: true });
 });
@@ -609,7 +610,7 @@ adminRouter.get("/chat/members", async (c) => {
 // POST /admin/chat/messages — create a message; trigger AI if @luny is mentioned
 adminRouter.post("/chat/messages", async (c) => {
   try {
-  const userId = c.req.header("x-user-id")!;
+  const userId = getUserId(c)!;
   const body = (await c.req.json().catch(() => ({}))) as {
     content?: string;
     attachments?: unknown;
@@ -668,7 +669,7 @@ adminRouter.post("/chat/messages", async (c) => {
 
 // PATCH /admin/chat/messages/:id — edit own message
 adminRouter.patch("/chat/messages/:id", async (c) => {
-  const userId = c.req.header("x-user-id")!;
+  const userId = getUserId(c)!;
   const id = c.req.param("id");
   const body = (await c.req.json().catch(() => ({}))) as { content?: string };
   const content = typeof body.content === "string" ? body.content.slice(0, MAX_CONTENT_LEN) : "";
@@ -691,7 +692,7 @@ adminRouter.patch("/chat/messages/:id", async (c) => {
 
 // DELETE /admin/chat/messages/:id — unsend own message (soft delete)
 adminRouter.delete("/chat/messages/:id", async (c) => {
-  const userId = c.req.header("x-user-id")!;
+  const userId = getUserId(c)!;
   const id = c.req.param("id");
 
   const existing = await db.select().from(adminChatMessages).where(eq(adminChatMessages.id, id)).get();
@@ -1042,7 +1043,7 @@ adminRouter.get("/support/tickets/:id", async (c) => {
 // POST /admin/support/tickets/:id/reply — { body }
 adminRouter.post("/support/tickets/:id/reply", async (c) => {
   const id = c.req.param("id");
-  const userId = c.req.header("x-user-id")!;
+  const userId = getUserId(c)!;
   const body = (await c.req.json().catch(() => ({}))) as { body?: string };
   const replyBody = (body.body ?? "").trim();
   if (!replyBody) return c.json({ error: "body é obrigatório" }, 400);

@@ -10,12 +10,13 @@ import {
   users,
 } from "../db/schema";
 import { sendOrderConfirmation } from "../lib/email";
+import { getUserId } from "../lib/get-user-id";
 
 const ordersRouter = new Hono();
 
 // GET /orders — list user's orders
 ordersRouter.get("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const rows = await db
@@ -29,7 +30,7 @@ ordersRouter.get("/", async (c) => {
 
 // GET /orders/:id — order detail with items
 ordersRouter.get("/:id", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const id = c.req.param("id");
@@ -51,7 +52,7 @@ ordersRouter.get("/:id", async (c) => {
 
 // POST /orders — create order from cart
 ordersRouter.post("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const body = await c.req.json();

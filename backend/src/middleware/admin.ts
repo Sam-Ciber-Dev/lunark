@@ -2,9 +2,13 @@ import type { Context, Next } from "hono";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { getUserId } from "../lib/get-user-id";
 
 export async function requireAdmin(c: Context, next: Next) {
-  const userId = c.req.header("x-user-id");
+  // Reads the signed token from the x-user-id header and verifies its HMAC.
+  // No more "trust whatever the client sends" — a forged or missing token
+  // is indistinguishable from an unauthenticated request.
+  const userId = getUserId(c);
   if (!userId) {
     return c.json({ error: "Não autenticado" }, 401);
   }
@@ -18,8 +22,7 @@ export async function requireAdmin(c: Context, next: Next) {
       .get();
   } catch (err) {
     console.error("[requireAdmin] DB lookup failed", err);
-    const msg = err instanceof Error ? err.message : "db error";
-    return c.json({ error: `admin gate db error: ${msg}` }, 500);
+    return c.json({ error: "internal error" }, 500);
   }
 
   if (!user || user.role !== "admin") {

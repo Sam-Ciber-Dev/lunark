@@ -21,6 +21,7 @@ import {
   BLOCK_COOKIE,
 } from "../lib/cookie-sign";
 import { subscribeDeviceEvents, type DeviceEvent } from "../lib/account-events";
+import { getUserId } from "../lib/get-user-id";
 
 const trafficRouter = new Hono();
 
@@ -188,7 +189,7 @@ trafficRouter.post("/heartbeat", async (c) => {
 
 // ───── POST /traffic/admin-heartbeat — tags IP+FP as admin ─────
 trafficRouter.post("/admin-heartbeat", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ ok: false, error: "unauthorized" }, 401);
   const user = await db
     .select({ role: users.role })

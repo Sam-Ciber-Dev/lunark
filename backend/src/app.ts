@@ -18,6 +18,18 @@ import { trafficRouter } from "./routes/traffic";
 import { securityHeaders } from "./middleware/security-headers";
 import { trafficLog } from "./middleware/traffic-log";
 
+const isProd = process.env.NODE_ENV === "production";
+
+// In production we require CORS_ORIGIN to be set explicitly. Falling back to
+// "http://localhost:3000" silently in production would either break the site
+// or, worse, accept requests from an unintended origin if reconfigured later.
+if (isProd && !process.env.CORS_ORIGIN) {
+  console.error(
+    "[startup] CORS_ORIGIN is not set in production — refusing all cross-origin requests until configured",
+  );
+}
+const corsOrigin = process.env.CORS_ORIGIN ?? (isProd ? "https://invalid.invalid" : "http://localhost:3000");
+
 const app = new Hono();
 
 app.use("*", securityHeaders);
@@ -25,20 +37,23 @@ app.use("*", logger());
 app.use(
   "*",
   cors({
-    origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+    origin: corsOrigin,
     credentials: true,
   })
 );
 app.use("*", trafficLog);
 
-// Global error handler — surfaces real error message instead of bare HTTP 500.
-// Without this, any uncaught throw inside a route or middleware returns an
-// opaque "Internal Server Error" with no useful info on the client.
+// Global error handler. We log the full error server-side but never leak the
+// stack to the client in production — stacks reveal internal file paths,
+// dependency versions and sometimes secrets baked into bundled code.
 app.onError((err, c) => {
   console.error("[hono onError]", err);
   const message = err instanceof Error ? err.message : "internal error";
-  const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined;
-  return c.json({ error: message, stack }, 500);
+  const body: Record<string, unknown> = { error: isProd ? "internal error" : message };
+  if (!isProd && err instanceof Error) {
+    body.stack = err.stack?.split("\n").slice(0, 3).join(" | ");
+  }
+  return c.json(body, 500);
 });
 
 app.get("/", (c) => c.json({ name: "Lunark API", version: "0.1.0" }));

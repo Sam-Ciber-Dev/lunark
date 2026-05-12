@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db";
+import { getUserId } from "../lib/get-user-id";
 import { wishlistItems, products, productImages } from "../db/schema";
 
 const wishlistRouter = new Hono();
 
 // GET /wishlist — get user's wishlist
 wishlistRouter.get("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   const items = await db
@@ -45,7 +46,7 @@ wishlistRouter.get("/", async (c) => {
 
 // POST /wishlist — add to wishlist
 wishlistRouter.post("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   const { productId } = await c.req.json();
@@ -77,7 +78,7 @@ wishlistRouter.post("/", async (c) => {
 
 // DELETE /wishlist/:productId — remove from wishlist
 wishlistRouter.delete("/:productId", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
   const productId = c.req.param("productId");
@@ -96,7 +97,7 @@ wishlistRouter.delete("/:productId", async (c) => {
 
 // GET /wishlist/check/:productId — check if product is in wishlist
 wishlistRouter.get("/check/:productId", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ inWishlist: false });
 
   const productId = c.req.param("productId");

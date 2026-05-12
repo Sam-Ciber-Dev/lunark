@@ -8,12 +8,13 @@ import {
   productVariants,
 } from "../db/schema";
 import { addToCartSchema } from "@lunark/shared";
+import { getUserId } from "../lib/get-user-id";
 
 const cart = new Hono();
 
 // GET /cart — list cart items for user
 cart.get("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const items = await db
@@ -52,7 +53,7 @@ cart.get("/", async (c) => {
 
 // POST /cart — add item to cart
 cart.post("/", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const body = await c.req.json();
@@ -121,7 +122,7 @@ cart.post("/", async (c) => {
 
 // PATCH /cart/:id — update quantity
 cart.patch("/:id", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const id = c.req.param("id");
@@ -156,7 +157,7 @@ cart.patch("/:id", async (c) => {
 
 // DELETE /cart/:id — remove item
 cart.delete("/:id", async (c) => {
-  const userId = c.req.header("x-user-id");
+  const userId = getUserId(c);
   if (!userId) return c.json({ error: "Não autenticado" }, 401);
 
   const id = c.req.param("id");

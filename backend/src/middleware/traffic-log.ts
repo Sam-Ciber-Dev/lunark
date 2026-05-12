@@ -17,6 +17,7 @@ import { trafficService, isInfraIp } from "../lib/traffic-service";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { getUserId } from "../lib/get-user-id";
 
 export function getClientIp(c: Context): string {
   const xff = c.req.header("x-forwarded-for");
@@ -84,7 +85,9 @@ export async function trafficLog(c: Context, next: Next) {
   // Any authenticated request runs through here. We resolve the role +
   // ban status (cached 30s) so a banned user with a still-valid JWT
   // cannot use ANY API endpoint until their session is invalidated.
-  const userId = c.req.header("x-user-id");
+  // Reads the HMAC-verified userId — a forged x-user-id header returns
+  // null here and is treated as anonymous.
+  const userId = getUserId(c);
   let isAdmin = false;
   if (userId) {
     const info = await lookupUser(userId);

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import app from "@lunark/api/app";
 import { auth } from "@/lib/auth";
+import { signApiToken } from "@/lib/api-token";
 
 // Mount the Hono API under /api so routes resolve correctly
 // e.g. /api/products → app handles /products
@@ -12,9 +13,14 @@ const honoHandle = handle(handler);
 
 /**
  * Wraps every API request to:
- * 1. Strip any client-provided x-user-id header (prevents spoofing)
- * 2. Re-inject x-user-id from the verified NextAuth session (server-side only)
- * This ensures the Hono backend always receives a trustworthy user identity.
+ * 1. Strip any client-provided x-user-id header (prevents spoofing).
+ * 2. If a NextAuth session exists, mint a short-lived HMAC-signed token
+ *    (userId + exp + HMAC-SHA256 tag) and inject it as x-user-id.
+ *
+ * The backend (`lib/get-user-id.ts`) verifies the signature with
+ * timing-safe comparison and rejects anything missing, expired or forged.
+ * Calls that reach the public Fly.io backend without going through this
+ * proxy are therefore unauthenticated.
  */
 async function secureHandle(req: Request) {
   try {
@@ -25,19 +31,20 @@ async function secureHandle(req: Request) {
       session = await (auth as unknown as () => Promise<{ user?: { id?: string } } | null>)();
     } catch (authErr) {
       console.error("[api route] auth() threw", authErr);
-      const msg = authErr instanceof Error ? authErr.message : "auth failed";
-      return new Response(JSON.stringify({ error: `auth error: ${msg}` }), {
+      return new Response(JSON.stringify({ error: "auth error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
     }
 
     const headers = new Headers(req.headers);
-    // Always remove client-supplied identity — cannot be trusted
+    // Always remove client-supplied identity — cannot be trusted.
     headers.delete("x-user-id");
-    // Only inject after server-side session verification
+    // Only inject after server-side session verification, and sign it so the
+    // backend can verify the request came from this trusted proxy (and not
+    // an attacker calling the Fly.io URL directly with a guessed userId).
     if (session?.user?.id) {
-      headers.set("x-user-id", session.user.id);
+      headers.set("x-user-id", signApiToken(session.user.id));
     }
 
     // IMPORTANT: do NOT pass `req` as the first arg to `new Request()`.
@@ -58,9 +65,9 @@ async function secureHandle(req: Request) {
     return honoHandle(secureReq);
   } catch (err) {
     console.error("[api route] secureHandle threw", err);
-    const msg = err instanceof Error ? err.message : "internal error";
-    const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 4).join(" | ") : undefined;
-    return new Response(JSON.stringify({ error: `route error: ${msg}`, stack }), {
+    // Never leak file paths, dependency versions or other internals through
+    // the error response — log server-side, send a generic message.
+    return new Response(JSON.stringify({ error: "internal error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
