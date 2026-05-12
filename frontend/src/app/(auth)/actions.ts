@@ -71,11 +71,7 @@ export async function loginAction(
       const errMsg = data.error as string ?? "Incorrect email or password";
       if (errMsg === "ACCOUNT_BANNED") {
         const reason = (data.reason as string) || "";
-        return {
-          error: reason
-            ? `This account has been suspended. Reason: ${reason}`
-            : "This account has been suspended by the administrator.",
-        };
+        return { error: reason ? `ACCOUNT_BANNED:${reason}` : "ACCOUNT_BANNED" };
       }
       const codes = data.codes as string[] | undefined;
       if (codes?.length) {
@@ -126,11 +122,7 @@ export async function registerAction(
       const errMsg = (data.error as string) ?? "Failed to create account";
       if (errMsg === "ACCOUNT_BANNED") {
         const reason = (data.reason as string) || "";
-        return {
-          error: reason
-            ? `This email is blocked from creating new accounts. Reason: ${reason}`
-            : "This email is blocked from creating new accounts.",
-        };
+        return { error: reason ? `EMAIL_BANNED:${reason}` : "EMAIL_BANNED" };
       }
       return { error: errMsg };
     }
@@ -196,6 +188,9 @@ export async function googleSignInSessionAction(credential: string) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({})) as Record<string, string>;
+      if (data.error === "ACCOUNT_BANNED") {
+        return { error: data.reason ? `ACCOUNT_BANNED:${data.reason}` : "ACCOUNT_BANNED" };
+      }
       return { error: data.error ?? "No account found. Please create an account first." };
     }
 
@@ -222,6 +217,10 @@ export async function googleGetProfileAction(credential: string) {
     const data = await res.json() as Record<string, unknown>;
 
     if (!res.ok) {
+      if (data.error === "ACCOUNT_BANNED") {
+        const reason = (data.reason as string) || "";
+        return { error: reason ? `EMAIL_BANNED:${reason}` : "EMAIL_BANNED" };
+      }
       return { error: (data.error as string) ?? "Failed to get Google profile" };
     }
 

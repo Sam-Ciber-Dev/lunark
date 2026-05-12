@@ -13,11 +13,23 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const FP_KEY = "lk_fp";
 const HWFP_KEY = "lk_hwfp";
+
+// Set a non-HttpOnly cookie so the Next.js middleware (edge) can read it on
+// the next navigation and block the device server-side before any HTML is
+// rendered. We cannot make it HttpOnly because the client needs to set it.
+function markBlockedCookie() {
+  // 30 days; if the admin unblocks the device the cookie is cleared by
+  // /traffic/register-fingerprint returning blocked:false on next mount.
+  document.cookie = "lk_blocked=1; path=/; max-age=2592000; samesite=lax";
+}
+function clearBlockedCookie() {
+  document.cookie = "lk_blocked=; path=/; max-age=0; samesite=lax";
+}
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -117,7 +129,10 @@ export default function TrafficClient() {
             keepalive: true,
           }).then((r) => r.json()).then((d) => {
             if (d?.blocked) {
+              markBlockedCookie();
               window.location.href = "/blocked";
+            } else {
+              clearBlockedCookie();
             }
           }).catch(() => {});
         }
@@ -180,6 +195,34 @@ export default function TrafficClient() {
     const id = setInterval(tick, 20_000);
     return () => clearInterval(id);
   }, [status, session?.user?.id, session?.user]);
+
+  // Account-status poll: if the authenticated user gets banned or deleted by
+  // an admin, log them out within ~20s and bounce them back to the home page.
+  // This works on EVERY page because TrafficClient is mounted globally — it
+  // does not depend on the NextAuth middleware matcher.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const userId = session?.user?.id;
+    if (!userId) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/auth/account-status?userId=${encodeURIComponent(userId)}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json() as { exists?: boolean; banned?: boolean };
+        if (!data.exists || data.banned) {
+          await signOut({ redirect: false });
+          window.location.href = "/";
+        }
+      } catch {}
+    };
+    check();
+    const id = setInterval(check, 20_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [status, session?.user?.id]);
 
   return null;
 }

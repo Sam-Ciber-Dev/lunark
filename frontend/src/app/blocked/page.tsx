@@ -1,16 +1,38 @@
-import { ShieldOff } from "lucide-react";
+export const metadata = { title: "404 — Not Found" };
 
-export const metadata = { title: "Acesso bloqueado" };
-
+// Mirrors the look of a stock browser/Next.js 404 page: deliberately minimal,
+// no Navbar, no Footer, no Lunark branding. A device that has been blocked
+// (manually by an admin or automatically by the threat-detection system)
+// should not be aware that the site even exists.
 export default function BlockedPage() {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center">
-      <ShieldOff className="mb-4 h-12 w-12 text-red-400" />
-      <h1 className="mb-2 text-2xl font-semibold">Acesso bloqueado</h1>
-      <p className="text-sm text-zinc-400">
-        Este dispositivo foi bloqueado pelo sistema de segurança. Se acreditas
-        que se trata de um erro, contacta o suporte.
-      </p>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#000",
+        color: "#fff",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: 500,
+            margin: 0,
+            padding: "0 24px 0 0",
+            borderRight: "1px solid rgba(255,255,255,0.3)",
+          }}
+        >
+          404
+        </h1>
+        <p style={{ fontSize: "14px", margin: 0, opacity: 0.8 }}>
+          This page could not be found.
+        </p>
+      </div>
     </div>
   );
 }

@@ -154,7 +154,9 @@ export default function LogsPanel({ userId }: Props) {
                   </span>
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  {c.is_vpn ? <span className="text-rose-300">{c.vpn_provider || "VPN"}</span> : <span className="text-muted-foreground">—</span>}
+                  {c.is_vpn
+                    ? <span className="font-semibold text-rose-300">Sim{c.vpn_provider ? ` · ${c.vpn_provider}` : ""}</span>
+                    : <span className="text-muted-foreground">Não</span>}
                 </td>
                 <td className="px-3 py-2 text-right text-foreground tabular-nums">{c.requests}</td>
                 <td className="px-3 py-2 text-right">

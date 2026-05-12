@@ -2045,8 +2045,188 @@ function generateReportMarkdown(title: string, period: string, data: Awaited<Ret
   return lines.join("\n");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Automated reports maintenance
+//
+// Runs lazily (on every reports list query, throttled to once per UTC day) so
+// that no Vercel cron / external scheduler is required. The logic:
+//
+//   1. Always upsert the current month's monthly report with the latest
+//      aggregation of raw traffic_logs rows. This gives admins a live snapshot
+//      of the in-progress month.
+//
+//   2. If the previous month exists and its report's title still says
+//      "(A decorrer)", strip the suffix — the month is now closed.
+//
+//   3. If we're in year N and there is no yearly report for year N-1, build it
+//      by aggregating the 12 monthly reports of N-1 (summing their stored
+//      `data` JSON) and then DELETE all monthly reports of N-1. The yearly
+//      report itself is permanent — only monthly reports recycle.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let reportsMaintenanceDay = "";
+
+async function runReportsMaintenance(): Promise<void> {
+  const today = todayStartUtc().slice(0, 10);
+  if (reportsMaintenanceDay === today) return;
+  reportsMaintenanceDay = today;
+  try {
+    await maintainReports();
+  } catch (err) {
+    console.error("[runReportsMaintenance]", err);
+  }
+}
+
+async function maintainReports(): Promise<void> {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1; // 1-12
+
+  // ─── 1. Upsert current month snapshot ──────────────────────────────────
+  await upsertMonthlyReport(year, month, true);
+
+  // ─── 2. Finalize previous month if needed ──────────────────────────────
+  let prevYear = year;
+  let prevMonth = month - 1;
+  if (prevMonth === 0) { prevMonth = 12; prevYear = year - 1; }
+  const prevPeriod = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+  const prevRow = await db
+    .select()
+    .from(trafficReports)
+    .where(eq(trafficReports.period, prevPeriod))
+    .get();
+  if (prevRow && prevRow.title.includes("(A decorrer)")) {
+    await db
+      .update(trafficReports)
+      .set({ title: prevRow.title.replace(" (A decorrer)", "") })
+      .where(eq(trafficReports.period, prevPeriod));
+  }
+
+  // ─── 3. Year-end yearly report + monthly recycle ───────────────────────
+  const yearlyPeriod = String(year - 1);
+  const yearlyExisting = await db
+    .select({ id: trafficReports.id })
+    .from(trafficReports)
+    .where(eq(trafficReports.period, yearlyPeriod))
+    .get();
+  if (!yearlyExisting) {
+    await generateYearlyReport(year - 1);
+  }
+}
+
+async function upsertMonthlyReport(year: number, month: number, inProgress: boolean): Promise<void> {
+  const period = `${year}-${String(month).padStart(2, "0")}`;
+  const monthStart = new Date(Date.UTC(year, month - 1, 1)).toISOString().replace("T", " ").slice(0, 19);
+  const monthEnd = new Date(Date.UTC(year, month, 1)).toISOString().replace("T", " ").slice(0, 19);
+  const data = await aggregatePeriod(monthStart, monthEnd);
+  const baseTitle = `Relatório ${MONTH_NAMES_PT[month]} ${year}`;
+  const title = inProgress ? `${baseTitle} (A decorrer)` : baseTitle;
+  const md = generateReportMarkdown(title, period, data);
+  await db
+    .insert(trafficReports)
+    .values({ type: "monthly", period, title, markdown: md, data: JSON.stringify(data) })
+    .onConflictDoUpdate({
+      target: trafficReports.period,
+      set: { title, markdown: md, data: JSON.stringify(data) },
+    });
+}
+
+async function generateYearlyReport(year: number): Promise<void> {
+  // Pull every monthly report for this year and merge their stored `data`.
+  const months = await db
+    .select()
+    .from(trafficReports)
+    .where(and(eq(trafficReports.type, "monthly"), like(trafficReports.period, `${year}-%`)));
+  if (months.length === 0) return; // Nothing to aggregate — skip silently.
+
+  let total_requests = 0;
+  let total_threats = 0;
+  let total_blocks = 0;
+  let vpn = 0;
+  let direct = 0;
+  const dailyAgg = new Map<string, number>();
+  const countriesAgg = new Map<string, number>();
+  const threatTypesAgg = new Map<string, number>();
+  const methodsAgg = new Map<string, number>();
+  const pathsAgg = new Map<string, number>();
+  const hourlyReq = new Array(24).fill(0);
+  const hourlyThr = new Array(24).fill(0);
+  let unique_ips_max = 0;
+
+  for (const m of months) {
+    let d: ReturnType<typeof emptyMonthData>;
+    try { d = JSON.parse(m.data); } catch { continue; }
+    total_requests += d.total_requests ?? 0;
+    total_threats += d.total_threats ?? 0;
+    total_blocks += d.total_blocks ?? 0;
+    vpn += d.vpn_stats?.vpn ?? 0;
+    direct += d.vpn_stats?.direct ?? 0;
+    unique_ips_max = Math.max(unique_ips_max, d.unique_ips ?? 0);
+    for (const x of d.daily_requests ?? []) dailyAgg.set(x.date, (dailyAgg.get(x.date) ?? 0) + x.requests);
+    for (const x of d.top_countries ?? []) countriesAgg.set(x.country, (countriesAgg.get(x.country) ?? 0) + x.requests);
+    for (const x of d.threat_distribution ?? []) threatTypesAgg.set(x.type, (threatTypesAgg.get(x.type) ?? 0) + x.count);
+    for (const x of d.methods ?? []) methodsAgg.set(x.method, (methodsAgg.get(x.method) ?? 0) + x.count);
+    for (const x of d.top_paths ?? []) pathsAgg.set(x.path, (pathsAgg.get(x.path) ?? 0) + x.count);
+    for (const x of d.hourly_requests ?? []) {
+      const h = parseInt(x.hour.slice(0, 2), 10);
+      if (Number.isFinite(h)) hourlyReq[h] += x.requests;
+    }
+    for (const x of d.hourly_threats ?? []) {
+      const h = parseInt(x.hour.slice(0, 2), 10);
+      if (Number.isFinite(h)) hourlyThr[h] += x.threats;
+    }
+  }
+
+  const data = {
+    hourly_requests: hourlyReq.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, requests: v })),
+    hourly_threats: hourlyThr.map((v, h) => ({ hour: `${String(h).padStart(2, "0")}:00`, threats: v })),
+    threat_distribution: Array.from(threatTypesAgg.entries()).sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count })),
+    top_countries: Array.from(countriesAgg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([country, requests]) => ({ country, requests })),
+    vpn_stats: { vpn, direct },
+    methods: Array.from(methodsAgg.entries()).sort((a, b) => b[1] - a[1]).map(([method, count]) => ({ method, count })),
+    unique_ips: unique_ips_max,
+    total_requests,
+    total_threats,
+    total_blocks,
+    daily_requests: Array.from(dailyAgg.entries()).sort().map(([date, requests]) => ({ date, requests })),
+    top_paths: Array.from(pathsAgg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([path, count]) => ({ path, count })),
+  };
+
+  const period = String(year);
+  const title = `Relatório Anual ${year}`;
+  const md = generateReportMarkdown(title, period, data);
+  await db
+    .insert(trafficReports)
+    .values({ type: "yearly", period, title, markdown: md, data: JSON.stringify(data) })
+    .onConflictDoNothing();
+
+  // Recycle: monthly reports of the closed year are removed. Only the yearly
+  // report survives, as the user specified.
+  await db
+    .delete(trafficReports)
+    .where(and(eq(trafficReports.type, "monthly"), like(trafficReports.period, `${year}-%`)));
+}
+
+function emptyMonthData() {
+  return {
+    hourly_requests: [] as { hour: string; requests: number }[],
+    hourly_threats: [] as { hour: string; threats: number }[],
+    threat_distribution: [] as { type: string; count: number }[],
+    top_countries: [] as { country: string; requests: number }[],
+    vpn_stats: { vpn: 0, direct: 0 },
+    methods: [] as { method: string; count: number }[],
+    unique_ips: 0,
+    total_requests: 0,
+    total_threats: 0,
+    total_blocks: 0,
+    daily_requests: [] as { date: string; requests: number }[],
+    top_paths: [] as { path: string; count: number }[],
+  };
+}
+
 // ───── GET /admin/traffic/reports ─────
 adminRouter.get("/traffic/reports", async (c) => {
+  await runReportsMaintenance();
   const rows = await db
     .select({
       id: trafficReports.id,
