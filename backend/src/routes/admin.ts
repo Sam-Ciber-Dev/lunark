@@ -1767,6 +1767,26 @@ adminRouter.get("/traffic/detailed-logs", async (c) => {
     } catch {}
   }
 
+  // Refresh the VPN column with the *current* status per IP. Log rows store
+  // is_vpn at the moment they were created, which becomes stale the second
+  // a user toggles their VPN. We re-resolve every unique IP through the
+  // service's batched geoLookupMany (a single ip-api.com /batch call,
+  // 10-second TTL) so the column reflects reality within seconds.
+  try {
+    const uniqueIps = Array.from(new Set(trimmed.map((e) => e.ip).filter(Boolean)));
+    const vpnMap = await svc.geoLookupMany(uniqueIps);
+    for (const e of trimmed) {
+      const v = vpnMap.get(e.ip);
+      if (v) {
+        e.is_vpn = v.isVpn;
+        // Clear the provider when the IP is no longer flagged as VPN, so
+        // the UI never shows a stale provider name next to "Não".
+        if (!v.isVpn) e.vpn_provider = "";
+        else if (v.provider) e.vpn_provider = v.provider;
+      }
+    }
+  } catch {}
+
   return c.json({ entries: trimmed, total: trimmed.length });
 });
 

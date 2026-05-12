@@ -6,6 +6,7 @@
  */
 
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { trafficService } from "../lib/traffic-service";
 import { getClientIp } from "../middleware/traffic-log";
 import { db } from "../db";
@@ -19,6 +20,7 @@ import {
   DEVICE_COOKIE,
   BLOCK_COOKIE,
 } from "../lib/cookie-sign";
+import { subscribeDeviceEvents, type DeviceEvent } from "../lib/account-events";
 
 const trafficRouter = new Hono();
 
@@ -296,6 +298,87 @@ trafficRouter.get("/check-block", async (c) => {
   }
 
   return c.json({ blocked });
+});
+
+// GET /traffic/device-events?fp=… — SSE stream that pushes an instant
+// "blocked" event when an admin (or the auto-block heuristic) blocks
+// the calling device's fingerprint. The client navigates to /blocked
+// immediately, no page refresh required, regardless of which page the
+// user is currently viewing.
+//
+// Security note: the fingerprint hash is non-secret (anyone can compute
+// their own), and the only signals on this stream are blocked/unblocked
+// for that specific fp. We additionally accept the lk_dev cookie so the
+// stream can also push the user's own re-issued status without a query.
+trafficRouter.get("/device-events", async (c) => {
+  let fp = c.req.query("fp") ?? "";
+  if (!fp) {
+    // Fall back to the signed device cookie for clients that don't pass fp.
+    const cookies = parseCookieHeader(c.req.header("cookie"));
+    const dev = cookies[DEVICE_COOKIE];
+    const verified = dev ? verifySigned(dev) : null;
+    if (verified) fp = verified;
+  }
+  if (!fp || fp.length > 128) {
+    return c.text("missing fp", 400);
+  }
+
+  const svc = trafficService();
+  await svc.init();
+
+  return streamSSE(c, async (stream) => {
+    await stream.writeSSE({ event: "connected", data: "1" });
+
+    // If already blocked when the stream opens, fire immediately.
+    if (svc.isDeviceBlocked(fp)) {
+      await stream.writeSSE({
+        event: "blocked",
+        data: JSON.stringify({ type: "blocked" }),
+      });
+      return;
+    }
+
+    const queue: DeviceEvent[] = [];
+    let resolveWait: (() => void) | null = null;
+
+    const unsubscribe = subscribeDeviceEvents(fp, (ev) => {
+      queue.push(ev);
+      if (resolveWait) {
+        resolveWait();
+        resolveWait = null;
+      }
+    });
+
+    const heartbeat = setInterval(() => {
+      stream.writeSSE({ event: "ping", data: String(Date.now()) }).catch(() => {});
+    }, 25_000);
+
+    stream.onAbort(() => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      if (resolveWait) resolveWait();
+    });
+
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        if (queue.length === 0) {
+          await new Promise<void>((res) => { resolveWait = res; });
+        }
+        while (queue.length > 0) {
+          const ev = queue.shift()!;
+          await stream.writeSSE({
+            event: ev.type,
+            data: JSON.stringify(ev),
+          });
+          if (ev.type === "blocked") return; // terminal
+        }
+      }
+    } finally {
+      clearInterval(heartbeat);
+      unsubscribe();
+    }
+  });
 });
 
 export { trafficRouter };

@@ -41,8 +41,8 @@ export default function RegisterPage() {
   // Translate error codes from backend
   function translateError(error: string): React.ReactNode {
     if (error.startsWith("EMAIL_BANNED")) {
-      const reason = error.slice("EMAIL_BANNED".length).replace(/^:/, "").trim();
-      return reason ? `${t.auth.emailBannedReason} ${reason}` : t.auth.emailBanned;
+      // Never expose the ban reason on the public register screen.
+      return t.auth.emailBanned;
     }
     switch (error) {
       case "PASSWORDS_MISMATCH":

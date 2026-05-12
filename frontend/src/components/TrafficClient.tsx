@@ -88,7 +88,7 @@ async function buildFingerprint(): Promise<{ hash: string; hardwareHash: string;
 
 export default function TrafficClient() {
   const pathname = usePathname();
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const fpRef = useRef<string>("");
   const hwfpRef = useRef<string>("");
   const registered = useRef(false);
@@ -248,14 +248,64 @@ export default function TrafficClient() {
 
     es.addEventListener("banned", () => { void forceLogout(); });
     es.addEventListener("deleted", () => { void forceLogout(); });
-    es.addEventListener("renamed", () => {
-      // Just refresh the session/page so the new name is reflected.
-      window.location.reload();
+    es.addEventListener("renamed", (e: MessageEvent) => {
+      // Live-update the NextAuth session in-place. No page reload, no
+      // redirect — the new name appears on the next React render anywhere
+      // session.user.name is read (Navbar, /profile, etc.).
+      try {
+        const data = JSON.parse(e.data) as { newName?: string };
+        if (data.newName) {
+          void updateSession({ user: { name: data.newName } } as never);
+        }
+      } catch {}
     });
     // unbanned + ping + connected: silent.
 
     return () => { es?.close(); };
-  }, [status, session?.user?.id]);
+  }, [status, session?.user?.id, updateSession]);
+
+  // ─── REAL-TIME DEVICE BLOCK (instant /blocked navigation) ─────────────
+  // Independent of any logged-in user. As soon as an admin (or the auto-
+  // block heuristic) blocks this fingerprint, the backend pushes a
+  // `blocked` event and we navigate to /blocked from whatever page the
+  // user is currently on — no refresh required.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let es: EventSource | null = null;
+    let cancelled = false;
+
+    const open = (fp: string) => {
+      if (cancelled || !fp) return;
+      const url = `${API_URL}/traffic/device-events?fp=${encodeURIComponent(fp)}`;
+      try {
+        es = new EventSource(url, { withCredentials: true } as EventSourceInit);
+      } catch {
+        return;
+      }
+      es.addEventListener("blocked", () => {
+        if (!window.location.pathname.startsWith("/blocked")) {
+          window.location.href = "/blocked";
+        }
+      });
+      // unblocked / ping / connected: silent.
+    };
+
+    // Wait briefly for the fingerprint bootstrap effect to populate ref/storage.
+    const attempt = () => {
+      const fp = fpRef.current || localStorage.getItem(FP_KEY) || "";
+      if (fp) { open(fp); return true; }
+      return false;
+    };
+    if (!attempt()) {
+      const id = setInterval(() => {
+        if (attempt()) clearInterval(id);
+      }, 300);
+      // Stop trying after 10s.
+      setTimeout(() => clearInterval(id), 10_000);
+    }
+
+    return () => { cancelled = true; es?.close(); };
+  }, []);
 
   return null;
 }

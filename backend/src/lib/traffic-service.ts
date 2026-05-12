@@ -20,7 +20,8 @@ import {
   trafficSuspicious,
   trafficVpnCache,
 } from "../db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
+import { broadcastDeviceEvent } from "./account-events";
 
 // ───── Paths the middleware should skip (feedback-loop guard) ─────
 export const SKIP_PATHS = new Set([
@@ -87,6 +88,12 @@ export function isInfraIp(ip: string): boolean {
 }
 
 const LOCALHOST = new Set(["127.0.0.1", "::1", "localhost", "unknown", ""]);
+// VPN/proxy status changes whenever a user toggles their VPN. We cap the
+// cache freshness so a real toggle is reflected on the admin Logs panel
+// within at most VPN_CACHE_TTL_MS. Kept short so the column feels realtime.
+// We avoid hammering ip-api.com (45 req/min on the free tier) by batching
+// all stale IPs in a single /batch call from geoLookupMany().
+const VPN_CACHE_TTL_MS = 10 * 1000; // 10 seconds
 
 // ───── VPN / hosting heuristic (used as fallback for the free ip-api tier) ─────
 // Matches against the ISP / Org / AS strings returned by ip-api. We look for
@@ -213,6 +220,9 @@ class TrafficServiceImpl {
   private adminFps: Set<string> = new Set();
   private fpLastIp: Map<string, string> = new Map();
   private geoCache: Map<string, GeoResult> = new Map();
+  // In-memory geoCache also expires so toggling a VPN gets reflected
+  // within VPN_CACHE_TTL_MS instead of "forever".
+  private geoCacheAt: Map<string, number> = new Map();
   private initialised = false;
 
   async init() {
@@ -378,6 +388,12 @@ class TrafficServiceImpl {
       console.warn("[blockIp] failed:", err);
     }
     this.blockedIps.add(ip);
+    // Push instant /blocked to every fingerprint we've seen on this IP.
+    try {
+      for (const [fp, ips] of this.fpIpMap) {
+        if (ips.has(ip)) broadcastDeviceEvent(fp, { type: "blocked", reason });
+      }
+    } catch {}
   }
 
   async unblockIp(ip: string) {
@@ -445,6 +461,9 @@ class TrafficServiceImpl {
       const hw = typeof components.hardware_hash === "string" ? components.hardware_hash : "";
       if (hw) this.blockedHardwareHashes.add(hw);
     }
+    // Push instant-block signal to every open SSE stream for this fingerprint.
+    // The client navigates to /blocked immediately, no refresh, no polling.
+    try { broadcastDeviceEvent(fpHash, { type: "blocked", reason }); } catch {}
   }
 
   async unblockDevice(fpHash: string) {
@@ -475,6 +494,7 @@ class TrafficServiceImpl {
       this.blockedHardwareHashes.delete(old.hardware_hash);
     }
     this.fpIpMap.delete(fpHash);
+    try { broadcastDeviceEvent(fpHash, { type: "unblocked" }); } catch {}
   }
 
   // ───── Update reason for a blocked device ─────
@@ -761,8 +781,10 @@ class TrafficServiceImpl {
     if (LOCALHOST.has(ip) || ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
       return { country: "Local", city: "", isVpn: false, provider: "" };
     }
+    const now = Date.now();
+    const memAt = this.geoCacheAt.get(ip) ?? 0;
     const mem = this.geoCache.get(ip);
-    if (mem) return mem;
+    if (mem && now - memAt < VPN_CACHE_TTL_MS) return mem;
     try {
       const row = await db
         .select()
@@ -771,14 +793,20 @@ class TrafficServiceImpl {
         .limit(1)
         .get();
       if (row) {
-        const result: GeoResult = {
-          country: row.country,
-          city: row.city,
-          isVpn: row.isVpn,
-          provider: row.provider,
-        };
-        this.geoCache.set(ip, result);
-        return result;
+        // Honor the same TTL on the persisted cache row.
+        const cachedAtMs = row.cachedAt ? Date.parse(row.cachedAt + "Z") : 0;
+        if (cachedAtMs && now - cachedAtMs < VPN_CACHE_TTL_MS) {
+          const result: GeoResult = {
+            country: row.country,
+            city: row.city,
+            isVpn: row.isVpn,
+            provider: row.provider,
+          };
+          this.geoCache.set(ip, result);
+          this.geoCacheAt.set(ip, now);
+          return result;
+        }
+        // Otherwise fall through to a fresh external lookup below.
       }
     } catch {}
     // External lookup: ip-api.com (free, 45 req/min/IP). Fire-and-forget cache on success.
@@ -814,6 +842,7 @@ class TrafficServiceImpl {
             provider,
           };
           this.geoCache.set(ip, result);
+          this.geoCacheAt.set(ip, Date.now());
           try {
             await db
               .insert(trafficVpnCache)
@@ -840,6 +869,144 @@ class TrafficServiceImpl {
       }
     } catch {}
     return { country: "Desconhecido", city: "", isVpn: false, provider: "" };
+  }
+
+  // ───── Batched Geo / VPN lookup ─────
+  // Resolves many IPs at once. Returns the freshest available data per IP
+  // and only fires a single HTTP /batch call to ip-api.com for whichever
+  // IPs are missing or older than VPN_CACHE_TTL_MS. ip-api free tier:
+  // 100 IPs/request, 15 req/min — vastly more headroom than the per-IP
+  // /json endpoint (45 req/min). Used by the admin Logs endpoint so the
+  // VPN column reflects toggles within seconds without exhausting quota.
+  async geoLookupMany(ips: string[]): Promise<Map<string, GeoResult>> {
+    const out = new Map<string, GeoResult>();
+    const now = Date.now();
+    const toFetch: string[] = [];
+
+    for (const ip of ips) {
+      if (!ip) continue;
+      if (LOCALHOST.has(ip) || ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
+        out.set(ip, { country: "Local", city: "", isVpn: false, provider: "" });
+        continue;
+      }
+      const memAt = this.geoCacheAt.get(ip) ?? 0;
+      const mem = this.geoCache.get(ip);
+      if (mem && now - memAt < VPN_CACHE_TTL_MS) {
+        out.set(ip, mem);
+        continue;
+      }
+      toFetch.push(ip);
+    }
+
+    // Fetch any remaining IPs from the persisted cache table first; if a row
+    // exists and is still within TTL, use it. Otherwise queue for batch refresh.
+    const stillStale: string[] = [];
+    if (toFetch.length) {
+      try {
+        const rows = await db
+          .select()
+          .from(trafficVpnCache)
+          .where(inArray(trafficVpnCache.ip, toFetch));
+        const rowMap = new Map(rows.map((r) => [r.ip, r]));
+        for (const ip of toFetch) {
+          const row = rowMap.get(ip);
+          const cachedAtMs = row?.cachedAt ? Date.parse(row.cachedAt + "Z") : 0;
+          if (row && cachedAtMs && now - cachedAtMs < VPN_CACHE_TTL_MS) {
+            const result: GeoResult = {
+              country: row.country,
+              city: row.city,
+              isVpn: row.isVpn,
+              provider: row.provider,
+            };
+            out.set(ip, result);
+            this.geoCache.set(ip, result);
+            this.geoCacheAt.set(ip, now);
+          } else {
+            stillStale.push(ip);
+          }
+        }
+      } catch {
+        stillStale.push(...toFetch);
+      }
+    }
+
+    // Single /batch HTTP call for everything that's still stale. ip-api
+    // accepts up to 100 entries; chunk just in case.
+    for (let i = 0; i < stillStale.length; i += 100) {
+      const chunk = stillStale.slice(i, i + 100);
+      try {
+        const r = await fetch(
+          `http://ip-api.com/batch?fields=status,query,country,city,proxy,hosting,isp,org,as`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(chunk.map((ip) => ({ query: ip }))),
+            signal: AbortSignal.timeout(5_000),
+          }
+        );
+        if (!r.ok) continue;
+        const arr = (await r.json()) as Array<{
+          status?: string;
+          query?: string;
+          country?: string;
+          city?: string;
+          proxy?: boolean;
+          hosting?: boolean;
+          isp?: string;
+          org?: string;
+          as?: string;
+        }>;
+        for (const d of arr) {
+          const ip = d.query ?? "";
+          if (!ip) continue;
+          if (d.status !== "success") {
+            const fallback: GeoResult = { country: "Desconhecido", city: "", isVpn: false, provider: "" };
+            out.set(ip, fallback);
+            this.geoCache.set(ip, fallback);
+            this.geoCacheAt.set(ip, now);
+            continue;
+          }
+          const heur = classifyVpn(d.isp, d.org, d.as);
+          const isVpn = !!d.proxy || !!d.hosting || heur.isVpn;
+          const provider = isVpn ? heur.provider || d.isp || d.org || "" : "";
+          const result: GeoResult = {
+            country: d.country ?? "Desconhecido",
+            city: d.city ?? "",
+            isVpn,
+            provider,
+          };
+          out.set(ip, result);
+          this.geoCache.set(ip, result);
+          this.geoCacheAt.set(ip, now);
+          try {
+            await db
+              .insert(trafficVpnCache)
+              .values({
+                ip,
+                isVpn: result.isVpn,
+                provider: result.provider,
+                country: result.country,
+                city: result.city,
+              })
+              .onConflictDoUpdate({
+                target: trafficVpnCache.ip,
+                set: {
+                  isVpn: result.isVpn,
+                  provider: result.provider,
+                  country: result.country,
+                  city: result.city,
+                  cachedAt: sql`(datetime('now'))`,
+                },
+              });
+          } catch {}
+        }
+      } catch {
+        // Network error — leave the entry missing; caller's per-row fallback
+        // (the log row's frozen is_vpn) will be used.
+      }
+    }
+
+    return out;
   }
 }
 

@@ -48,8 +48,8 @@ export default function LoginPage() {
   // Translate error codes from backend
   function translateError(error: string): React.ReactNode {
     if (error.startsWith("ACCOUNT_BANNED")) {
-      const reason = error.slice("ACCOUNT_BANNED".length).replace(/^:/, "").trim();
-      return reason ? `${t.auth.accountBannedReason} ${reason}` : t.auth.accountBanned;
+      // Never expose the ban reason on the public login screen.
+      return t.auth.accountBanned;
     }
     switch (error) {
       case "NO_ACCOUNT":
