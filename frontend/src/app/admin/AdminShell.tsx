@@ -6,6 +6,7 @@ import {
   Activity,
   BarChart2,
   Globe,
+  HeartPulse,
   MessagesSquare,
   Package,
   Plus,
@@ -153,6 +154,13 @@ export default function AdminShell({ userId }: { userId: string }) {
       label: locale === "pt" ? "Comunicação" : "Communication",
       icon: MessagesSquare,
       gradient: "bg-gradient-to-br from-sky-500/80 to-blue-600/80",
+    },
+    {
+      id: "saude",
+      href: "/admin/saude",
+      label: locale === "pt" ? "Monitor de Saúde" : "Health Monitor",
+      icon: HeartPulse,
+      gradient: "bg-gradient-to-br from-pink-500/80 to-rose-600/80",
     },
     {
       id: "security",

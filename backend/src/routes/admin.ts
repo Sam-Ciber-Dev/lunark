@@ -20,6 +20,7 @@ import {
 import { requireAdmin } from "../middleware/admin";
 import { invalidateUserCache } from "../middleware/traffic-log";
 import { broadcastAccountEvent } from "../lib/account-events";
+import { runHealthCheck } from "../lib/health-checks";
 import {
   sendNewsletterBroadcast,
   sendSupportReply,
@@ -328,6 +329,15 @@ adminRouter.patch("/orders/:id", async (c) => {
   }
 
   return c.json({ updated: true });
+});
+
+// ——— Health Monitor ———
+
+// GET /admin/health-check — runs all infrastructure checks in parallel.
+// Mirrors the EyeWeb health endpoint contract so the frontend port is 1:1.
+adminRouter.get("/health-check", async (c) => {
+  const data = await runHealthCheck();
+  return c.json(data);
 });
 
 // ——— Admin online status ———
