@@ -18,6 +18,7 @@ import {
   supportMessages,
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
+import { invalidateUserCache } from "../middleware/traffic-log";
 import {
   sendNewsletterBroadcast,
   sendSupportReply,
@@ -1241,15 +1242,23 @@ adminRouter.post("/news/subscribers/:id/ban", async (c) => {
   await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
 
   // Flip the user account into banned state if one exists.
-  await db
-    .update(users)
-    .set({
-      isBanned: true,
-      bannedAt: new Date().toISOString(),
-      banReason: reason,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(users.email, row.email));
+  const [target] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, row.email))
+    .limit(1);
+  if (target) {
+    await db
+      .update(users)
+      .set({
+        isBanned: true,
+        bannedAt: new Date().toISOString(),
+        banReason: reason,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, target.id));
+    try { invalidateUserCache(target.id); } catch {}
+  }
 
   try { await sendAccountBannedEmail(row.email, reason); } catch {}
 
@@ -1307,6 +1316,7 @@ adminRouter.post("/news/banned", async (c) => {
         updatedAt: new Date().toISOString(),
       })
       .where(eq(users.id, u.id));
+    try { invalidateUserCache(u.id); } catch {}
   }
 
   try { await sendAccountBannedEmail(email, reason); } catch {}
@@ -1315,20 +1325,44 @@ adminRouter.post("/news/banned", async (c) => {
 });
 
 // DELETE /admin/news/banned/:email — unban an email and restore the user
-// account (if any). Sends an English notification email.
+// account (if any). Also re-adds them to the active subscribers list so the
+// unban is fully symmetric with the ban (which removed the subscription).
+// Sends an English notification email.
 adminRouter.delete("/news/banned/:email", async (c) => {
   const email = decodeURIComponent(c.req.param("email")).toLowerCase();
   await db.delete(newsletterBannedEmails).where(eq(newsletterBannedEmails.email, email));
 
+  // Restore user account if it exists, and grab the locale for the subscription row.
+  const [u] = await db
+    .select({ id: users.id, locale: users.locale })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (u) {
+    await db
+      .update(users)
+      .set({
+        isBanned: false,
+        bannedAt: null,
+        banReason: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(users.id, u.id));
+    // Bust the in-memory ban cache so the next API call from this user
+    // is allowed through immediately (no 30s wait).
+    try { invalidateUserCache(u.id); } catch {}
+  }
+
+  // Restore newsletter subscription (ban deletes the row; unban should put it back).
   await db
-    .update(users)
-    .set({
-      isBanned: false,
-      bannedAt: null,
-      banReason: null,
-      updatedAt: new Date().toISOString(),
+    .insert(newsletterSubscribers)
+    .values({
+      id: crypto.randomUUID(),
+      email,
+      locale: (u?.locale as "pt" | "en") ?? "pt",
     })
-    .where(eq(users.email, email));
+    .onConflictDoNothing();
 
   try { await sendAccountUnbannedEmail(email); } catch {}
 

@@ -39,29 +39,35 @@ export function getClientCity(c: Context): string {
   return c.req.header("x-vercel-ip-city") || "";
 }
 
-// ───── Cache role lookups so we can flag admin IPs/FPs instantly ─────
-const roleCache = new Map<string, { role: string; expiresAt: number }>();
-const ROLE_CACHE_TTL = 60_000;
+// ───── Cache role+ban lookups so we can short-circuit on every request ─────
+const userCache = new Map<string, { role: string; banned: boolean; expiresAt: number }>();
+const USER_CACHE_TTL = 30_000; // 30s — tight so unban/ban propagates quickly
 
-async function lookupRole(userId: string): Promise<string | null> {
+async function lookupUser(userId: string): Promise<{ role: string; banned: boolean } | null> {
   const now = Date.now();
-  const cached = roleCache.get(userId);
-  if (cached && cached.expiresAt > now) return cached.role;
+  const cached = userCache.get(userId);
+  if (cached && cached.expiresAt > now) return { role: cached.role, banned: cached.banned };
   try {
     const row = await db
-      .select({ role: users.role })
+      .select({ role: users.role, isBanned: users.isBanned })
       .from(users)
       .where(eq(users.id, userId))
       .get();
     if (!row) return null;
-    roleCache.set(userId, { role: row.role, expiresAt: now + ROLE_CACHE_TTL });
-    if (roleCache.size > 5_000) {
-      for (const [k, v] of roleCache) if (v.expiresAt < now) roleCache.delete(k);
+    const banned = !!row.isBanned;
+    userCache.set(userId, { role: row.role, banned, expiresAt: now + USER_CACHE_TTL });
+    if (userCache.size > 5_000) {
+      for (const [k, v] of userCache) if (v.expiresAt < now) userCache.delete(k);
     }
-    return row.role;
+    return { role: row.role, banned };
   } catch {
     return null;
   }
+}
+
+/** Invalidate a cached user (call this after ban/unban admin actions). */
+export function invalidateUserCache(userId: string) {
+  userCache.delete(userId);
 }
 
 export async function trafficLog(c: Context, next: Next) {
@@ -74,21 +80,30 @@ export async function trafficLog(c: Context, next: Next) {
   const path = c.req.path;
   const method = c.req.method;
 
-  // ─── Instant admin tagging: any authenticated admin request marks
-  // the IP+FP as admin BEFORE the block check runs. This means an
-  // administrator can never be auto-blocked even on the very first
-  // request after the backend cold-starts.
+  // ─── Instant admin tagging + banned-account rejection.
+  // Any authenticated request runs through here. We resolve the role +
+  // ban status (cached 30s) so a banned user with a still-valid JWT
+  // cannot use ANY API endpoint until their session is invalidated.
   const userId = c.req.header("x-user-id");
+  let isAdmin = false;
   if (userId) {
-    const role = await lookupRole(userId);
-    if (role === "admin") {
-      svc.registerAdminIp(ip);
-      if (fp) svc.registerAdminFp(fp);
+    const info = await lookupUser(userId);
+    if (info) {
+      if (info.role === "admin") {
+        svc.registerAdminIp(ip);
+        if (fp) svc.registerAdminFp(fp);
+        isAdmin = true;
+      }
+      if (info.banned && !isAdmin) {
+        // ACCOUNT_BANNED — the frontend interceptor / NextAuth jwt callback
+        // turns this into an immediate sign-out + redirect.
+        return c.json({ error: "ACCOUNT_BANNED" }, 403);
+      }
     }
   }
 
   // ─── Hard block: IP / device / hardware (admins are never blocked) ───
-  const isAdmin = svc.isAdminIp(ip) || svc.isAdminFp(fp);
+  isAdmin = isAdmin || svc.isAdminIp(ip) || svc.isAdminFp(fp);
   if (
     !isAdmin &&
     (svc.isBlocked(ip) || svc.isDeviceBlocked(fp) || svc.isHardwareBlocked(hwfp))

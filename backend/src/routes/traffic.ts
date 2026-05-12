@@ -11,8 +11,47 @@ import { getClientIp } from "../middleware/traffic-log";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import {
+  signValue,
+  verifySigned,
+  parseCookieHeader,
+  buildSetCookie,
+  DEVICE_COOKIE,
+  BLOCK_COOKIE,
+} from "../lib/cookie-sign";
 
 const trafficRouter = new Hono();
+
+// One year — block must outlive any reasonable session.
+const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function issueDeviceCookies(c: any, fp: string, blocked: boolean) {
+  // lk_dev = signed fingerprint hash (so the backend can re-verify a
+  // returning device server-side without trusting any client header).
+  c.header(
+    "Set-Cookie",
+    buildSetCookie(DEVICE_COOKIE, signValue(fp), {
+      maxAge: DEVICE_COOKIE_MAX_AGE,
+    }),
+    { append: true }
+  );
+  // lk_blk = signed "1" while blocked, or expired immediately when not.
+  if (blocked) {
+    c.header(
+      "Set-Cookie",
+      buildSetCookie(BLOCK_COOKIE, signValue("1"), {
+        maxAge: DEVICE_COOKIE_MAX_AGE,
+      }),
+      { append: true }
+    );
+  } else {
+    c.header(
+      "Set-Cookie",
+      buildSetCookie(BLOCK_COOKIE, "", { maxAge: 0 }),
+      { append: true }
+    );
+  }
+}
 
 // ─── Public rate limiter (60 req/60s per IP) ───
 const publicRate: Map<string, number[]> = new Map();
@@ -205,6 +244,57 @@ trafficRouter.post("/register-fingerprint", async (c) => {
     comps.hardware_hash = body.hardwareHash.slice(0, 128);
   }
   const blocked = await svc.registerFingerprint(body.ip || ip, body.hash, comps);
+  // Issue HttpOnly signed cookies so the Next.js edge middleware can verify
+  // the block on every navigation without trusting any client-writable state.
+  issueDeviceCookies(c, body.hash, blocked);
+  return c.json({ blocked });
+});
+
+// ───── GET /traffic/check-block ─────
+// Server-to-server endpoint called by the Next.js edge middleware on every
+// page load. Verifies the HttpOnly signed cookies and cross-checks against
+// the live block lists. Always authoritative — never trusts the lk_blk
+// cookie alone (it could be stale if the admin unblocked the device).
+trafficRouter.get("/check-block", async (c) => {
+  const ip = getClientIp(c);
+  const cookies = parseCookieHeader(c.req.header("Cookie"));
+  const fp = verifySigned(cookies[DEVICE_COOKIE]);
+  const hwfp = c.req.header("x-hwfp") || "";
+
+  const svc = trafficService();
+  await svc.init();
+
+  // Admins are never blocked. Re-tag here so a returning admin can never
+  // be locked out even if their session token isn't on the request yet.
+  const isAdmin = svc.isAdminIp(ip) || (fp ? svc.isAdminFp(fp) : false);
+  if (isAdmin) {
+    // Clear any stale block cookie so the middleware lets them through.
+    c.header(
+      "Set-Cookie",
+      buildSetCookie(BLOCK_COOKIE, "", { maxAge: 0 }),
+      { append: true }
+    );
+    return c.json({ blocked: false });
+  }
+
+  let blocked = svc.isBlocked(ip);
+  if (!blocked && fp) blocked = svc.isDeviceBlocked(fp);
+  if (!blocked && hwfp) blocked = svc.isHardwareBlocked(hwfp);
+
+  // Re-issue the signed cookie so the middleware can short-circuit on the
+  // very next request without a backend round-trip.
+  if (fp) {
+    c.header(
+      "Set-Cookie",
+      buildSetCookie(
+        BLOCK_COOKIE,
+        blocked ? signValue("1") : "",
+        { maxAge: blocked ? DEVICE_COOKIE_MAX_AGE : 0 }
+      ),
+      { append: true }
+    );
+  }
+
   return c.json({ blocked });
 });
 

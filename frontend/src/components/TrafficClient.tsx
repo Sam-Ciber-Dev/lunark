@@ -19,17 +19,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const FP_KEY = "lk_fp";
 const HWFP_KEY = "lk_hwfp";
 
-// Set a non-HttpOnly cookie so the Next.js middleware (edge) can read it on
-// the next navigation and block the device server-side before any HTML is
-// rendered. We cannot make it HttpOnly because the client needs to set it.
-function markBlockedCookie() {
-  // 30 days; if the admin unblocks the device the cookie is cleared by
-  // /traffic/register-fingerprint returning blocked:false on next mount.
-  document.cookie = "lk_blocked=1; path=/; max-age=2592000; samesite=lax";
-}
-function clearBlockedCookie() {
-  document.cookie = "lk_blocked=; path=/; max-age=0; samesite=lax";
-}
+// Note: the block state is held in HttpOnly cookies (`lk_dev` + `lk_blk`)
+// set by the backend via Set-Cookie. The client cannot read or forge them.
+// Deleting them in DevTools merely strips identity; on the next mount the
+// backend's fuzzy matching re-applies the block via the hardware hash.
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -127,12 +120,11 @@ export default function TrafficClient() {
               components: components ?? {},
             }),
             keepalive: true,
+            credentials: "include", // Required so the backend can Set-Cookie HttpOnly tokens.
           }).then((r) => r.json()).then((d) => {
             if (d?.blocked) {
-              markBlockedCookie();
+              // Backend already set lk_blk HttpOnly; just navigate.
               window.location.href = "/blocked";
-            } else {
-              clearBlockedCookie();
             }
           }).catch(() => {});
         }
