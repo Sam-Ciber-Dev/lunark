@@ -19,6 +19,7 @@ import {
 } from "../db/schema";
 import { requireAdmin } from "../middleware/admin";
 import { invalidateUserCache } from "../middleware/traffic-log";
+import { broadcastAccountEvent } from "../lib/account-events";
 import {
   sendNewsletterBroadcast,
   sendSupportReply,
@@ -1176,6 +1177,7 @@ adminRouter.patch("/news/subscribers/:id", async (c) => {
         .set({ name: newName, updatedAt: new Date().toISOString() })
         .where(eq(users.id, u.id));
       try { await sendAccountRenamedEmail(sub.email, u.name, newName, reason); } catch {}
+      try { broadcastAccountEvent(u.id, { type: "renamed", newName }); } catch {}
     }
   }
 
@@ -1203,6 +1205,14 @@ adminRouter.delete("/news/subscribers/:id", async (c) => {
   // Send notification email BEFORE deleting so we still have the email value.
   try { await sendAccountDeletedEmail(sub.email, reason); } catch {}
 
+  // Look up the user id first so we can broadcast the deleted event AFTER
+  // the row is gone (the SSE handler reads the queue, not the DB).
+  const [target] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, sub.email))
+    .limit(1);
+
   // Delete user account if it exists. Cascade FKs remove dependent rows
   // (cart, wishlist, orders.user_id → set null, etc.). Also drop the
   // newsletter row + any banned-email entry so the email can be reused
@@ -1210,6 +1220,11 @@ adminRouter.delete("/news/subscribers/:id", async (c) => {
   await db.delete(users).where(eq(users.email, sub.email));
   await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.id, id));
   await db.delete(newsletterBannedEmails).where(eq(newsletterBannedEmails.email, sub.email));
+
+  if (target) {
+    try { invalidateUserCache(target.id); } catch {}
+    try { broadcastAccountEvent(target.id, { type: "deleted" }); } catch {}
+  }
 
   return c.json({ success: true });
 });
@@ -1258,6 +1273,7 @@ adminRouter.post("/news/subscribers/:id/ban", async (c) => {
       })
       .where(eq(users.id, target.id));
     try { invalidateUserCache(target.id); } catch {}
+    try { broadcastAccountEvent(target.id, { type: "banned", reason }); } catch {}
   }
 
   try { await sendAccountBannedEmail(row.email, reason); } catch {}
@@ -1317,6 +1333,7 @@ adminRouter.post("/news/banned", async (c) => {
       })
       .where(eq(users.id, u.id));
     try { invalidateUserCache(u.id); } catch {}
+    try { broadcastAccountEvent(u.id, { type: "banned", reason }); } catch {}
   }
 
   try { await sendAccountBannedEmail(email, reason); } catch {}
@@ -1352,6 +1369,7 @@ adminRouter.delete("/news/banned/:email", async (c) => {
     // Bust the in-memory ban cache so the next API call from this user
     // is allowed through immediately (no 30s wait).
     try { invalidateUserCache(u.id); } catch {}
+    try { broadcastAccountEvent(u.id, { type: "unbanned" }); } catch {}
   }
 
   // Restore newsletter subscription (ban deletes the row; unban should put it back).

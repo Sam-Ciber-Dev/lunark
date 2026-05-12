@@ -7,6 +7,8 @@ import { db } from "../db";
 import { users, verificationCodes, newsletterSubscribers, newsletterBannedEmails } from "../db/schema";
 import { registerSchema, loginSchema } from "@lunark/shared";
 import { rateLimit } from "../middleware/rate-limit";
+import { streamSSE } from "hono/streaming";
+import { subscribeAccountEvents, type AccountEvent } from "../lib/account-events";
 
 const auth = new Hono();
 
@@ -653,6 +655,94 @@ auth.get("/account-status", async (c) => {
     role: u.role,
     name: u.name,
     image: u.image,
+  });
+});
+
+// GET /auth/account-events?userId=… — Server-Sent Events stream that pushes
+// sub-second logout signals to the authenticated user when an admin bans,
+// unbans, deletes or renames their account. This is the realtime equivalent
+// of polling /account-status every 20s, but with zero latency.
+//
+// Security: we accept userId from the query string (cannot send custom
+// headers with EventSource). The userId alone is a UUIDv4 (122 bits of
+// entropy) so it is not guessable, but a leak would let an attacker open
+// a stream to know when that account is banned. The stream NEVER reveals
+// any data the attacker doesn't already imply by trying to log in, so the
+// information disclosure risk is negligible.
+auth.get("/account-events", async (c) => {
+  const userId = c.req.query("userId");
+  if (!userId || userId.length > 64) {
+    return c.text("missing userId", 400);
+  }
+
+  // Verify the user exists before opening the stream — avoids zombie
+  // connections from clients with stale localStorage.
+  const u = await db
+    .select({ id: users.id, isBanned: users.isBanned })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  if (!u) {
+    return c.text("not found", 404);
+  }
+
+  return streamSSE(c, async (stream) => {
+    // Send initial connected event so the client knows the channel is open.
+    await stream.writeSSE({ event: "connected", data: "1" });
+
+    // If the user is ALREADY banned when they connect, push immediately.
+    if (u.isBanned) {
+      await stream.writeSSE({ event: "banned", data: JSON.stringify({ type: "banned" }) });
+    }
+
+    // Subscribe to future events. The subscription is closed on disconnect.
+    const queue: AccountEvent[] = [];
+    let resolveWait: (() => void) | null = null;
+
+    const unsubscribe = subscribeAccountEvents(userId, (ev) => {
+      queue.push(ev);
+      if (resolveWait) {
+        resolveWait();
+        resolveWait = null;
+      }
+    });
+
+    // Heartbeat every 25s so proxies / load balancers don't close the
+    // connection as idle. EventSource on the client reconnects automatically
+    // anyway but heartbeats avoid the reconnect storm.
+    const heartbeat = setInterval(() => {
+      stream.writeSSE({ event: "ping", data: String(Date.now()) }).catch(() => {});
+    }, 25_000);
+
+    stream.onAbort(() => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      if (resolveWait) resolveWait();
+    });
+
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        if (queue.length === 0) {
+          // Wait until a new event arrives or the client disconnects.
+          await new Promise<void>((res) => { resolveWait = res; });
+        }
+        while (queue.length > 0) {
+          const ev = queue.shift()!;
+          await stream.writeSSE({
+            event: ev.type,
+            data: JSON.stringify(ev),
+          });
+          // Terminal events: close the stream after delivering.
+          if (ev.type === "banned" || ev.type === "deleted") {
+            return;
+          }
+        }
+      }
+    } finally {
+      clearInterval(heartbeat);
+      unsubscribe();
+    }
   });
 });
 

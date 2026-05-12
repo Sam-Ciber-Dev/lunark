@@ -192,6 +192,14 @@ export default function TrafficClient() {
   // an admin, log them out within ~20s and bounce them back to the home page.
   // This works on EVERY page because TrafficClient is mounted globally — it
   // does not depend on the NextAuth middleware matcher.
+  //
+  // This is the SAFETY NET. The primary mechanism is the SSE stream below
+  // which fires in <1s. We keep this poll because:
+  //   1. The SSE stream may drop (proxies, sleep, offline) and the client
+  //      auto-reconnects — between the drop and reconnect, this poll catches
+  //      anything that happened in that window.
+  //   2. If the backend SSE endpoint is ever unreachable but /account-status
+  //      still works, the system degrades gracefully.
   useEffect(() => {
     if (status !== "authenticated") return;
     const userId = session?.user?.id;
@@ -214,6 +222,39 @@ export default function TrafficClient() {
     check();
     const id = setInterval(check, 20_000);
     return () => { cancelled = true; clearInterval(id); };
+  }, [status, session?.user?.id]);
+
+  // ─── REAL-TIME ACCOUNT EVENTS (sub-second logout) ─────────────────────
+  // Opens a Server-Sent Events stream to /auth/account-events. The backend
+  // pushes `banned` / `deleted` / `unbanned` / `renamed` events the moment
+  // an admin acts on the account. EventSource auto-reconnects on drops.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const url = `${API_URL}/auth/account-events?userId=${encodeURIComponent(userId)}`;
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(url);
+    } catch {
+      return; // EventSource unsupported — the poll above handles it.
+    }
+
+    const forceLogout = async () => {
+      try { await signOut({ redirect: false }); } catch {}
+      window.location.href = "/";
+    };
+
+    es.addEventListener("banned", () => { void forceLogout(); });
+    es.addEventListener("deleted", () => { void forceLogout(); });
+    es.addEventListener("renamed", () => {
+      // Just refresh the session/page so the new name is reflected.
+      window.location.reload();
+    });
+    // unbanned + ping + connected: silent.
+
+    return () => { es?.close(); };
   }, [status, session?.user?.id]);
 
   return null;
