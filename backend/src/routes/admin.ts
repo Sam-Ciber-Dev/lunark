@@ -478,8 +478,11 @@ Responde sempre na mesma língua que o admin escreveu (Português ou Inglês).
 Sê concisa, profissional e direta. Quando úteis, sugere comandos práticos ou ações concretas no painel.
 Tens vários administradores nesta conversa partilhada — quando alguém te mencionar com @luny, responde a essa pessoa.`;
 
-const GROQ_TEXT_MODEL = "llama-3.3-70b-versatile";
-const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Model IDs are overridable via env so we can react to Groq deprecations
+// without a code change. Defaults track Groq's current production/recommended
+// models (llama-3.3-70b-versatile + llama-4-scout were retired in 2026).
+const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL ?? "openai/gpt-oss-120b";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.6-27b";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 const MAX_CONTENT_LEN = 4000;

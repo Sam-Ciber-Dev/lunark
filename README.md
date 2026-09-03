@@ -22,7 +22,7 @@ The original codebase is preserved in the [`legacy/`](legacy/) folder so you can
 | Bot Protection | Cloudflare Turnstile | Invisible CAPTCHA |
 | Edge Functions | Cloudflare Workers | Rate limiting, validation |
 | Frontend Hosting | Vercel | Automatic deploys, global CDN |
-| API Hosting | Fly.io | Dockerized API with edge deployment |
+| API Hosting | Vercel (Serverless Functions) | Hono API mounted in Next.js route handlers |
 | Images | Cloudflare R2 | Product image storage |
 
 ## Features
@@ -79,7 +79,7 @@ lunark/
 │   │   │   ├── lib/         # API client, auth, utils
 │   │   │   └── i18n/        # PT/EN translations
 │   │   └── package.json
-│   └── api/                 # Hono.js API (Fly.io)
+│   └── api/                 # Hono.js API (Vercel serverless, mounted in Next.js)
 │       ├── src/
 │       │   ├── routes/      # Products, cart, orders, auth, admin
 │       │   ├── middleware/   # Auth, rate-limit, CORS, validation
@@ -107,7 +107,7 @@ This project demonstrates a complete architectural evolution:
 | Auth | Plain text passwords | bcrypt + NextAuth.js + OAuth |
 | Security | SQL injection vulnerable | Zod validation, CSRF, rate limiting |
 | Frontend | HTML/CSS/JS (no framework) | Next.js 14 + Tailwind + shadcn/ui |
-| Deployment | Localhost only (XAMPP) | Vercel + Fly.io (global) |
+| Deployment | Localhost only (XAMPP) | Vercel (global) |
 | Architecture | Monolithic PHP scripts | Monorepo with separated concerns |
 | i18n | None | Full PT/EN support |
 | Email | None | Brevo transactional + newsletters |

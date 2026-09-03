@@ -15,6 +15,7 @@ import { wishlistRouter } from "./routes/wishlist";
 import { profileRouter } from "./routes/profile";
 import { newsletterRouter } from "./routes/newsletter";
 import { trafficRouter } from "./routes/traffic";
+import { cronRouter } from "./routes/cron";
 import { securityHeaders } from "./middleware/security-headers";
 import { trafficLog } from "./middleware/traffic-log";
 
@@ -76,5 +77,6 @@ app.route("/wishlist", wishlistRouter);
 app.route("/profile", profileRouter);
 app.route("/newsletter", newsletterRouter);
 app.route("/traffic", trafficRouter);
+app.route("/cron", cronRouter);
 
 export default app;

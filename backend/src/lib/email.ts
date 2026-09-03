@@ -332,3 +332,22 @@ export async function sendAccountDeletedEmail(email: string, reason: string): Pr
     ),
   });
 }
+
+// ——— Keep-alive ———
+// Brevo deactivates free accounts after long inactivity (no email sends). A
+// scheduled cron (see .github/workflows/brevo-keepalive.yml) calls this monthly
+// so the account keeps sending traffic and never gets disabled.
+export async function sendKeepAliveEmail(): Promise<boolean> {
+  const now = new Date().toISOString();
+  return send({
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email: ADMIN_EMAIL, name: "Admin" }],
+    subject: "Lunark — Brevo keep-alive",
+    htmlContent:
+      '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">' +
+      '<h2 style="margin:0 0 8px">Brevo keep-alive</h2>' +
+      '<p style="color:#555;font-size:13px">Automated monthly ping to keep the Brevo account active. No action needed.</p>' +
+      '<p style="font-size:12px;color:#999">' + escapeHtml(now) + '</p>' +
+      '</div>',
+  });
+}
