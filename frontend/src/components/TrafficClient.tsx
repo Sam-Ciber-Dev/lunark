@@ -146,7 +146,8 @@ export default function TrafficClient() {
     }).catch(() => {});
   }, [pathname]);
 
-  // Heartbeat every 30s
+  // Heartbeat every 30s, plus refresh when the tab becomes visible again so the
+  // backend sees a live signal even after the user switches away and back.
   useEffect(() => {
     const tick = () => {
       const fp = fpRef.current || localStorage.getItem(FP_KEY) || "";
@@ -158,8 +159,18 @@ export default function TrafficClient() {
         keepalive: true,
       }).catch(() => {});
     };
+    tick();
     const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pagehide", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pagehide", tick);
+    };
   }, []);
 
   // Admin heartbeat: fires immediately whenever the user is authenticated as
@@ -185,7 +196,14 @@ export default function TrafficClient() {
     };
     tick();
     const id = setInterval(tick, 20_000);
-    return () => clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [status, session?.user?.id, session?.user]);
 
   // Account-status poll: if the authenticated user gets banned or deleted by

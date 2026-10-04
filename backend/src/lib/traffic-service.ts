@@ -93,7 +93,7 @@ const LOCALHOST = new Set(["127.0.0.1", "::1", "localhost", "unknown", ""]);
 // within at most VPN_CACHE_TTL_MS. Kept short so the column feels realtime.
 // We avoid hammering ip-api.com (45 req/min on the free tier) by batching
 // all stale IPs in a single /batch call from geoLookupMany().
-const VPN_CACHE_TTL_MS = 10 * 1000; // 10 seconds
+const VPN_CACHE_TTL_MS = 5 * 1000; // 5 seconds for near-real-time VPN status refresh
 
 // ───── VPN / hosting heuristic (used as fallback for the free ip-api tier) ─────
 // Matches against the ISP / Org / AS strings returned by ip-api. We look for

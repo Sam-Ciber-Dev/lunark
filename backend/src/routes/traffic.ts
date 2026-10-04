@@ -10,8 +10,8 @@ import { streamSSE } from "hono/streaming";
 import { trafficService } from "../lib/traffic-service";
 import { getClientIp } from "../middleware/traffic-log";
 import { db } from "../db";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { users, trafficAdminPresence } from "../db/schema";
+import { and, eq } from "drizzle-orm";
 import {
   signValue,
   verifySigned,
@@ -202,11 +202,38 @@ trafficRouter.post("/admin-heartbeat", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { ip?: string; fp?: string };
   const ip = body.ip || getClientIp(c);
   if (!ip) return c.json({ ok: false });
+
+  const fp = (body.fp ?? "").trim();
   const svc = trafficService();
   await svc.init();
-  svc.heartbeat(ip, body.fp ?? "");
+  svc.heartbeat(ip, fp);
   svc.registerAdminIp(ip);
-  if (body.fp) svc.registerAdminFp(body.fp);
+  if (fp) svc.registerAdminFp(fp);
+
+  const now = new Date().toISOString();
+  const row = await db
+    .select()
+    .from(trafficAdminPresence)
+    .where(and(eq(trafficAdminPresence.userId, userId), eq(trafficAdminPresence.fingerprintHash, fp || "")))
+    .limit(1)
+    .get();
+
+  if (row) {
+    await db
+      .update(trafficAdminPresence)
+      .set({ ip, lastSeenAt: now, isOnline: true })
+      .where(eq(trafficAdminPresence.id, row.id));
+  } else if (fp) {
+    await db.insert(trafficAdminPresence).values({
+      userId,
+      fingerprintHash: fp,
+      ip,
+      connectedAt: now,
+      lastSeenAt: now,
+      isOnline: true,
+    });
+  }
+
   return c.json({ ok: true });
 });
 

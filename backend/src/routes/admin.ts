@@ -1410,6 +1410,7 @@ import {
   trafficBlockedIps,
   trafficBlockedDevices,
   trafficDeviceIps,
+  trafficAdminPresence,
   trafficVpnCache,
   trafficReports,
 } from "../db/schema";
@@ -1497,15 +1498,44 @@ adminRouter.get("/traffic/connections", async (c) => {
   };
 
   const seen = new Map<string, Conn>();
+  const ipToFingerprint = new Map<string, string>();
+  const recentIpMergeWindowMs = 2 * 60_000;
+  const nowTs = Date.now();
+
   for (const r of rows) {
     const ip = r.ip;
-    const fp = r.fingerprintHash || "";
+    const fp = (r.fingerprintHash || "").trim();
     if (!ip || ip === "127.0.0.1" || ip === "::1" || isInfraIp(ip)) continue;
     if (!fp) continue; // bots without fingerprint are skipped
 
     let conn = seen.get(fp);
+
     if (!conn) {
-      conn = {
+      const previousKey = ipToFingerprint.get(ip);
+      if (previousKey) {
+        const previous = seen.get(previousKey);
+        if (previous) {
+          const previousLast = previous._lastSeen
+            ? Date.parse(previous._lastSeen.replace(" ", "T") + "Z")
+            : 0;
+          if (!Number.isNaN(previousLast) && nowTs - previousLast <= recentIpMergeWindowMs) {
+            conn = previous;
+          }
+        }
+      }
+    }
+
+    if (!conn) {
+      const recentSameIp = Array.from(seen.values()).find((candidate) => {
+        if (!candidate._ipsSet.has(ip)) return false;
+        const candidateLast = candidate._lastSeen
+          ? Date.parse(candidate._lastSeen.replace(" ", "T") + "Z")
+          : 0;
+        if (Number.isNaN(candidateLast)) return false;
+        return nowTs - candidateLast <= recentIpMergeWindowMs;
+      });
+
+      conn = recentSameIp ?? {
         fingerprint_hash: fp,
         ips: [],
         ip_details: [],
@@ -1522,8 +1552,10 @@ adminRouter.get("/traffic/connections", async (c) => {
         _ipLast: new Map(),
         _lastSeen: "",
       };
-      seen.set(fp, conn);
+
+      if (!recentSameIp) seen.set(fp, conn);
     }
+
     conn.requests += 1;
     if (!conn._ipsSet.has(ip)) {
       conn._ipsSet.add(ip);
@@ -1532,9 +1564,14 @@ adminRouter.get("/traffic/connections", async (c) => {
       conn._ipVpn.set(ip, true);
     }
     conn._ipLast.set(ip, r.createdAt);
+    conn.fingerprint_hash = conn.fingerprint_hash || fp;
     if (r.isVpn) conn.is_vpn = true;
     if (r.method === "PAGE") conn.method = "PAGE";
+    conn.country = conn.country || r.country;
+    conn.city = conn.city || r.city;
+    conn.vpn_provider = conn.vpn_provider || r.vpnProvider;
     conn._lastSeen = r.createdAt;
+    ipToFingerprint.set(ip, conn.fingerprint_hash);
   }
 
   // Enrich with persistent IP history per fingerprint
@@ -1579,6 +1616,17 @@ adminRouter.get("/traffic/connections", async (c) => {
   );
 
   const now = Date.now();
+  const presenceCutoff = new Date(now - 120_000).toISOString();
+  const adminPresence = await db
+    .select()
+    .from(trafficAdminPresence)
+    .where(gte(trafficAdminPresence.lastSeenAt, presenceCutoff))
+    .catch(() => [] as typeof trafficAdminPresence.$inferSelect[]);
+  const adminPresenceMap = new Map<string, typeof adminPresence[number]>();
+  for (const row of adminPresence) {
+    adminPresenceMap.set(row.fingerprintHash, row);
+  }
+
   const out = Array.from(seen.values()).map((c) => {
     const ipList = Array.from(c._ipsSet).sort((a, b) => {
       const la = c._ipLast.get(a) ?? "";
@@ -1597,6 +1645,12 @@ adminRouter.get("/traffic/connections", async (c) => {
       })();
     const hb = svc.isOnlineFp(c.fingerprint_hash) ||
       Array.from(c._ipsSet).some((ip) => svc.isOnline(ip));
+    const serverPresence = adminPresenceMap.get(c.fingerprint_hash);
+    const isAdmin =
+      !!serverPresence ||
+      svc.isAdminFp(c.fingerprint_hash) ||
+      Array.from(c._ipsSet).some((ip) => svc.isAdminIp(ip));
+    const adminOnline = !!serverPresence && (serverPresence.isOnline || Date.now() - Date.parse(serverPresence.lastSeenAt.replace(" ", "T") + "Z") < 120_000);
     return {
       fingerprint_hash: c.fingerprint_hash,
       ips: ipList,
@@ -1607,8 +1661,8 @@ adminRouter.get("/traffic/connections", async (c) => {
       vpn_provider: c.vpn_provider,
       method: c.method,
       requests: c.requests,
-      online: hb || !!recent,
-      is_admin: svc.isAdminFp(c.fingerprint_hash),
+      online: hb || !!recent || adminOnline,
+      is_admin: isAdmin,
     };
   });
 

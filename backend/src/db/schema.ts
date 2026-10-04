@@ -446,6 +446,17 @@ export const trafficDeviceIps = sqliteTable("traffic_device_ips", {
   lastSeenAt: text("last_seen_at").notNull().default(sql`(datetime('now'))`),
 });
 
+/** Server-side presence for admins, independent from a browser tab staying open. */
+export const trafficAdminPresence = sqliteTable("traffic_admin_presence", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fingerprintHash: text("fingerprint_hash").notNull(),
+  ip: text("ip").notNull(),
+  connectedAt: text("connected_at").notNull().default(sql`(datetime('now'))`),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`(datetime('now'))`),
+  isOnline: integer("is_online", { mode: "boolean" }).notNull().default(true),
+});
+
 /** Cache for VPN/proxy lookups (avoid repeated external API calls). */
 export const trafficVpnCache = sqliteTable("traffic_vpn_cache", {
   ip: text("ip").primaryKey(),
