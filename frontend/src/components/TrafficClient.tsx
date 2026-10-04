@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 const FP_KEY = "lk_fp";
 const HWFP_KEY = "lk_hwfp";
 
